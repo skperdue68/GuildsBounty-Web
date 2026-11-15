@@ -7,11 +7,13 @@ landed on `main`.
 
 ### Added
 
-- **An upload now says what it did to your list.** The answer under the file drop gives each
-  account's totals and then, underneath, `2 items removed, 5 items added, 1 item refreshed`.
-  A refresh is an item you already had whose quantity the file reports differently - a stack
-  that grew or shrank - so it is not mistaken for something new or something gone, and an
-  item left alone because a request is still open is counted as none of the three.
+- **The request count on the avatar keeps itself up to date.** A new ask for one of your
+  items puts the number on your avatar the moment it lands - no refresh, and not only in the
+  window it arrived in. The update is addressed to your sign-in alone and carries the total
+  rather than a change, so two tabs and a phone cannot end up showing different numbers, and
+  a page that was asleep or offline is told the count that stands as soon as it reconnects.
+  Taking a request back lowers it the same way, and a basket sent to several owners tells each
+  of them their own number.
 - **A count on the avatar** says how many requests are waiting to be processed: a small red
   circle with the number in white, on the top right of the avatar and half outside it. It
   counts what the requests list counts - one per item, however many people asked for it,
@@ -55,6 +57,12 @@ landed on `main`.
   what an item with no requirement carries. They still have no champion points, glyph or
   style, because they have none: the row reads *Level 1* and stops there, rather than
   looking as though its level were simply unknown.
+- **An upload now says what it did to your list.** The answer under the file drop gives each
+  account's totals and then, underneath, `2 items removed, 5 items added, 1 item refreshed`.
+  A refresh is an item you already had whose quantity the file reports differently - a stack
+  that grew or shrank - so it is not mistaken for something new or something gone, and an
+  item left alone because a request is still open is counted as none of the three.
+
 
 ### Fixed
 
