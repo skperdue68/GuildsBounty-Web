@@ -109,10 +109,11 @@ t('the name the browser asked for is what is compared, not the proxy in front', 
   const server = read('server.js');
   const body = server.slice(server.indexOf('function requestHost(req)'));
 
-  assert.match(body.slice(0, 500), /x-forwarded-host/);
-  assert.ok(body.slice(0, 600).includes(".split(',')"), 'a proxy may list more than one');
-  assert.match(body.slice(0, 500), /replace\(\/:\\d\+\$\/, ''\)/, 'a port is not part of the name');
-  assert.match(body.slice(0, 500), /toLowerCase\(\)/);
+  assert.match(body.slice(0, 900), /headers\.forwarded/, 'RFC 7239 Forwarded is read too');
+  assert.match(body.slice(0, 900), /x-forwarded-host/);
+  assert.ok(body.slice(0, 900).includes(".split(',')"), 'a proxy may list more than one');
+  assert.match(body.slice(0, 900), /replace\(\/:\\d\+\$\/, ''\)/, 'a port is not part of the name');
+  assert.match(body.slice(0, 900), /toLowerCase\(\)/);
 });
 
 t('only the landing page carries it, so a live refresh cannot nag', () => {

@@ -85,9 +85,19 @@ retry timers - is optional and off when blank. See `.env.example` for each one.
 `guildsbounty.perdues.me`, and somebody who arrives by the old name gets a short card:
 *ItemShare is now Guild's Bounty*, with the new address linked. It goes away after ten seconds
 or on the cross, and it is drawn only on the page they land on - a visit by the new name never
-sees it, and a live refresh never brings it back. The name is read from `X-Forwarded-Host` when
-a proxy supplies one, then `Host`, so the check follows the address the browser asked for
-rather than the proxy's own.
+sees it, and a live refresh never brings it back. The name is read from `Forwarded` (RFC 7239,
+`host=`), then `X-Forwarded-Host`, then `Host`, so the check follows the address the browser
+asked for rather than the proxy's own. If the card never appears behind a proxy, ask the app
+what it saw: every response carries **`X-Site-Host`**, the name it resolved.
+
+```
+curl -sI https://itemshare.perdues.me/ | grep -i x-site-host
+```
+
+The name you asked for means the proxy is passing it and the card should draw; a container
+name, `localhost` or an IP means the proxy is rewriting `Host` without saying what it was, and
+the answer is `proxy_set_header Host $host;` plus `proxy_set_header X-Forwarded-Host $host;`
+(or Caddy's `header_up Host {host}`).
 
 One deliberate oddity: **`MARIADB_DATABASE` is ignored.** Guild's Bounty always uses its
 own database (`ITEMSHARE_DATABASE`, default `itemshare`), so it cannot write into
@@ -556,8 +566,10 @@ do, not what the list looks like. Its chevron is the same stroke as the per-type
 right when a press would open everything, down when it would shut. One press moves that tab's
 list only, writes that list's own cookie, and keeps the rows in step with the search box, so
 folding everything on **Browse Offers** leaves **My Inventory** exactly as it was. The button
-is drawn only when the list is grouped and has more than one type to act on; a flat list has
-no folds for it to reach.
+is drawn whenever that list is grouped, even when it holds a single type - folding that one
+heading away is still a press worth making, and a guild whose members share only collectibles
+would otherwise never see it. A flat list, or an empty one, has no folds for it to reach, so
+there the button is simply not drawn.
 
 On the row above the table, beside **Grouped by type**, **Search this list** narrows what is
 already on the page, and a cross at the end of the box empties it and puts the list back. It

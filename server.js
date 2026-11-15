@@ -178,9 +178,13 @@ const NEW_SITE_URL = String(process.env.NEW_SITE_URL || 'https://guildsbounty.pe
  * appear for everybody or for nobody depending on the setup.
  */
 function requestHost(req) {
-  const raw = String(
-    (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || ''
-  );
+  const headers = (req && req.headers) || {};
+  // RFC 7239 `Forwarded: for=1.2.3.4;host=itemshare.perdues.me;proto=https` is what a proxy
+  // that does not send X-Forwarded-Host usually sends instead, so it is read first. Only the
+  // first entry counts: that is the name the browser asked for, the rest are hops behind it.
+  const forwarded = String(headers.forwarded || '').split(',')[0];
+  const named = /(?:^|;)\s*host=("?)([^";]+)\1/i.exec(forwarded);
+  const raw = String((named && named[2]) || headers['x-forwarded-host'] || headers.host || '');
 
   return raw.split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
 }
@@ -248,6 +252,16 @@ const sessionMiddleware = session({
   cookie: { httpOnly: true, sameSite: 'lax', secure: false, maxAge: SESSION_TTL_MS },
 });
 app.use(sessionMiddleware);
+
+// The name the app believes it was asked for, said back in a header. The rebrand card turns on
+// that name, and behind a proxy that rewrites Host - or sends neither X-Forwarded-Host nor
+// Forwarded - the app sees the proxy's own name instead and the card can never appear.
+// `curl -sI https://the-old-name/` then says whether the name arrived (it echoes it) or
+// something else did (a container name, `localhost`, an IP), which is the whole question.
+app.use((req, res, next) => {
+  res.set('X-Site-Host', requestHost(req) || 'unknown');
+  next();
+});
 
 // Every request after this runs in the database its person belongs to, so a demo
 // session cannot reach the real guilds even through a route that forgot the rule.
