@@ -201,6 +201,11 @@ armour and weapon class, handedness), the furniture data id, the flavour text an
 of every ESO getter that answered; none of that was ever drawn or filtered on, so the parser
 stopped reading it and migration 030 drops the columns it used to fill.
 
+The demo catalogue (`lib/demoItems.js`), `npm run simulate` and the fulfilment fixture build
+their items the same way, so none of them carries those fields either. The demo database needs
+no separate migration: it is dropped and rebuilt from the same migrations on every start, so it
+gets migration 030 along with everything else.
+
 **Fill in, then prune.** An upload writes every item the file mentions where it already
 stands - same row, same id, same first-seen date - and only afterwards deletes the rows
 the file no longer mentions. Nothing blinks out of the list between one upload and the
