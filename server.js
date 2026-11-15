@@ -45,6 +45,7 @@ import {
   getFulfillForm,
   getOwnerContacts,
   countOwnerRequests,
+  getOwnerRequestHistory,
   getOwnerRequests,
   getRequesterNotifications,
   getRequesterHistory,
@@ -951,6 +952,11 @@ async function viewerAccountNames(req, connection, user) {
       alwaysShare: [],
       requestOffers: [],
     requests: [],
+    // What was asked of this person, and what became of the asks already answered: the
+    // Requests Received tab draws both.
+    received: [],
+    receivedHistory: [],
+    answered: null,
     basket: { count: 0, quantity: 0, secondsLeft: 0, holdMinutes: HOLD_MINUTES },
     basketRows: [],
     facets: { types: [], owners: [] },
@@ -1007,6 +1013,15 @@ async function viewerAccountNames(req, connection, user) {
           viewerUserId,
         });
         data.alwaysShare = await getAlwaysShareForViewer(connection, accountNames, filters);
+
+        // The owner's side of the same table, in the page rather than a page of its own: what
+        // is waiting on their items, and what they have already answered. A visitor has no
+        // accounts, so both stay empty and the tab is not drawn for them.
+        if (user) {
+          data.received = await getOwnerRequests(connection, accountNames);
+          data.receivedHistory = await getOwnerRequestHistory(connection, accountNames);
+          data.answered = readAnsweredCounts(req.query.answered);
+        }
         data.requestOffers = await getAlwaysShareForViewer(connection, requestScope, {
           ...filters,
           order: sharedOrder,
@@ -1997,8 +2012,12 @@ app.post('/owner/requests', upload.none(), async (req, res) => {
     }
 
     // Post, then redirect: a refresh shows the page again instead of answering again,
-    // and the rows that were answered are simply gone from the list.
-    res.redirect(303, `/owner/requests?answered=${outcome.fulfilled}-${outcome.cancelled}`);
+    // and the rows that were answered are simply gone from the list. An answer given in the
+    // Requests Received tab goes back to the list, where that tab is, and the tab repeats the
+    // confirmation the standalone page would have shown - the row it came from has gone.
+    const back = String(req.body && req.body.from) === 'list' ? '/' : '/owner/requests';
+
+    res.redirect(303, `${back}?answered=${outcome.fulfilled}-${outcome.cancelled}`);
   } catch (error) {
     sendPage(req, res, 500, {
       heading: 'That could not be recorded',

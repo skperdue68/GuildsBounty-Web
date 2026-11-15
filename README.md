@@ -471,7 +471,7 @@ as* control above the tabs picks it, and the choice is stored on the person
 signing out and follows you to another device. With a single account it is a label
 instead of a choice.
 
-The chosen account decides what **Others Inventory** shows: only items offered to guilds *that
+The chosen account decides what **Browse Offers** shows: only items offered to guilds *that
 account* belongs to. **My Inventory** deliberately spans every linked account and names the
 account and character holding each item, so a second account never hides what the first
 one shares. **My Requests** covers everything you have asked for, from any account.
@@ -485,15 +485,20 @@ have is skipped rather than shown blank. A champion-point item shows its CP as t
 level - `Level CP160`, not the 50 every character has long passed. Two Briarheart daggers share a name, a
 set and a colour, so seeing that one is level 50 and *Precise* and the other level 10 and
 *Sharpened* should not mean scanning across to a column: the pieces sit where the name
-is, on **Others Inventory**, on **My Inventory** and on the owner's *Requests for your items* page.
+is, on **Browse Offers**, on **My Inventory** and on the *Requests Received* tab.
 Every row also shows the owning account and quantity. `Location` is a column
 on **My Inventory** only, where it reads `Inventory (Character Name)` and the character is not
 repeated beside the account: which bag a copy is in is the question the person handing it
-over has to answer, and nothing the person asking is helped by. **Others Inventory** leaves the
+over has to answer, and nothing the person asking is helped by. **Browse Offers** leaves the
 column out altogether, so the copy's whereabouts stay on the owner's side of the site.
 
-Three tabs keep the split obvious, so no row needs a "You" tag: **Others Inventory** (other
-people's items), **My Inventory** (your own), and **My Requests**.
+Four tabs keep the split obvious, so no row needs a "You" tag: **Browse Offers** (other
+people's items, marked with a magnifier), **My Requests** (what you asked for, a list),
+**My Inventory** (your own, a box) and **Requests Received** (what was asked of you, an inbox
+tray). The order is the order the page is used in: browse, check what you asked for, look at
+what you hold, then answer. Each mark is drawn in the tab's own colour, including the lighter
+one a tab that is not open uses, and a visitor is given **Browse Offers** alone - the other
+three could only say "nothing here yet" to somebody with no accounts.
 
 Rows sit under their item type, alphabetical inside each group, until you turn that off.
 The switch above the table reads **Grouped by type** or **One list** and flips between
@@ -506,7 +511,7 @@ weapon first under Weapons, and Weapons is still where W falls in the alphabet.
 Every heading that has something to order by sorts: **Item**, **Added**, **Type**,
 **Trait**, **Location** (on **My Inventory**, where the column is drawn) and **Offered by**.
 Each cycles through three states on repeated clicks: ascending, descending, then off. As
-on the owner's requests page, several can be on at once. A press joins that column to the
+on *Requests Received*, several can be on at once. A press joins that column to the
 end of a queue, and each active heading carries its place as a small superscript before
 the arrow - a raised `2` then `\u25bc` reads as "the second sort, biggest first" - so a
 column that only breaks ties shows that it is doing something. The numbers are read from
@@ -522,7 +527,7 @@ so both survive a reload without ever appearing in the URL.
 On the row above the table, beside **Grouped by type**, **Search this list** narrows what is
 already on the page, and a cross at the end of the box empties it and puts the list back. It
 applies about a second after the last keystroke rather than on every letter, so a word is
-finished before the table redraws around it. Others Inventory and My Inventory each have their own box and
+finished before the table redraws around it. Browse Offers and My Inventory each have their own box and
 their own word: typing on one leaves the other list untouched, and switching tabs brings
 back that tab's word with the rows it narrows. Matching is partial and ignores case, and looks at everything a row says:
 the name, its type and trait, its enchantment, style and set, the storage place, and who
@@ -533,7 +538,7 @@ when none do, until the search is cleared. Its count follows the search too, rea
 heading never claims twelve rows above the four that are on screen. The search belongs to the lists of things on
 offer, so the box is not drawn while **My Requests** is open.
 
-The owner's *Requests for your items* table sorts differently, because its four columns
+The *Requests Received* table sorts differently, because its four columns
 answer different questions and one order cannot serve all of them. `Item`, `Stored at`,
 `Mail to` and `Asked` each cycle ascending, descending, off - and a second heading can be
 on at the same time, joining the end of the queue. The columns apply in the order the
@@ -678,17 +683,17 @@ would be a way to make the site send mail to strangers. And if the named ESO acc
 already belongs to another sign-in, the request is refused rather than filed under
 somebody else's character.
 
-The two tabs that only make sense for somebody with items and requests of their own
-(**My Inventory** and **My Requests**) are not drawn for a visitor, so the page offers the
-one list that applies. Nothing is hidden for effect: the list is real, and reading it is
+The three tabs that only make sense for somebody with items and requests of their own
+(**My Requests**, **My Inventory** and **Requests Received**) are not drawn for a visitor, so
+the page offers the one list that applies. Nothing is hidden for effect: the list is real, and reading it is
 the reason the sign-in card sits above it rather than in front of it.
 
-The overlap is resolved per list: for the account you browse as in *Others Inventory*, and across
+The overlap is resolved per list: for the account you browse as in *Browse Offers*, and across
 every linked account in *My Inventory*.
 
 ## Asking for something
 
-Every row in *Others Inventory* has a **Request** button that asks one of two things: **Request 1**,
+Every row in *Browse Offers* has a **Request** button that asks one of two things: **Request 1**,
 or **Request stack (N)** where N is everything still unclaimed. N is the copies nobody has
 claimed plus whatever is already in your own basket, never more than the raw `item_count`,
 so two people can never be promised the same five. What is picked there is the total you
@@ -706,7 +711,7 @@ or later is what puts an offer on the list; a file from an older build carries n
 its offers, and they are not shown until the next upload. A file that writes 0 is an answer
 too: the owner holds none, and that answer is shown: *My Inventory* keeps the owner's own
 offer listed with **0** offered while the file says the bag is empty, so an offer that has
-run dry is visible instead of gone, while *Others Inventory* leaves it out - a promise
+run dry is visible instead of gone, while *Browse Offers* leaves it out - a promise
 with nothing behind it is nothing to ask for. A count the file never wrote is not a row on
 either list. The server refuses what the list will not draw, and reopening an
 expired request follows the same rule, so two people cannot be promised the same handover.
@@ -1020,7 +1025,7 @@ a reserve. On a standing offer `held_quantity` is nullable, and null means the u
 said how many are held in the place the offer was marked: it is not read as zero, and not
 read as one copy either - the offer is simply not offered. A written 0 is an answer in its
 own right: the offer stays on *My Inventory* with 0 offered, where its owner can see it, and
-is left off *Others Inventory*.
+is left off *Browse Offers*.
 
 A guild id and its world are the stable identity; names are display only, because names
 are neither unique nor stable.
@@ -1568,14 +1573,15 @@ pending, and the same link answers them later.
   before per-row saving still works: `quantity_<id>` fields are read the same way.
 - GET shows the page and POST records a row. A mail client is never trusted with a form,
   so this page is the only way a message gets answered.
-- The same answering is **Process Requests**, reachable from the account menu. It opens as
-  a modal over the item list rather than replacing it, so answering costs one small
-  request and the list underneath is still where it was; Escape, the large white close
-  in the corner or a click outside it puts it away. `/owner/requests` is still a whole
-  page for a bookmark or a direct visit, and the modal fetches the same card as a
-  fragment, so the two cannot drift apart. It lists what is waiting on the person's own
-  ESO accounts, oldest ask first, and answers a row before returning the list, so what
-  was just answered disappears instead of being answerable twice.
+- The same answering is the **Requests Received** tab, which is on the item list itself
+  rather than behind an entry in the account menu: what is waiting on the person's own ESO
+  accounts, oldest ask first, with the quantity asked for, the amount sent filled in ready to
+  change, and **Fulfilled** / **Not fulfilled** on the row. Answering posts and comes back to
+  the tab, so what was just answered disappears instead of being answerable twice, and the
+  tab says what it recorded. Under the working list is **Already answered**: what was handed
+  over, how many arrived of how many were asked, and when. `/owner/requests` is still a whole
+  page for a bookmark or a direct visit and still draws the same table, which is why the card
+  and the tab share one renderer - they cannot drift apart.
 - **One row per item, however many times it was asked for.** Two, then two more, then one
   is a page row reading **Requested 5**, because that is one conversation. The database
   rows stay separate: the number you send is spent on the oldest asks first, so 3 against
