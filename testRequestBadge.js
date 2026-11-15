@@ -73,22 +73,19 @@ await t('a request waiting puts a number on the avatar', () => {
   assert.match(button, /avatar-badge/, 'and inside the button that opens the menu');
 });
 
-// The name used to sit beside the pill, as a label on its left. It is the pill's own second
-// row now, under the picture, which is what makes the pill wider and the header one piece.
-await t('the name sits under the picture, inside the pill', () => {
+// The header used to say the name twice over - beside the avatar, then on a row under it in a
+// pill - and both read as cramped. The picture is the whole control now, and the name is
+// something the menu itself says.
+await t('the header is just the picture, with no name and no caret', () => {
   const html = pageFor(0);
   const button = html.slice(html.indexOf('id="accountMenuButton"'), html.indexOf('</button>'));
 
-  assert.match(button, /class="avatar-stack"/, 'one column holds the picture and the name');
-  assert.match(button, /class="account-name"[^>]*>Develia</, 'the name is inside the button');
-  assert.ok(
-    button.indexOf('avatar-slot') < button.indexOf('account-name'),
-    'and comes after the picture, so it reads as a row under it'
-  );
-
-  const beside = html.slice(html.lastIndexOf('<div class="account-menu">'), html.indexOf('id="accountMenuButton"'));
-
-  assert.doesNotMatch(beside, /account-name/, 'nothing of the name is left beside the pill');
+  assert.doesNotMatch(html, /class="account-name"/, 'no name is drawn in the header');
+  assert.doesNotMatch(html, /avatar-caret/, 'and no caret, so the picture itself is the control');
+  assert.doesNotMatch(html, /avatar-stack/, 'no column holding a second row either');
+  assert.match(button, /class="avatar-slot"/, 'the picture is inside the button');
+  assert.match(button, /data-account-name="Develia"/, 'the name stays on it for the live count');
+  assert.match(button, /Account menu for Develia/, 'and it still says whose menu this is');
 });
 
 await t('nothing waiting draws no circle at all', () => {

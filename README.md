@@ -954,11 +954,12 @@ Discord's avatar hash turned into a CDN URL (animated avatars keep their GIF for
 https URLs are stored, and if a picture stops loading the initials underneath show
 instead, so the header never depends on a third party.
 
-The picture and the name share one pill: the picture on top, the name on a row under it, and
-the little caret at the right of both. The pill is as wide as the name needs - up to 132px,
-then the name ends in an ellipsis - so the header is one piece rather than a name and a
-button sitting beside each other. The name in the pill is decoration for the eye only: the
-button is labelled for a screen reader, so the name is not read out twice.
+The avatar is the whole control: a 38px circle inside a light ring, with no name and no caret
+beside it. Who you are is the first thing the menu says - its heading carries the name and how
+you signed in - so drawing it in the header as well only crowded the picture. Nothing is lost
+to a screen reader: the button is labelled *Account menu for Develia, 3 requests to process*,
+and the name it uses for that label rides along on the button so a live count can be redrawn
+without reloading anything.
 
 **The red count on the avatar** says how many requests are waiting to be processed, in the
 top right corner of the circle and half outside it. It counts what the requests list
@@ -987,7 +988,7 @@ above it, so nothing has to be read before the list, and it cannot be chosen. Yo
 not in it - being yourself is what *Return to my own login* is for. Picking a name is the whole
 action: the page switches as soon as it is chosen, with no button to confirm it, and the session
 then acts as that person, so the list shows their guilds and their shelf, the request pages show
-what is addressed to them, the avatar carries their name and their pending count, and a person
+what is addressed to them, the avatar is their picture and their pending count, and a person
 with no ESO account linked sees the prompts that person would see. A banner across the top of
 every page names who is being looked at - *This is the site as workswithdragons sees it* - and
 carries *Return to my own login*.

@@ -957,34 +957,16 @@ th.num {
   gap: 10px;
 }
 
-/* The name is the pill's second row rather than a label beside it: the pill grows to hold
-   the picture with the name under it, and the header stops having two separate pieces
-   sitting next to each other. */
-.avatar-stack {
-  display: inline-flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
-
-.account-name {
-  max-width: 132px;
-  overflow: hidden;
-  font-size: 11px;
-  font-weight: 600;
-  line-height: 1.2;
-  color: var(--text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* The avatar is the whole control: one circle in a light ring, no name and no caret beside
+   it. Who you are is the first thing the menu says, so drawing it twice only narrowed the
+   picture. */
 .avatar-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px 5px 5px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+  justify-content: center;
+  padding: 3px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);
   cursor: pointer;
@@ -992,17 +974,18 @@ th.num {
 
 .avatar-button:hover,
 .avatar-button[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.14);
 }
 
 .avatar {
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.4px;
   color: #ffffff;
@@ -1035,14 +1018,6 @@ th.num {
   line-height: 17px;
   letter-spacing: 0;
   text-align: center;
-}
-
-.avatar-caret {
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid var(--muted-strong);
 }
 
 .account-menu-panel {
