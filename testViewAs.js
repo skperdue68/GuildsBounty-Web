@@ -267,6 +267,50 @@ t('a form value that is not a person is refused before any query', () => {
   );
 });
 
+// The bug this replaced: the identity table is keyed on (provider, provider_user_id) and has
+// no id column, so ordering by one failed at the database and the swap never happened.
+t('the sign-in rows are ordered by columns that table actually has', () => {
+  const body = storeFunction('getViewAsUser');
+  const schema = read('migrations/005_itemshare_users.sql');
+  const from = schema.indexOf('CREATE TABLE IF NOT EXISTS itemshare_user_identities');
+  const create = schema.slice(from, schema.indexOf(') ENGINE', from));
+
+  assert.ok(from > -1 && create.length > 0, 'the identity table is in the schema');
+
+  const named = [...new Set([...body.matchAll(/\bi\.(\w+)/g)].map((match) => match[1]))];
+
+  assert.ok(named.length > 0, 'the subquery refers to its own columns');
+
+  for (const column of named) {
+    assert.match(create, new RegExp(`\\b${column}\\b`), `itemshare_user_identities has ${column}`);
+  }
+});
+
+t('choosing a person is the whole action, with no confirm click', () => {
+  const menu = viewAsMenu({ people, acting: null });
+  // Everything outside <noscript> is what a browser with script draws.
+  const withScript = menu.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
+
+  assert.match(withScript, /data-view-as-picker/);
+  assert.doesNotMatch(withScript, /<button/, 'no submit button to press after choosing');
+  assert.match(menu, /<noscript>[\s\S]*type="submit"/, 'a way through without script');
+});
+
+t('the page script sends the picker as soon as it changes', () => {
+  const header = read('public/header-menu.js');
+
+  assert.match(header, /\[data-view-as-picker\]/);
+  assert.match(header, /requestSubmit/);
+});
+
+t('switching who you are does not raise the browser leaving question', () => {
+  assert.match(
+    read('public/app.js'),
+    /action === '\/browsing-account' \|\| action === '\/view-as'/,
+    'a held basket survives the switch, so nothing should ask about leaving'
+  );
+});
+
 let passed = 0;
 let failed = 0;
 

@@ -905,8 +905,9 @@ database-error card rather than a blank screen.
 ## Looking at the site as somebody else
 
 One Discord handle - `evainefaye` - gets an extra item in the avatar menu: *View the site as
-another person*, a list of everybody in the system. Picking a name makes the session act as
-that person, so the list shows their guilds and their shelf, the request pages show what is
+another person*, a list of everybody in the system. Picking a name is the whole action - the
+page switches as soon as it is chosen, with no button to confirm it - and the session then acts
+as that person, so the list shows their guilds and their shelf, the request pages show what is
 addressed to them, the avatar carries their name and their pending count, and a person with no
 ESO account linked sees the prompts that person would see. A banner across the top of every
 page names who is being looked at and carries *Return to my own login*; picking your own name
