@@ -12,7 +12,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { isViewAsOperator, providerLabelFor, VIEW_AS_USERNAME } from './lib/viewAs.js';
+import {
+  arrangeForMenu,
+  isViewAsOperator,
+  providerLabelFor,
+  VIEW_AS_USERNAME,
+} from './lib/viewAs.js';
 import { renderMessagePage, viewAsMenu } from './lib/views.js';
 
 const tests = [];
@@ -224,7 +229,10 @@ t('the menu data is kept out of the stored session', () => {
     /enumerable: false/,
     'the session is written with JSON.stringify, so a list of everybody must not be in it'
   );
-  assert.match(server, /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\) \}\)/);
+  assert.match(
+    server,
+    /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\), exclude: skip \}\)/
+  );
 });
 
 t('the person who really signed in is what every gate is checked against', () => {
@@ -309,6 +317,64 @@ t('switching who you are does not raise the browser leaving question', () => {
     /action === '\/browsing-account' \|\| action === '\/view-as'/,
     'a held basket survives the switch, so nothing should ask about leaving'
   );
+});
+
+// ------------------------------------------------------------- who the list leaves out
+
+t('a person who is not the operator is offered in alphabetical order', () => {
+  const people = arrangeForMenu([
+    { id: 7, name: 'zara' },
+    { id: 3, name: 'Bram' },
+    { id: 5, name: 'ada' },
+    { id: 9, name: 'Ada' },
+  ]);
+
+  assert.deepEqual(
+    people.map((person) => person.name),
+    ['ada', 'Ada', 'Bram', 'zara'],
+    'alphabetical ignoring case, and the two Adas keep a steady order by id'
+  );
+});
+
+t('the order does not depend on the database, so the menu sorts for itself', () => {
+  const body = storeFunction('listViewAsUsers');
+
+  assert.match(body, /ORDER BY display_name ASC/, 'the query still asks for it');
+  assert.match(body, /return arrangeForMenu\(/, 'and the result is put in order here too');
+});
+
+t('somebody with no name is still a person to look at, listed by id', () => {
+  const people = arrangeForMenu([{ id: 12, name: '   ' }, { id: 4, name: 'Ada' }]);
+
+  assert.equal(people.length, 2, 'a blank name is not a reason to hide somebody');
+  assert.deepEqual(
+    people.find((person) => person.id === 12),
+    { id: 12, name: '#12' },
+    'they are listed as their id rather than as an empty line'
+  );
+});
+
+t('a row that is not a person is dropped rather than drawn', () => {
+  assert.deepEqual(arrangeForMenu([{ id: 0, name: 'nobody' }, { id: 2, name: 'Ada' }]), [
+    { id: 2, name: 'Ada' },
+  ]);
+  assert.deepEqual(arrangeForMenu(null), []);
+});
+
+t('the list leaves out the person looking, and the one being looked at', () => {
+  const body = storeFunction('listViewAsUsers');
+
+  assert.match(body, /exclude = \[\]/);
+  assert.match(body, /AND id NOT IN \(\$\{inClause\(skip\)\}\)/, 'the query skips them');
+  assert.match(body, /\[isDemo \? 1 : 0, \.\.\.skip\]/, 'and binds their ids');
+
+  // Both ids are what the server hands over: yours, and the one the page is already showing.
+  assert.match(server, /const skip = \[Number\(real\.id\), acting \? acting\.id : 0\]/);
+  assert.match(server, /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\), exclude: skip \}\)/);
+});
+
+t('with nobody else to offer, the menu is not drawn rather than empty', () => {
+  assert.equal(viewAsMenu({ people: [], acting: null }), '');
 });
 
 let passed = 0;

@@ -8,9 +8,11 @@ landed on `main`.
 ### Added
 
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
-  in the avatar menu lists every person in the system, and picking one - no button to press
-  after it, the choice is the action - makes the session act as them: their guilds and their
-  shelf, the requests addressed to them, their name on the avatar and their pending count. A banner across the top of every page says whose site is on
+  in the avatar menu lists everybody else in the system, alphabetically - your own name is not
+  in it, and neither is whoever's page you are already on - and picking one, with no button to
+  press after it because the choice is the action, makes the session act as them: their guilds
+  and their shelf, the requests addressed to them, their name on the avatar and their pending
+  count. A banner across the top of every page says whose site is on
   screen, and *Return to my own login* puts it back - picking your own name does the same.
   It is a test tool and not a role: nothing grants it, it is checked on every request rather
   than remembered, it needs Discord (a Google or email login with that name does not get it),
