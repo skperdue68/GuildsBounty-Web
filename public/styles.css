@@ -71,34 +71,13 @@ body {
   max-width: 100%;
 }
 
-/* The mark is a picture file of its own, so it can be used anywhere on its own and the
-   header only decides how tall it is. */
-.brand-mark {
-  width: 72px;
+/* The plaque is the whole lockup - chest, name and the line under it - in one picture,
+   so the header only sets its width and the bar grows to the height that follows. */
+.brand-logo {
+  width: 180px;
   height: auto;
   flex: none;
   display: block;
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-/* The name is its own picture file too, so the two halves of the brand can be used
-   apart: the mark alone, the wordmark alone, or the two together. */
-.brand-wordmark {
-  width: 166px;
-  height: auto;
-  display: block;
-}
-
-.brand-subtitle {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(203, 213, 225, 0.9);
 }
 
 .user-area {

@@ -3,7 +3,7 @@ import { readCookie, readGrouping } from './lib/preferences.js';
 import { SORT_FIELDS, parseSortOrder } from './lib/sortQueue.js';
 import { keepDemoShelfFull } from './lib/demoShelf.js';
 import { errorLine, logLine, warnLine } from './lib/log.js';
-// ItemShare upload site: signs in with Discord or Google (both optional),
+// Guild's Bounty upload site: signs in with Discord or Google (both optional),
 // accepts ItemShareSavedVars.lua and replaces every shared item for every ESO
 // account in the file. Styling follows the GuildSync palette.
 //
@@ -30,6 +30,7 @@ import {
   createPasswordReset,
   consumePasswordReset,
   createRequest,
+  pendingRequestBadges,
   expireDueDrafts,
   fillKnownIcons,
   getAccountSummary,
@@ -324,12 +325,52 @@ app.use((req, res, next) => {
 // Socket.IO rides on the same HTTP server as Express, under /socket.io, so live
 // updates need no second port, no extra proxy rule and no separate auth.
 const httpServer = createServer(app);
-const realtime = attachRealtime({ httpServer, sessionMiddleware });
+const realtime = attachRealtime({
+  httpServer,
+  sessionMiddleware,
+  // The count a socket is greeted with, worked out exactly as the header's own query does.
+  resolvePending: (userId) =>
+    withDatabase(async (connection) => {
+      const accounts = await getViewerAccounts(connection, userId);
+
+      return countOwnerRequests(
+        connection,
+        accounts.map((row) => row.eso_account_name)
+      );
+    }),
+});
 
 // A demo reservation is real only inside the demo copy, so it is never announced to
 // everybody else's open page. The scope is already known: it is the database this
 // request is reading.
 const pushChange = realtime.notifyChange;
+
+/**
+ * Tells the owners of these accounts their new badge number, each on every page they have
+ * open. Called after anything that changes how many asks are waiting on their shelf.
+ *
+ * The number is read back from the database rather than adjusted by one, so a person with
+ * several accounts, or two requests landing at once, cannot end up with a count that the
+ * requests list disagrees with. A failure here costs a stale circle on somebody's avatar and
+ * nothing else, so it never fails the action that caused it.
+ */
+async function announcePendingRequests(accountNames) {
+  const names = (accountNames || []).map((name) => String(name || '').trim()).filter(Boolean);
+
+  if (names.length === 0) {
+    return;
+  }
+
+  try {
+    const badges = await withDatabase((connection) => pendingRequestBadges(connection, names));
+
+    for (const badge of badges) {
+      realtime.notifyPendingRequests(badge.userId, badge.count);
+    }
+  } catch (error) {
+    console.error(`Badge update failed for ${names.join(', ')}: ${error.message}`);
+  }
+}
 
 function notifyItemsChanged(kind, message) {
   // A demo change is real, but only inside the copy. It goes to the demo pages rather
@@ -613,7 +654,7 @@ async function emailAnswered(rows, { demo = false } = {}) {
 }
 
 // Every page the site can end up on uses the same shell, so a cancelled sign-in or
-// a wrong address looks like ItemShare rather than a line of unstyled text.
+// a wrong address looks like Guild's Bounty rather than a line of unstyled text.
 function sendPage(req, res, status, options) {
   res
     .status(status)
@@ -948,7 +989,7 @@ async function viewerAccountNames(req, connection, user) {
         .type('html')
         .send(
           renderMessagePage({
-            title: 'Browsing account \u00b7 ItemShare',
+            title: 'Browsing account \u00b7 Guild\'s Bounty',
             heading: 'That account is not yours',
             message: error.message,
             tone: 'error',
@@ -1175,6 +1216,10 @@ app.post('/requests', async (req, res) => {
         });
     });
 
+    // The owner's own pages, and only theirs: the number on their avatar is about their
+    // shelf. Everyone else who is looking at that stack is told to refresh as before.
+    await announcePendingRequests([outcome.ownerAccountName]);
+
     // Everyone looking at that stack needs the new count straight away.
     notifyItemsChanged(
       'request',
@@ -1213,6 +1258,10 @@ app.post('/requests/:id/cancel', async (req, res) => {
       });
       return;
     }
+
+    // Taking a request back lowers the owner's count, so their badge has to hear about it
+    // as well - a circle that only ever goes up is worse than none.
+    await announcePendingRequests([outcome.ownerAccountName]);
 
     notifyItemsChanged(
       'request',
@@ -1284,6 +1333,11 @@ app.post('/requests/submit', async (req, res) => {
       submitted: outcome.submitted,
       contacts: new Map(outcome.contacts),
     });
+
+    // A basket can hold asks for several owners, so each of them hears their own total.
+    await announcePendingRequests(
+      (outcome.submitted || []).map((row) => row.owner_account_name)
+    );
 
     notifyItemsChanged(
       'request',
@@ -2037,7 +2091,7 @@ app.post('/requests/fulfill/:token', async (req, res) => {
 
     res.type('html').send(
       renderMessagePage({
-        title: 'Request answered - ItemShare',
+        title: 'Request answered - Guild\'s Bounty',
         heading: 'Thanks - that is recorded',
         message: summary ? `${summary}.` : 'Nothing was waiting on that link any more.',
         details:
@@ -2987,6 +3041,10 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
     accountCount: uploaded.length,
     itemCount: uploaded.reduce((sum, entry) => sum + entry.itemCount, 0),
     alwaysShareCount: uploaded.reduce((sum, entry) => sum + entry.alwaysShareCount, 0),
+    // What the file did to the list, per account in the answer and in total here: an item
+    // nobody had before, an item only re-counted, an item gone.
+    addedItems: uploaded.reduce((sum, entry) => sum + (entry.addedItems || 0), 0),
+    refreshedItems: uploaded.reduce((sum, entry) => sum + (entry.refreshedItems || 0), 0),
     removedItems: uploaded.reduce((sum, entry) => sum + (entry.removedItems || 0), 0),
     cancelledRequests: uploaded.reduce((sum, entry) => sum + (entry.cancelledRequests || 0), 0),
     heldBack,
@@ -3300,7 +3358,7 @@ app.use((req, res) => {
 
   sendPage(req, res, 404, {
     heading: 'Page not found',
-    message: 'That address is not part of ItemShare. The shared item list is on the home page.',
+    message: 'That address is not part of Guild\'s Bounty. The shared item list is on the home page.',
     details: `No route for ${req.method} ${req.path}`,
   });
 });
@@ -3508,7 +3566,7 @@ if (DEMO_ACTIVITY_MS > 0) {
 }
 
 httpServer.listen(PORT, () => {
-  logLine(`ItemShare upload site listening on http://localhost:${PORT}`);
+  logLine(`Guild's Bounty upload site listening on http://localhost:${PORT}`);
   logLine('Live updates: socket.io on /socket.io');
   logLine(
     DEMO_ACTIVITY_MS > 0

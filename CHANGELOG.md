@@ -7,6 +7,17 @@ landed on `main`.
 
 ### Added
 
+- **The header is the Guild's Bounty plaque.** The chest, the name and *Shared items across
+  your guilds* are one picture file shown at 180 pixels wide, so the top bar grows to the
+  artwork instead of stacking a mark, a wordmark and a line of text under them.
+
+- **The request count on the avatar keeps itself up to date.** A new ask for one of your
+  items puts the number on your avatar the moment it lands - no refresh, and not only in the
+  window it arrived in. The update is addressed to your sign-in alone and carries the total
+  rather than a change, so two tabs and a phone cannot end up showing different numbers, and
+  a page that was asleep or offline is told the count that stands as soon as it reconnects.
+  Taking a request back lowers it the same way, and a basket sent to several owners tells each
+  of them their own number.
 - **A count on the avatar** says how many requests are waiting to be processed: a small red
   circle with the number in white, on the top right of the avatar and half outside it. It
   counts what the requests list counts - one per item, however many people asked for it,
@@ -50,6 +61,12 @@ landed on `main`.
   what an item with no requirement carries. They still have no champion points, glyph or
   style, because they have none: the row reads *Level 1* and stops there, rather than
   looking as though its level were simply unknown.
+- **An upload now says what it did to your list.** The answer under the file drop gives each
+  account's totals and then, underneath, `2 items removed, 5 items added, 1 item refreshed`.
+  A refresh is an item you already had whose quantity the file reports differently - a stack
+  that grew or shrank - so it is not mistaken for something new or something gone, and an
+  item left alone because a request is still open is counted as none of the three.
+
 
 ### Fixed
 
@@ -95,6 +112,17 @@ landed on `main`.
   there was no way back to "no Added filter" except the reset button. LAST CHANCE keeps its
   warning colour. The Added summary no longer carries a count, since one choice at a time
   could only ever read 1, and the reset button is spelled **RESET**.
+
+- **The site is Guild's Bounty now.** Every page title, the footer, the *Back to ...* buttons,
+  the guide, the sign-in card, the demo banner, the header's download button, the request,
+  fulfilment and password reset emails, the site's own User-Agent strings, the boot log line,
+  the systemd description and the README all name it that way. The addon is Guild's Bounty in
+  that copy too: the sign-in hero, the guide and the upload gate all call it that. What a
+  machine on the other end reads stays as it is until the addon itself is renamed -
+  `ItemShareSavedVars.lua`, the `X-ItemShare-*` headers, `ItemShareExport.lua`, the
+  `itemshare_*` tables and the in-game `/itemshare` command - and the download button still
+  points at the addon's ESOUI page, which is where the file the site reads comes from.
+
 - **ADDED means the day the item was added, not the day it reached this site.** The column,
   the countdown under it, the day filters, the LAST CHANCE pill and the ADDED sort are all
   measured from the date the owner's own file carries for that item - `firstDumpedAt`, kept

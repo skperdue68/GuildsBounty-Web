@@ -779,7 +779,7 @@ function describeRefusal({ status, body, token }) {
   if (status === 404) {
     return [
       `live pushes refused by ${SITE_URL} (HTTP 404, address from ${SITE.source}): nothing answers the simulate route there.`,
-      '  Either that address is not this ItemShare (check BASE_URL or --url), or the site is',
+      '  Either that address is not this Guild\'s Bounty (check BASE_URL or --url), or the site is',
       '  older than this check. The data still changes; open pages see it on their next',
       '  refresh.',
     ].join('\n');

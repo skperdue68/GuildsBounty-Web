@@ -1,4 +1,4 @@
-// ItemShare page behaviour: uploads, the account menu and the live item lists.
+// Guild's Bounty page behaviour: uploads, the account menu and the live item lists.
 //
 // Everything here is an enhancement. The logout form posts without scripts and the
 // filter form still submits on its own, so a failed script costs convenience only.
@@ -125,6 +125,30 @@ function showToast(message, kind = 'info', { sticky = false } = {}) {
   }, kind === 'err' ? 7000 : 4500);
 }
 
+// ------------------------------------------------- upload change summary
+/**
+ * How an upload moved one account's list, in the order somebody reads it: what went, what
+ * arrived, and what was only re-counted.
+ *
+ * A refresh is an item that was already there whose quantity the file reports differently -
+ * a stack that grew or shrank. It is deliberately not called added or removed, because the
+ * item itself stayed.
+ */
+function uploadChangeSummary(account) {
+  const say = (count, word) => {
+    const number = Math.max(0, Math.trunc(Number(count) || 0));
+
+    return `${number} item${number === 1 ? '' : 's'} ${word}`;
+  };
+
+  return [
+    say(account.removedItems, 'removed'),
+    say(account.addedItems, 'added'),
+    say(account.refreshedItems, 'refreshed'),
+  ].join(', ');
+}
+// ---------------------------------------------- end upload change summary
+
 // --------------------------------------------------------------------- upload
 // Dropping a file or picking one both upload straight away: there is no button to
 // press and nothing to confirm first.
@@ -179,9 +203,11 @@ async function uploadFile(file) {
       [
         `${file.name} has been received.`,
         ...accounts.map(
-          (account) =>
-            `${account.accountName}: ${account.itemCount} item${account.itemCount === 1 ? '' : 's'}, quantity ${account.totalQuantity}`
+          (account) => `${account.accountName}: ${account.itemCount} item${account.itemCount === 1 ? '' : 's'}, quantity ${account.totalQuantity}`
         ),
+        // What the file did to that list: an item nobody had before, an item only re-counted,
+        // an item gone. A refresh is a quantity that went up or down on an item that stayed.
+        ...accounts.map((account) => `  ${uploadChangeSummary(account)}`),
         // An item with requests still open was not refreshed from this file, so the
         // count on screen is the one the requests were made against.
         ...(result.heldBack || []).map(
@@ -1916,6 +1942,73 @@ if (listRegion) {
 
   noteClosedRequests();
 
+  // ------------------------------------------------------------ pending requests badge
+  // The number on the avatar is drawn by the server along with the page, and a live refresh
+  // of the list under it is a fragment, so nothing ever redrew the circle. This is the other
+  // half: when an ask lands on something the signed-in person owns, the server tells their
+  // own pages the new total and the circle is brought up to date in place.
+  const PENDING_BADGE_CAP = 99;
+
+  /**
+   * What the badge should say for a count, and the two sentences that carry it to somebody
+   * who cannot see the circle.
+   *
+   * Kept as one pure function because the wording has to match the page the server draws:
+   * if the two drift, the count would appear to change when the page is reloaded.
+   */
+  function pendingBadgeState(count, name) {
+    const waiting = Math.max(0, Math.trunc(Number(count) || 0));
+    const said = `${waiting} request${waiting === 1 ? '' : 's'} to process`;
+
+    return {
+      waiting,
+      badge:
+        waiting === 0
+          ? ''
+          : waiting > PENDING_BADGE_CAP
+            ? `${PENDING_BADGE_CAP}+`
+            : String(waiting),
+      title: waiting > 0 ? `${name} - ${said}` : name,
+      label: `Account menu for ${name}${waiting > 0 ? `, ${said}` : ''}`,
+    };
+  }
+
+  /** Draw the count where the server would have drawn it, without reloading anything. */
+  function applyPendingBadge(count) {
+    const button = document.getElementById('accountMenuButton');
+
+    if (!button) {
+      return;
+    }
+
+    const slot = button.querySelector('.avatar-slot');
+    const nameNode = document.querySelector('.account-name');
+    const state = pendingBadgeState(count, nameNode ? nameNode.textContent.trim() : '');
+    let badge = slot ? slot.querySelector('.avatar-badge') : null;
+
+    if (!state.badge) {
+      // Nothing waiting is no circle at all, the same as a page drawn with nothing waiting.
+      if (badge) badge.remove();
+    } else if (slot) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'avatar-badge';
+        badge.setAttribute('aria-hidden', 'true');
+        slot.append(badge);
+      }
+      badge.textContent = state.badge;
+    }
+
+    button.title = state.title;
+
+    const said = button.querySelector('.visually-hidden');
+
+    if (said) {
+      said.textContent = state.label;
+    }
+  }
+  // ------------------------------------------------------ end pending requests badge
+
   // ------------------------------------------------------------------- socket
   const socket = typeof window.io === 'function' ? window.io({ withCredentials: true }) : null;
 
@@ -1934,6 +2027,13 @@ if (listRegion) {
     socket.on('disconnect', () => setLiveState('wait'));
     socket.on('connect_error', () => setLiveState('wait'));
     socket.on('items:changed', () => scheduleRefresh());
+    // Addressed to this person only, and carrying the total rather than a change: two tabs
+    // and a phone all end up showing the same number.
+    socket.on('requests:pending', (payload) => {
+      if (payload && typeof payload.count !== 'undefined') {
+        applyPendingBadge(payload.count);
+      }
+    });
   } else {
     setLiveState('off');
   }
