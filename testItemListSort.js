@@ -626,7 +626,7 @@ t('an empty My Requests tab says where to ask', () => {
   assert.match(panel, /class="muted list-empty"/, 'centred like the other empty lists');
   assert.match(
     panel,
-    /You have no pending requests\. Use the &ldquo;Others Inventory&rdquo; tab to request items\./
+    /You have no pending requests\. Use the &ldquo;Browse Offers&rdquo; tab to request items\./
   );
   assert.doesNotMatch(region, /You have not asked for anything yet/, 'the old sentence is gone');
 });

@@ -804,7 +804,7 @@ check('a demo session says so, and keeps every tool it can rehearse with', () =>
   assertMatch(page, /Demo mode/, 'the banner is missing');
   assertMatch(page, /email (?:is|are) disabled/i, 'the banner must say email is disabled');
   assertMatch(page, /Add or remove ESO accounts/, 'the demo must be able to try the account dialog');
-  assertMatch(page, /Process Requests/, 'the demo must be able to try the owner pages');
+  assertMatch(page, /Requests Received/, 'the demo must be able to try the owner pages');
 });
 
 check('an ordinary session shows no demo banner', () => {
