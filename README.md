@@ -554,14 +554,16 @@ rather than formatting the column, so an item offered a minute ago reads as
 `00d 00h 01m 00s` wherever the database host's own clock is set - and each reader still sees
 the count run in their own time zone.
 
-The count is written as a set of fields that stay put: days, hours, minutes and seconds on
-every row, each two digits wide, so four days to the second reads `04d 00h 00m 00s` rather
-than `04d` and a row two seconds old carries its zeroes for the days, hours and minutes it has
-not reached yet. A field never drops out at zero, so nothing vanishes and comes back as the
-count rolls over, and the column reads down as fields rather than as sentences. Years and
-months join on the left as an item ages - `01mo 00d 00h 00m 00s` at a month, with the days
-still there at zero - and never take anything to their right away. Request times,
-`LAST CHANCE` and the *Added* windows measure from the same instant, as they always did.
+The count starts at the largest field that holds anything and then writes every field to its
+right, each two digits wide: two seconds reads `02s`, a minute reads `01m 00s`, four days
+reads `04d 00h 00m 00s`, a month reads `01mo 00d 00h 00m 00s`. So a `00` in the column only
+appears to the right of a bigger field that has a value - `00h` means an item is a day old or
+more, never that a young row was padded out to a fixed width. Once a field is written it is
+never dropped for being zero, which is what stops the count losing a field and gaining it back
+a second later as it rolls over, and four days to the second keeps its `00h 00m 00s` instead
+of stopping at `04d`. Years and months join on the left as an item ages and keep everything to
+their right: at a month the days are still there, at zero. Request times, `LAST CHANCE` and
+the *Added* windows measure from the same instant, as they always did.
 
 On **My Inventory**, `Location` is where the owner's copy was the last time they saved: `Bank`,
 `Inventory (Character Name)`, `Furnishing Vault (...)`. An upload rewrites it, so moving

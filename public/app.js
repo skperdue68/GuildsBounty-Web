@@ -2758,16 +2758,16 @@ function animatePanelHeights(root, heights) {
 //
 // Units are counted the way a person counts: years and months first, anchored on the
 // original date so a month-end does not skip a month, then days, hours, minutes, seconds.
-// A unit is never left out once a bigger one has been written: days, hours, minutes and
-// seconds are all written on every row, so four days to the second reads "04d 00h 00m 00s"
-// rather than "04d". Years and months join on the left only when the age has reached them,
-// and then everything to their right is written too - a month old reads "01mo 00d 00h 00m 00s",
-// with the days still there at zero. The cell is rewritten every second, and a field that
-// vanished and came back would read as a flicker rather than a count, so nothing inside the
-// written range is dropped for being zero. Every unit keeps two digits, so a column
-// right-aligns and the older rows never shift sideways as a count goes from one digit to two.
-// One timer drives every cell on the page, and a cell whose text has not changed is not
-// written to, so a long list costs only the arithmetic per tick.
+// The count begins at the largest unit that holds anything and then writes every unit to its
+// right, zeroes and all: "02s", "01m 00s", "04d 00h 00m 00s", "01mo 00d 00h 00m 00s".
+// A zero therefore only appears where a bigger unit has already been written - "00d" means a
+// month or more, "00h" means a day or more - so a young row is never padded out with units it
+// has not reached. Once a unit is written, nothing to its right is dropped for being zero,
+// which is what keeps the cell from losing a field and gaining it back a second later as the
+// count rolls over. Every unit keeps two digits, so a column right-aligns and the older rows
+// never shift sideways as a count goes from one digit to two. One timer drives every cell on
+// the page, and a cell whose text has not changed is not written to, so a long list costs only
+// the arithmetic per tick.
 const RELATIVE_TICK_MS = 1000;
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -2828,14 +2828,15 @@ function relativeUnits(from, to) {
 }
 
 /**
- * "00d 04h 18m 44s" for a young item, "01y 04mo 19d 07h 33m 05s" for an old one, and
- * "just now" at zero.
+ * "02s" for something just offered, "18m 04s", "04d 00h 00m 00s", "01mo 00d 00h 00m 00s"
+ * for an old row, and "just now" at zero.
  *
- * Days, hours, minutes and seconds are written on every row whatever they hold, so a fourth
- * day reads "04d 00h 00m 00s" and a couple of seconds reads "00d 00h 00m 02s". The zeroes
- * are the point: the column is read down as a set of fields, and a row that dropped its empty
- * fields would not line up with the rows around it. Years and months appear on the left only
- * once the age has them, and never remove anything to their right.
+ * The count begins at the largest unit that holds anything - two seconds starts at seconds,
+ * four days starts at days - and from there every unit to its right is written, zero or not.
+ * So a zero only ever appears after a bigger unit has been written: "00h" on a row is a day
+ * or more old, never a young row padded out to a fixed width. Once a unit is written it is
+ * never dropped for being zero, so the count does not lose a field and gain it back as it
+ * rolls over.
  *
  * Each unit is two digits wide for the same reason a clock is: the countdown is read as a
  * column, and "1m" growing to "10m" must not push the rest of the row along with it.
@@ -2844,30 +2845,28 @@ function relativeText(from, to) {
   const units = relativeUnits(from, to);
   const pad = (value) => String(value).padStart(2, '0');
 
-  if (
-    units.years === 0 &&
-    units.months === 0 &&
-    units.days === 0 &&
-    units.hours === 0 &&
-    units.minutes === 0 &&
-    units.seconds === 0
-  ) {
+  // Biggest first, which is also the order they are read in.
+  const fields = [
+    ['y', units.years],
+    ['mo', units.months],
+    ['d', units.days],
+    ['h', units.hours],
+    ['m', units.minutes],
+    ['s', units.seconds],
+  ];
+
+  // The field the count starts at: the first one holding anything. Nothing at all is a moment
+  // that has only just been stamped, and it reads as words rather than as a row of zeroes.
+  const start = fields.findIndex(([, value]) => value > 0);
+
+  if (start === -1) {
     return 'just now';
   }
 
-  const parts = [];
-
-  // The two long units are the only ones that are conditional, and a year brings its months
-  // with it so the fields stay in the same order on every row.
-  if (units.years) parts.push(`${pad(units.years)}y`);
-  if (units.years || units.months) parts.push(`${pad(units.months)}mo`);
-
-  parts.push(`${pad(units.days)}d`);
-  parts.push(`${pad(units.hours)}h`);
-  parts.push(`${pad(units.minutes)}m`);
-  parts.push(`${pad(units.seconds)}s`);
-
-  return parts.join(' ');
+  return fields
+    .slice(start)
+    .map(([unit, value]) => `${pad(value)}${unit}`)
+    .join(' ');
 }
 
 /** Rewrites every countdown under `root`, and puts the exact local time in its tooltip. */
