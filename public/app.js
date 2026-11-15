@@ -543,6 +543,36 @@ if (listRegion) {
       return;
     }
 
+    // A type heading folds the rows beneath it away. They are already on the page, so this
+    // opens and closes them without asking the server; which types are folded is a reading
+    // choice about one list, so it goes in that list's own cookie and survives a refresh.
+    const typeToggle = closest('[data-type-toggle]');
+
+    if (typeToggle) {
+      event.preventDefault();
+      const list = typeToggle.getAttribute('data-group-list') || 'request';
+      const type = typeToggle.getAttribute('data-type-toggle');
+      const heading = typeToggle.closest('.type-row');
+
+      if (heading) {
+        const shut = !heading.classList.contains('is-collapsed');
+
+        setTypeFolded(list, type, shut);
+        heading.classList.toggle('is-collapsed', shut);
+        typeToggle.setAttribute('aria-expanded', String(!shut));
+
+        if (shut) {
+          for (const row of groupMembers(heading)) row.hidden = true;
+        } else {
+          // Opening hands the rows back to the search box, so a word typed while the type
+          // was shut still decides what shows.
+          applyListSearch(list);
+        }
+      }
+
+      return;
+    }
+
     const requestButton = closest('[data-request]');
 
     if (requestButton) {
@@ -650,7 +680,9 @@ if (listRegion) {
 
       for (const row of Array.from(body.rows)) {
         if (row.classList.contains('type-row')) {
-          group = { row, total: 0, shown: 0 };
+          // A folded heading stays shut while a word is typed: its rows are not on screen
+          // to narrow, and the count beside it still says how many are waiting there.
+          group = { row, total: 0, shown: 0, shut: row.classList.contains('is-collapsed') };
           groups.push(group);
           continue;
         }
@@ -660,7 +692,7 @@ if (listRegion) {
         const matches =
           term === '' || row.getAttribute('data-search').toLowerCase().includes(term);
 
-        row.hidden = !matches;
+        row.hidden = !matches || Boolean(group && group.shut);
 
         if (!group) continue;
 
@@ -668,9 +700,10 @@ if (listRegion) {
         if (matches) group.shown += 1;
       }
 
-      // Decided after the rows are counted, because a heading is drawn before them.
+      // Decided after the rows are counted, because a heading is drawn before them. A
+      // folded one stays whatever the word: it is the way back to its rows.
       for (const entry of groups) {
-        entry.row.hidden = entry.shown === 0;
+        entry.row.hidden = !entry.shut && entry.shown === 0;
 
         // The number beside a type is the server's count of the whole group, and while a
         // search is narrowing the rows under it that number is a lie. It becomes the two
@@ -702,7 +735,7 @@ if (listRegion) {
     // tab has moved on between the keystroke and this handler.
     const tab = field.getAttribute('data-list-search');
 
-    if (tab !== 'request' && tab !== 'offer') return;
+    if (!(tab in listSearchByTab)) return;
 
     // The field keeps up with every keystroke; the list waits for the word. Narrowing on
     // the first letter would hide rows and move the table on the way to the right four.
@@ -733,6 +766,47 @@ if (listRegion) {
     document.cookie = `${name}=${encodeURIComponent(
       value
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }
+
+  // Which types are folded away, one cookie per list, for the same reason the grouping has
+  // two: Browse Offers and My Inventory are read separately and must not move each other.
+  const FOLDED_COOKIES = { request: 'itemshare_collapsed', mine: 'itemshare_collapsed_mine' };
+
+  // The names are written escaped and split on the commas between them, so a blank cookie
+  // means nothing is folded - which is how every list starts.
+  function readFoldedTypes(list) {
+    const name = FOLDED_COOKIES[list] || FOLDED_COOKIES.request;
+
+    return readCookieValue(name)
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  function setTypeFolded(list, type, shut) {
+    const name = FOLDED_COOKIES[list] || FOLDED_COOKIES.request;
+    const types = readFoldedTypes(list).filter((entry) => entry !== type);
+
+    if (shut) types.push(type);
+
+    document.cookie = `${name}=${types
+      .map((entry) => encodeURIComponent(entry))
+      .join(',')}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }
+
+  // The rows a type heading covers: everything between it and the heading after it.
+  function groupMembers(heading) {
+    const rows = [];
+
+    for (
+      let next = heading.nextElementSibling;
+      next && !next.classList.contains('type-row');
+      next = next.nextElementSibling
+    ) {
+      if (next.tagName === 'TR') rows.push(next);
+    }
+
+    return rows;
   }
 
   function writeSortCookie(value) {

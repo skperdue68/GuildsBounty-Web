@@ -538,6 +538,16 @@ cut up by type while the other is a flat list, and the switch on each tab shows 
 the list it sits on. Turning the headings off on **My Inventory** does not turn them off on
 **Browse Offers**, and neither switch moves the other's sort.
 
+Under a heading, the heading itself is a switch: a press folds that type's rows away and the
+count beside the name stays, so a folded type reads as folded rather than empty. A small
+caret on the row points right while the rows are away and turns down when they are back,
+which is the one thing that has to be seen rather than guessed. A folded type survives a
+reload and a live refresh, in its own cookie - `itemshare_collapsed` for **Browse Offers** and
+`itemshare_collapsed_mine` for **My Inventory** - so folding Weapons on one list leaves
+Weapons open on the other. A word typed in the search box does not spring a folded type open:
+the rows it matches are counted and the heading goes on saying how many are waiting there,
+and opening it then shows what the word left.
+
 On the row above the table, beside **Grouped by type**, **Search this list** narrows what is
 already on the page, and a cross at the end of the box empties it and puts the list back. It
 applies about a second after the last keystroke rather than on every letter, so a word is
@@ -572,8 +582,9 @@ answered, not how to find a row.
 
 The other three request tables sort the same way, and each remembers its own order under its
 own cookie rather than borrowing one: **In your basket** (`itemshare_basket_sort`) sorts by
-item, the account it is from, quantity and status; **Already sent** (`itemshare_sent_sort`)
-adds the day it went; and **Already answered** (`itemshare_answered_sort`) sorts by item, who
+item, the account it is from, quantity and status; **Submitted requests**
+(`itemshare_sent_sort`)
+adds the day it went; and **Completed requests** (`itemshare_answered_sort`) sorts by item, who
 it went to, requested, amount sent, whether it was fulfilled and when. None of it reaches the
 address bar, so a link stays a plain link to the page.
 
@@ -811,7 +822,7 @@ picked rather than from the moment it is sent:
   cancelled with a sentence the requester can read: "Ghost Bane now has 2 of Briarheart
   Dagger, which does not cover the 3 you asked for." A row that merely moved is
   re-pointed by `item_key_hash` instead of being cancelled.
-- *My Requests* holds the basket and, below it, **Already sent**: only the requests
+- *My Requests* holds the basket and, below it, **Submitted requests**: only the requests
   that actually stand, newest first. A request that timed out or was cancelled is
   dropped rather than sitting in the list looking live; when a live update brings back a
   cancellation the page still says so in a toast, once.
@@ -1608,7 +1619,7 @@ pending, and the same link answers them later.
   accounts, oldest ask first, with the quantity asked for, the amount sent filled in ready to
   change, and **Fulfilled** / **Not fulfilled** on the row. Answering posts and comes back to
   the tab, so what was just answered disappears instead of being answerable twice, and the
-  tab says what it recorded. Under the working list is **Already answered**: what was handed
+  tab says what it recorded. Under the working list is **Completed requests**: what was handed
   over, how many arrived of how many were asked, and when. `/owner/requests` is still a whole
   page for a bookmark or a direct visit and still draws the same table, which is why the card
   and the tab share one renderer - they cannot drift apart.

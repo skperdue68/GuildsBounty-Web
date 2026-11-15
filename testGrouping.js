@@ -10,7 +10,7 @@ import fs from 'node:fs';
 
 import { filterList } from './lib/filters.js';
 import { SORT_FIELDS, parseSortOrder } from './lib/sortQueue.js';
-import { readCookie, readGrouping } from './lib/preferences.js';
+import { readCollapsedTypes, readCookie, readGrouping } from './lib/preferences.js';
 import { groupToggle, inventoryTable } from './lib/views.js';
 
 function item(id, name, type, count) {
@@ -248,37 +248,66 @@ if (consts.length !== 1) {
   throw new Error('MISSING ANCHOR: ADDED_WINDOWS in server.js');
 }
 
+/** One constant's own line, so the names tested here are the names server.js uses. */
+function constOf(name) {
+  const match = serverSource.match(new RegExp(`const ${name} = '[^']*';`));
+
+  if (!match) {
+    throw new Error('MISSING ANCHOR: const ' + name + ' in server.js');
+  }
+
+  return match[0];
+}
+
 const readFilters = new Function(
+  'readCookie',
   'readGrouping',
+  'readCollapsedTypes',
   'filterList',
   'parseSortOrder',
   'SORT_FIELDS',
-  [consts[0], sourceOf('readParam'), sourceOf('readFilters'), 'return readFilters;'].join('\n')
-)(readGrouping, filterList, parseSortOrder, SORT_FIELDS);
+  [
+    constOf('SORT_COOKIE'),
+    constOf('GROUP_COOKIE'),
+    constOf('GROUP_COOKIE_MINE'),
+    constOf('FOLDED_COOKIE'),
+    constOf('FOLDED_COOKIE_MINE'),
+    consts[0],
+    sourceOf('readParam'),
+    sourceOf('readFilters'),
+    'return readFilters;',
+  ].join('\n')
+)(readCookie, readGrouping, readCollapsedTypes, filterList, parseSortOrder, SORT_FIELDS);
+
+/** A header the way a browser sends the cookies back, escaped as they were written. */
+const cookieHeader = (cookies) =>
+  Object.entries(cookies)
+    .map(([name, value]) => `${name}=${encodeURIComponent(value)}`)
+    .join('; ');
 
 t('choosing a sort leaves grouping alone', () => {
-  const filters = readFilters({}, 'name:asc', '');
+  const filters = readFilters({}, cookieHeader({ itemshare_sort: 'name:asc' }));
 
   assert.deepEqual(filters.order, [{ field: 'name', dir: 'asc' }], 'the queue is what was asked for');
   assert.equal(filters.group, true, 'and the headings stay on');
 });
 
 t('grouping off survives a sort being chosen', () => {
-  const filters = readFilters({}, 'added:desc', '0');
+  const filters = readFilters({}, cookieHeader({ itemshare_sort: 'added:desc', itemshare_group: '0' }));
 
   assert.deepEqual(filters.order, [{ field: 'added', dir: 'desc' }]);
   assert.equal(filters.group, false, 'off stays off');
 });
 
 t('with neither chosen the list is grouped and ordered by type', () => {
-  const filters = readFilters({}, '', '');
+  const filters = readFilters({}, '');
 
   assert.deepEqual(filters.order, [], 'no heading carries a badge until one is pressed');
   assert.equal(filters.group, true);
 });
 
 t('a second heading joins the end of the queue', () => {
-  const filters = readFilters({}, 'name:asc,type:desc', '');
+  const filters = readFilters({}, cookieHeader({ itemshare_sort: 'name:asc,type:desc' }));
 
   assert.deepEqual(filters.order, [
     { field: 'name', dir: 'asc' },
@@ -287,19 +316,19 @@ t('a second heading joins the end of the queue', () => {
 });
 
 t('a ?sort= bookmark is still a queue of one', () => {
-  const filters = readFilters({ sort: 'added', dir: 'desc' }, 'name:asc', '');
+  const filters = readFilters({ sort: 'added', dir: 'desc' }, cookieHeader({ itemshare_sort: 'name:asc' }));
 
   assert.deepEqual(filters.order, [{ field: 'added', dir: 'desc' }], 'the address bar wins');
 });
 
 t('a nonsense grouping cookie does not ungroup the list', () => {
-  assert.equal(readFilters({}, 'type:asc', 'nonsense').group, true);
+  assert.equal(readFilters({}, cookieHeader({ itemshare_sort: 'type:asc', itemshare_group: 'nonsense' })).group, true);
 });
 
-t('both list routes read the grouping cookie', () => {
-  const reads = (serverSource.match(/readCookie\(req\.headers\.cookie, GROUP_COOKIE\)/g) || []).length;
+t('both list routes hand over the cookies', () => {
+  const reads = (serverSource.match(/readFilters\(req\.query, req\.headers\.cookie\)/g) || []).length;
 
-  assert.equal(reads, 2, 'the page load and the live refresh both pass it through');
+  assert.equal(reads, 2, 'the page load and the live refresh both pass them through');
 });
 
 // ------------------------------------------------ the headings keep their own order
@@ -400,13 +429,75 @@ t('each switch writes the cookie for the list it sits on', () => {
   assert.match(app, /const GROUP_COOKIES = \{ request: 'itemshare_group', mine: 'itemshare_group_mine' \}/);
   assert.match(app, /writeGroupCookie\(\s*groupButton\.getAttribute\('data-group-list'\) \|\| 'request'/);
   assert.match(server, /const GROUP_COOKIE_MINE = 'itemshare_group_mine'/);
-  assert.match(server, /function readFilters\(query, sortCookie = '', groupCookie = '', groupMineCookie = ''\)/);
-  assert.match(server, /groupMine: readGrouping\(groupMineCookie\)/);
+  assert.match(server, /groupMine: readGrouping\(readCookie\(cookieHeader, GROUP_COOKIE_MINE\)\)/);
   assert.equal(
-    (server.match(/readCookie\(req\.headers\.cookie, GROUP_COOKIE_MINE\)/g) || []).length,
+    (server.match(/readFilters\(req\.query, req\.headers\.cookie\)/g) || []).length,
     2,
     'both the page and the live fragment read it'
   );
+});
+
+// ------------------------------------------------- headings that fold their rows away
+
+t('a folded heading keeps its count, hides its rows and points its caret', () => {
+  const html = inventoryTable(items, { mine: false, filters: { collapsed: ['Weapons'] } });
+
+  assert.match(html, /class="type-row is-collapsed"/, 'the shut heading is marked');
+  assert.match(
+    html,
+    /data-type-toggle="Weapons" data-group-list="request" aria-expanded="false"/,
+    'and says so out loud'
+  );
+  assert.match(html, /Weapons <span class="type-count">\(2\)<\/span>/, 'the count is still true');
+  assert.match(html, /data-item-key="inv:1" hidden/, 'Briarheart Dagger is away with it');
+  assert.match(html, /data-item-key="inv:4" hidden/, 'and so is Hunting Bow');
+  assert.match(html, /data-item-key="inv:2" data-search/, 'Apparel is untouched');
+  assert.match(
+    html,
+    /data-type-toggle="Apparel" data-group-list="request" aria-expanded="true"/,
+    'the open heading points the other way'
+  );
+});
+
+t('every fold is the list\'s own: the two lists do not share one', () => {
+  const mineFolded = inventoryTable(items, { mine: true, filters: { collapsed: ['Weapons'] } });
+  const offersFolded = inventoryTable(items, { mine: false, filters: { collapsedMine: ['Weapons'] } });
+
+  assert.doesNotMatch(mineFolded, /is-collapsed/, 'a Browse Offers fold leaves My Inventory open');
+  assert.doesNotMatch(offersFolded, /is-collapsed/, 'and the other way round');
+});
+
+t('the server reads the folded headings from their own cookies', () => {
+  const filters = readFilters(
+    {},
+    cookieHeader({
+      itemshare_collapsed: 'Weapons,Apparel',
+      itemshare_collapsed_mine: 'Style',
+    })
+  );
+
+  assert.deepEqual(filters.collapsed, ['Weapons', 'Apparel']);
+  assert.deepEqual(filters.collapsedMine, ['Style']);
+  assert.deepEqual(readFilters({}, '').collapsed, [], 'no cookie, nothing folded');
+});
+
+t('the browser folds into the cookie for the list it is on, and every box filters as typed', () => {
+  const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const styles = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+
+  assert.match(
+    app,
+    /const FOLDED_COOKIES = \{ request: 'itemshare_collapsed', mine: 'itemshare_collapsed_mine' \}/
+  );
+  assert.match(app, /setTypeFolded\(list, type, shut\)/);
+  assert.match(app, /typeToggle\.getAttribute\('data-group-list'\) \|\| 'request'/);
+  assert.doesNotMatch(
+    app,
+    /tab !== 'request' && tab !== 'offer'/,
+    'My Requests and Requests Received narrow as they are typed, like the other two'
+  );
+  assert.match(app, /row\.classList\.contains\('is-collapsed'\)/, 'the search leaves a fold shut');
+  assert.match(styles, /\.type-row:not\(\.is-collapsed\) \.type-caret/, 'the caret turns with the fold');
 });
 
 console.log(`\n${total - failures}/${total} passed`);

@@ -248,7 +248,7 @@ t('the confirmation the page would show is shown in the tab', () => {
 
 t('everything already answered is under it, with what was asked and what was sent', () => {
   const html = panel(render(), 'received');
-  const from = html.indexOf('Already answered');
+  const from = html.indexOf('Completed requests');
 
   assert.ok(from > -1, 'the history has a heading');
   const rows = html.slice(from);
@@ -330,7 +330,7 @@ t('an empty Requests Received tab keeps both tables and says so in each', () => 
 
   assert.match(received, /Waiting on your items/);
   assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing is waiting on your items right now\./);
-  assert.match(received, /Already answered/);
+  assert.match(received, /Completed requests/);
   assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing has been answered yet\./);
   assert.match(received, />Mail to<span class="sort-queue"/, 'the headings stay, including the answered ones');
 });
@@ -338,8 +338,8 @@ t('an empty Requests Received tab keeps both tables and says so in each', () => 
 t('the empty line goes away as soon as a row is there, and comes back with it', () => {
   const waiting = render({ receivedHistory: [] });
   const onlyWaiting = waiting.slice(waiting.indexOf('data-panel="received"'));
-  const waitingTable = onlyWaiting.slice(0, onlyWaiting.indexOf('Already answered'));
-  const answeredTable = onlyWaiting.slice(onlyWaiting.indexOf('Already answered'));
+  const waitingTable = onlyWaiting.slice(0, onlyWaiting.indexOf('Completed requests'));
+  const answeredTable = onlyWaiting.slice(onlyWaiting.indexOf('Completed requests'));
 
   assert.doesNotMatch(waitingTable, /class="empty-row"/, 'a request is waiting, so nothing says there is none');
   assert.match(waitingTable, /Briarheart Dagger/);
@@ -348,8 +348,8 @@ t('the empty line goes away as soon as a row is there, and comes back with it', 
   const answered = render({ received: [] });
   const back = answered.slice(answered.indexOf('data-panel="received"'));
 
-  assert.match(back.slice(0, back.indexOf('Already answered')), /class="empty-row"/);
-  assert.doesNotMatch(back.slice(0, back.indexOf('Already answered')), /Briarheart Dagger/);
+  assert.match(back.slice(0, back.indexOf('Completed requests')), /class="empty-row"/);
+  assert.doesNotMatch(back.slice(0, back.indexOf('Completed requests')), /Briarheart Dagger/);
 });
 
 // ------------------------------------------------------------- sorting and searching

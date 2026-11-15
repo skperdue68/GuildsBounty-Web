@@ -152,6 +152,21 @@ landed on `main`.
 
 ### Changed
 
+- **Two request tables are named for what they hold.** *Already sent* on **My Requests** is
+  now **Submitted requests**, and *Already answered* on **Requests Received** is now
+  **Completed requests**: "already sent" read as though the item had gone out, when the table
+  is the requests you submitted and the status column says what became of them. Only the
+  words changed - the rows, their sorting, paging and cookies are the same.
+- **A type heading folds its own rows away.** A press on the heading (not only on its count)
+  closes that type, and the count stays beside the name so a folded type reads as folded
+  rather than empty; a caret on the row points right while the rows are away and down when
+  they are back. Which types are folded is remembered per list, in `itemshare_collapsed` for
+  **Browse Offers** and `itemshare_collapsed_mine` for **My Inventory**, so it survives a
+  reload and the two lists fold independently. A search word does not reopen a folded type:
+  its heading keeps the count of what matched, and opening it shows those rows.
+- **The search boxes on My Requests and Requests Received filter as they are typed.** They
+  were accepted and then dropped by the handler that whitelisted the older two tabs, so a word
+  in either box waited for a reload; all four now narrow on the same delay as each other.
 - **Grouping is per list.** **Browse Offers** and **My Inventory** each remember whether they
   are cut up by type or shown as one flat list (`itemshare_group` and `itemshare_group_mine`),
   so one can be grouped while the other is not, and the switch on each tab reports its own
