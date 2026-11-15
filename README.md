@@ -1,6 +1,6 @@
-# ItemShare web application
+# Guild's Bounty web application
 
-The website half of ItemShare: members of a guild upload the file the in-game addon
+The website half of Guild's Bounty: members of a guild upload the file the in-game addon
 writes, and the site publishes what each of them is willing to share. Anyone who
 shares a guild with an owner can browse those items, ask for some of a stack, and
 send the ask; the owner is emailed what was asked for and which character account to
@@ -79,7 +79,7 @@ Three have no sensible default and are worth setting before anyone else uses the
 Everything else - sign-in providers, email, the `/ingest` token, the hold window,
 retry timers - is optional and off when blank. See `.env.example` for each one.
 
-One deliberate oddity: **`MARIADB_DATABASE` is ignored.** ItemShare always uses its
+One deliberate oddity: **`MARIADB_DATABASE` is ignored.** Guild's Bounty always uses its
 own database (`ITEMSHARE_DATABASE`, default `itemshare`), so it cannot write into
 another application's schema even when both share a MariaDB server.
 
@@ -818,7 +818,7 @@ configuration the site uses, printing the transport, sender and subject first, t
 result. Add `answer` as a second argument to look at the reply the asker gets instead. It
 opens no database connection and changes nothing, so it separates "the mail server works"
 from "the site is configured" - if it says the message was handed over and nothing
-arrives, the problem is the MTA's queue or DNS, not ItemShare.
+arrives, the problem is the MTA's queue or DNS, not Guild's Bounty.
 
 ## Item icons
 
@@ -1224,7 +1224,7 @@ line either way. Both processes hash the token with the same function
 - **`refused ... that site has no SIMULATE_TOKEN at all`** - HTTP 404 with
   `token-not-set`: a different `.env`, or a site started before the token was added.
 - **`refused ... (HTTP 404): nothing answers the simulate route there`** - that address is
-  not this ItemShare (check `BASE_URL` or `--url`), or the site predates this check.
+  not this Guild's Bounty (check `BASE_URL` or `--url`), or the site predates this check.
 
 The site's answer to a refusal is JSON carrying the fingerprint it holds and never the
 token, and its own log line names both fingerprints, so the comparison works from either
@@ -1310,7 +1310,7 @@ npm run email:test -- you@example.com answer
 
 It opens no database connection and changes nothing, so it separates "the mail server
 works" from "the site is configured": if it says the message was handed over and nothing
-arrives, the problem is the MTA's queue or DNS, not ItemShare. It exits `0` when the
+arrives, the problem is the MTA's queue or DNS, not Guild's Bounty. It exits `0` when the
 message was accepted, `1` when email is not configured or the transport refused it, and
 `2` on a missing or malformed address.
 
@@ -1363,7 +1363,7 @@ blank until step 6.
 
 ```ini
 [Unit]
-Description=ItemShare web application
+Description=Guild's Bounty web application
 After=network.target mariadb.service
 
 [Service]
@@ -1387,7 +1387,7 @@ journalctl -u itemshare -f
 Use `command -v node` for `ExecStart`: it is `/usr/bin/node` for a distro package and
 something else for nvm or a tarball install. Running from `WorkingDirectory` is enough -
 the server finds `.env` and `migrations/` by its own path. On boot the log names the
-migrations it applied and then `ItemShare upload site listening on ...`.
+migrations it applied and then `Guild's Bounty upload site listening on ...`.
 
 Setting `NODE_ENV` changes nothing here; the site does not read it.
 

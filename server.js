@@ -3,7 +3,7 @@ import { readCookie, readGrouping } from './lib/preferences.js';
 import { SORT_FIELDS, parseSortOrder } from './lib/sortQueue.js';
 import { keepDemoShelfFull } from './lib/demoShelf.js';
 import { errorLine, logLine, warnLine } from './lib/log.js';
-// ItemShare upload site: signs in with Discord or Google (both optional),
+// Guild's Bounty upload site: signs in with Discord or Google (both optional),
 // accepts ItemShareSavedVars.lua and replaces every shared item for every ESO
 // account in the file. Styling follows the GuildSync palette.
 //
@@ -654,7 +654,7 @@ async function emailAnswered(rows, { demo = false } = {}) {
 }
 
 // Every page the site can end up on uses the same shell, so a cancelled sign-in or
-// a wrong address looks like ItemShare rather than a line of unstyled text.
+// a wrong address looks like Guild's Bounty rather than a line of unstyled text.
 function sendPage(req, res, status, options) {
   res
     .status(status)
@@ -989,7 +989,7 @@ async function viewerAccountNames(req, connection, user) {
         .type('html')
         .send(
           renderMessagePage({
-            title: 'Browsing account \u00b7 ItemShare',
+            title: 'Browsing account \u00b7 Guild\'s Bounty',
             heading: 'That account is not yours',
             message: error.message,
             tone: 'error',
@@ -2091,7 +2091,7 @@ app.post('/requests/fulfill/:token', async (req, res) => {
 
     res.type('html').send(
       renderMessagePage({
-        title: 'Request answered - ItemShare',
+        title: 'Request answered - Guild\'s Bounty',
         heading: 'Thanks - that is recorded',
         message: summary ? `${summary}.` : 'Nothing was waiting on that link any more.',
         details:
@@ -3358,7 +3358,7 @@ app.use((req, res) => {
 
   sendPage(req, res, 404, {
     heading: 'Page not found',
-    message: 'That address is not part of ItemShare. The shared item list is on the home page.',
+    message: 'That address is not part of Guild\'s Bounty. The shared item list is on the home page.',
     details: `No route for ${req.method} ${req.path}`,
   });
 });
@@ -3566,7 +3566,7 @@ if (DEMO_ACTIVITY_MS > 0) {
 }
 
 httpServer.listen(PORT, () => {
-  logLine(`ItemShare upload site listening on http://localhost:${PORT}`);
+  logLine(`Guild's Bounty upload site listening on http://localhost:${PORT}`);
   logLine('Live updates: socket.io on /socket.io');
   logLine(
     DEMO_ACTIVITY_MS > 0

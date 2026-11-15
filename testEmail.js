@@ -6,7 +6,7 @@
 //
 // This is the site's own path end to end: same configuration, same rendered
 // message, same transport. No database connection is opened and nothing is
-// written, so a failure here is a mail problem and not an ItemShare one.
+// written, so a failure here is a mail problem and not a Guild's Bounty one.
 
 import 'dotenv/config';
 

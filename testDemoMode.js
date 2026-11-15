@@ -490,16 +490,27 @@ check('the demo pair is boxed rather than another grey hint', () => {
   assertMatch(page, /<strong>demo<\/strong>/, 'the demo password must still be in it');
 });
 
-check('the brand draws the mark and the wordmark as two pictures of their own', () => {
+check('the brand is one picture of the whole lockup', () => {
   const page = renderSignInPage({ providers });
   const header = page.slice(page.indexOf('<header class="top-bar">'), page.indexOf('</header>'));
 
-  assert(header.includes('class="brand-mark"'), 'the header must draw the mark');
-  assert(header.includes('src="/brand/mark.png"'), 'the mark must be its own file, usable alone');
-  assert(header.includes('class="brand-wordmark"'), 'the name must be a picture of its own');
-  assert(header.includes('src="/brand/wordmark.png"'), 'the name must come from the wordmark file');
-  assert(header.includes('alt="ItemShare"'), 'the wordmark must carry the name for a reader who cannot see it');
-  assert(!header.includes('<svg'), 'the artwork must be the files, not a picture pasted into the page');
+  assert(header.includes('class="brand-logo"'), 'the header must draw the plaque');
+  assert(
+    header.includes('src="/brand/GuildsBounty-Both.png"'),
+    'the plaque is the one picture file, holding the chest, the name and the line'
+  );
+  assert(
+    header.includes('width="1752"') && header.includes('height="897"'),
+    'the picture must declare its size so the bar can grow to it'
+  );
+  assert(
+    header.includes('alt="Guild\'s Bounty - shared items across your guilds"'),
+    'the picture must carry the name and the line for a reader who cannot see it'
+  );
+  assert(!header.includes('class="brand-mark"'), 'the mark is no longer a picture of its own');
+  assert(!header.includes('class="brand-wordmark"'), 'the name is no longer a separate picture');
+  assert(!header.includes('class="brand-subtitle"'), 'the line is part of the picture now');
+  assert(!header.includes('<svg'), 'the artwork must be the file, not a picture pasted into the page');
 });
 
 check('the browsing-as label carries a real middle dot, not its escaped entity', () => {
