@@ -549,6 +549,16 @@ Weapons open on the other. A word typed in the search box does not spring a fold
 the rows it matches are counted and the heading goes on saying how many are waiting there,
 and opening it then shows what the word left.
 
+The whole list can be folded in one press. At the right-hand end of the row above the table,
+just left of **Grouped by type**, a small ghost button beside it reads **Collapse all** while
+any type is open and **Expand all** once every one is shut - the word is what the press will
+do, not what the list looks like. Its chevron is the same stroke as the per-type one: pointing
+right when a press would open everything, down when it would shut. One press moves that tab's
+list only, writes that list's own cookie, and keeps the rows in step with the search box, so
+folding everything on **Browse Offers** leaves **My Inventory** exactly as it was. The button
+is drawn only when the list is grouped and has more than one type to act on; a flat list has
+no folds for it to reach.
+
 On the row above the table, beside **Grouped by type**, **Search this list** narrows what is
 already on the page, and a cross at the end of the box empties it and puts the list back. It
 applies about a second after the last keystroke rather than on every letter, so a word is

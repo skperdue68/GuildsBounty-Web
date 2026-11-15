@@ -500,6 +500,59 @@ t('the browser folds into the cookie for the list it is on, and every box filter
   assert.match(styles, /\.type-row:not\(\.is-collapsed\) \.type-caret/, 'the caret turns with the fold');
 });
 
+// ------------------------------------------- every type at once, one list at a time
+
+const foldAllTag = (html) => (html.match(/<button class="fold-all"[^>]*>/) || [''])[0];
+
+t('one press can shut every type, and it says which list it sits on', () => {
+  const offers = render({});
+  const mine = inventoryTable(items, { mine: true, filters: {} });
+
+  assert.match(foldAllTag(offers), /data-group-list="request"/, 'Browse Offers names its tab');
+  assert.match(foldAllTag(offers), /data-fold-all-shut="true"/, 'and offers to shut the lot');
+  assert.match(offers, /Collapse all/, 'the word is the press, not the state');
+  assert.match(foldAllTag(mine), /data-group-list="offer"/, 'My Inventory names its own');
+});
+
+t('with every type shut, the word offers to open them', () => {
+  const html = inventoryTable(items, {
+    mine: false,
+    filters: { collapsed: ['Weapons', 'Apparel'] },
+  });
+
+  assert.match(foldAllTag(html), /data-fold-all-shut="false"/);
+  assert.match(html, /Expand all/);
+});
+
+t('one type, or a flat list, has nothing to do all at once', () => {
+  assert.doesNotMatch(inventoryTable([items[0]], { mine: false, filters: {} }), /data-fold-all/);
+  assert.doesNotMatch(render({ group: false }), /data-fold-all/);
+});
+
+t('the press moves its own list, writes its own cookie and opens through the search', () => {
+  const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const styles = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+  const at = app.indexOf('function foldEveryType(button) {');
+  const source = app.slice(at, app.indexOf('\n  }\n', at));
+
+  assert.ok(at !== -1, 'the press is one function, so it can be tested');
+
+  assert.match(source, /getAttribute\('data-group-list'\)/, 'it acts on the list it names');
+  assert.match(
+    source,
+    /querySelectorAll\(`\[data-type-toggle\]\[data-group-list="\$\{list\}"\]`\)/,
+    "and only on that list's headings, inside its own panel"
+  );
+  assert.match(source, /setAllTypesFolded\(/, 'which are written to the cookie in one go');
+  assert.match(source, /applyListSearch\(list\)/, 'and opening meets the search box again');
+  assert.match(app, /const written = shut \? types : \[\]/, 'opening clears the set instead of leaving one');
+  assert.match(
+    styles,
+    /\.fold-all\[data-fold-all-shut='true'\] \.fold-all-icon/,
+    'the chevron turns with the word'
+  );
+});
+
 // ------------------------------------ opening a folded type really gives its rows back
 
 // The fold names its list with the tab's own word, because the click handler hands that

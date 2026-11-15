@@ -543,6 +543,16 @@ if (listRegion) {
       return;
     }
 
+    // The same fold, for every type at once. The button says which list it sits on, so the
+    // press moves that list only - Browse Offers and My Inventory are read separately.
+    const foldAll = closest('[data-fold-all]');
+
+    if (foldAll) {
+      event.preventDefault();
+      foldEveryType(foldAll);
+      return;
+    }
+
     // A type heading folds the rows beneath it away. They are already on the page, so this
     // opens and closes them without asking the server; which types are folded is a reading
     // choice about one list, so it goes in that list's own cookie and survives a refresh.
@@ -794,6 +804,60 @@ if (listRegion) {
     if (shut) types.push(type);
 
     document.cookie = `${name}=${types
+      .map((entry) => encodeURIComponent(entry))
+      .join(',')}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }
+
+  // Every type in one list opens or shuts in one press. Named rather than written inline in
+  // the click handler so the test can hand it a real document: it is the only place that has
+  // to keep five things in step - the headings, their rows, their carets, the cookie, and the
+  // words on the button that started it.
+  function foldEveryType(button) {
+    const list = button.getAttribute('data-group-list') || 'request';
+    // What the press does, not what the list is: shut means "fold them all away".
+    const shut = button.getAttribute('data-fold-all-shut') === 'true';
+    // Only this list's headings, and only inside the panel it lives in, so one tab's press
+    // cannot reach into another tab's table.
+    const scope = button.closest('[data-panel]') || document;
+    const headings = [...scope.querySelectorAll(`[data-type-toggle][data-group-list="${list}"]`)]
+      .map((toggle) => toggle.closest('.type-row'))
+      .filter(Boolean);
+
+    setAllTypesFolded(
+      list,
+      headings.map((heading) => heading.querySelector('[data-type-toggle]').getAttribute('data-type-toggle')),
+      shut
+    );
+
+    for (const heading of headings) {
+      const toggle = heading.querySelector('[data-type-toggle]');
+
+      heading.classList.toggle('is-collapsed', shut);
+      toggle.setAttribute('aria-expanded', String(!shut));
+
+      for (const row of groupMembers(heading)) row.hidden = shut;
+    }
+
+    // The words say what the next press would do, so they turn over with the list.
+    button.setAttribute('data-fold-all-shut', String(!shut));
+    button.title = shut ? 'Open every type at once' : 'Fold every type away at once';
+
+    const word = button.querySelector('.fold-all-word');
+
+    if (word) word.textContent = shut ? 'Expand all' : 'Collapse all';
+
+    // Opened rows then meet whatever is in the search box, so an unfold cannot leave rows on
+    // screen that the word typed in the box had hidden.
+    if (!shut) applyListSearch(list);
+  }
+
+  // One write for the whole list: shut writes every type it drew, open clears the cookie
+  // rather than leaving a set behind that the headings no longer agree with.
+  function setAllTypesFolded(list, types, shut) {
+    const name = FOLDED_COOKIES[list] || FOLDED_COOKIES.request;
+    const written = shut ? types : [];
+
+    document.cookie = `${name}=${written
       .map((entry) => encodeURIComponent(entry))
       .join(',')}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }

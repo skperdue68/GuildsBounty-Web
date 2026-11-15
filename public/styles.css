@@ -3269,6 +3269,53 @@ th.action-cell {
   display: block;
 }
 
+/* The whole list at once, one step quieter than the grouping switch it sits beside: it is a
+   convenience for a long list, not the way the list is read. The word is the action, so the
+   chevron turns with it - right when a press would open everything, down when it would shut. */
+.fold-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fold-all:hover,
+.fold-all:focus-visible {
+  color: #f8fafc;
+  border-color: rgba(148, 197, 255, 0.45);
+  background: rgba(148, 197, 255, 0.06);
+}
+
+.fold-all:focus-visible {
+  outline: 2px solid rgba(148, 197, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.fold-all-icon {
+  flex: none;
+  display: block;
+  transition: transform 120ms ease;
+}
+
+.fold-all[data-fold-all-shut='true'] .fold-all-icon {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold-all-icon {
+    transition: none;
+  }
+}
+
 /* The platform and server are chosen, not typed: a name attached by hand has to say where
    it plays, or a request cannot tell NA from EU. Two choices side by side, one per line
    once there is no room for both. */
