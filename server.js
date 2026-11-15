@@ -383,14 +383,19 @@ app.use((req, res, next) => {
     : null;
 
   // Never offered in its own list: your own name is not a place to go, it is the place the
-  // way back leads. Whoever is being looked at stays in, because the picker draws them as its
-  // chosen line - leaving them out emptied the list on a small site and took the picker with
-  // it, so there was no way to step from one person straight to another.
+  // way back leads.
   const skip = [Number(real.id)].filter((id) => id > 0);
 
-  withDatabase((connection) =>
-    listViewAsUsers(connection, { isDemo: Boolean(real.isDemo), exclude: skip })
-  )
+  // While looking at somebody, the menu draws no picker at all - the way back is the whole of
+  // it - so the list is not asked for either. One fewer query on every page of an acting
+  // session, and nothing to go stale between pages.
+  const listPeople = acting
+    ? Promise.resolve([])
+    : withDatabase((connection) =>
+        listViewAsUsers(connection, { isDemo: Boolean(real.isDemo), exclude: skip })
+      );
+
+  listPeople
     .then((people) => {
       Object.defineProperty(req.session.user, 'viewAs', {
         value: { people, acting },

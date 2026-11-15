@@ -124,6 +124,12 @@ landed on `main`.
 
 ### Changed
 
+- **While you are somebody else, the menu drops the picker and Log out.** Everything else in it
+  still works as theirs, because that is the point of looking at their site. Picking a different
+  person and logging out both happen after returning to your own menu, where they are again -
+  Log out ends the whole session rather than the view, and stepping from one person to another
+  goes through your own login first. The list of people is not even fetched while you are
+  acting, since nothing draws it, and *Return to my own login* sits where the picker was.
 - **The avatar menu scrolls instead of running past the bottom of the window.** The panel hangs
   under the avatar with nothing bounding it, and Log out is its last item, so anything added
   above pushed the way out off the screen with no way to reach it - the view-as block was

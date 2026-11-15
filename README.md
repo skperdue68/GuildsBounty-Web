@@ -928,15 +928,19 @@ One Discord handle - `evainefaye` - gets an extra item at the bottom of the avat
 above **Log out**: a picker whose own first line reads **View the Site As:**, listing everybody
 else in the system in alphabetical order. That line is the picker's name rather than a heading
 above it, so nothing has to be read before the list, and it cannot be chosen. Your own name is
-not in the list - being yourself is what *Return to my own login* is for. Whoever you are
-looking at stays in it, shown as the line the picker is on, so the picker always says whose site
-is on screen and moves straight on to somebody else without a trip back through your own view. Picking a name is the whole action: the page switches as
-soon as it is chosen, with no button to confirm it, and the session then acts as that person, so
-the list shows their guilds and their shelf, the request pages show what is addressed to them,
-the avatar carries their name and their pending count, and a person with no ESO account linked
-sees the prompts that person would see. A banner across the top of every page names who is
-being looked at - *This is the site as workswithdragons sees it* - and carries *Return to my own
-login*; the way back inside the menu does the same thing.
+not in it - being yourself is what *Return to my own login* is for. Picking a name is the whole
+action: the page switches as soon as it is chosen, with no button to confirm it, and the session
+then acts as that person, so the list shows their guilds and their shelf, the request pages show
+what is addressed to them, the avatar carries their name and their pending count, and a person
+with no ESO account linked sees the prompts that person would see. A banner across the top of
+every page names who is being looked at - *This is the site as workswithdragons sees it* - and
+carries *Return to my own login*.
+
+While somebody else's site is on screen the menu works as theirs - the same accounts, requests and
+guild code items, because that is what looking at their site means - with two things missing from
+it. There is no picker, so stepping from one person to another goes through your own login first,
+and there is no **Log out**, which ends the whole session rather than the view. Return, then pick
+again or log out from your own menu, where both are.
 
 It is a test tool, not a role. Nothing grants it, it is checked on every request rather than
 remembered from a session, it needs Discord (a Google or email login with that name does not
@@ -949,8 +953,9 @@ Two things follow from acting as somebody:
 
 - Anything written while looking at their site is written as them - a request sent, an item
   answered, an account detached. The banner is there to keep that in mind.
-- **Log out** ends the whole session, impersonation and all; *Return to my own login* is the
-  way back that keeps you signed in.
+- **Log out** is hidden while somebody else's site is on screen, because it ends the whole
+  session rather than just the view; *Return to my own login* is the way back that keeps you
+  signed in, and Log out is in the menu again once you are.
 
 ## Live updates
 
