@@ -70,6 +70,13 @@ landed on `main`.
 
 ### Fixed
 
+- **Your own items can no longer disappear behind a guild.** The list lets you see a row
+  through a guild you belong to, and separately lets you see your own rows - but that second
+  branch only covered rows with *no* guild link at all. An item stamped with a guild the join
+  could not match (a guild the account had left, a guild row written on another world) was
+  therefore hidden from everybody, its owner included, even though the upload had stored it
+  and the answer had counted it. Your own shares are now yours however they are stamped;
+  other people still only see what their guilds reach.
 - **The date an item was first offered is read from the item, not the row.** 1.11.39 keeps
   one date per item link in `itemFirstDumped`, beside the item list, and clears the copy it
   used to write on every share row. So one thing standing in the bank and again in a house
@@ -113,6 +120,13 @@ landed on `main`.
   drops them once, and the parser stops reading them. Everything the list draws - type name,
   quality, trait, set, enchantment, style, level and champion points, location, counts and
   dates - is unchanged.
+- **The Added menu gained the windows it was missing, and a way back.** It now reads *Any
+  Time*, Last 24 Hours, Last 3 Days, Last 7 Days, Last 2 Weeks, Last 30 Days and **LAST
+  CHANCE**, in that order. *Any Time* is first and is the choice that is on when nothing is
+  chosen, so a window can be let go of without resetting every other filter - before it,
+  there was no way back to "no Added filter" except the reset button. LAST CHANCE keeps its
+  warning colour. The Added summary no longer carries a count, since one choice at a time
+  could only ever read 1, and the reset button is spelled **RESET**.
 - **The site is Guild's Bounty now.** Every page title, the footer, the *Back to ...* buttons,
   the guide, the sign-in card, the demo banner, the header's download button, the request,
   fulfilment and password reset emails, the site's own User-Agent strings, the boot log line,

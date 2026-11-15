@@ -213,6 +213,10 @@ handled inside one transaction, so either all of them are replaced or none are.
 Guild membership is replaced in full as well (`itemshare_account_guilds`), so leaving a
 guild in game removes that guild's visibility after the next upload.
 
+Who may see a row is decided per row. A share reaches somebody through a guild you both
+belong to, on the same megaserver and platform; your own shares are yours whatever they are
+stamped with, so a guild you have left cannot take your own list away from you.
+
 The answer says what the file did to each account's list, per account and in total: how many
 items were **removed**, how many were **added**, and how many were **refreshed** - an item
 that was already there whose quantity the file reports differently, up or down. A refresh is
@@ -559,11 +563,13 @@ something in game and saving again updates it without anyone touching the site.
 A filter bar narrows the list by item type, owner account and how recently it was added.
 Type and owner are menus that accept several values at once, each ticked value becoming a
 chip on a row underneath; clicking a chip removes just that value. **Added** is one choice
-at a time - the last day, the last 7 days, the last 30 days, or **LAST CHANCE** - and it is
-the same menu as the other two rather than a dropdown. Filters are ordinary query
+at a time - **Any Time**, Last 24 Hours, Last 3 Days, Last 7 Days, Last 2 Weeks, Last 30
+Days, or **LAST CHANCE** - and it is the same menu as the other two rather than a dropdown.
+Its summary names the window it is on and carries no count, because one choice at a time
+could only ever say 1. **Any Time** comes first, so a window is let go of without taking the
+other filters off with it. Filters are ordinary query
 parameters, repeated once per value (`/?type=Weapon&type=Armor&owner=@Name&added=7`), so a
-filtered view can be bookmarked and works with scripts off. **Reset** takes all of them
-off.
+filtered view can be bookmarked and works with scripts off. **RESET** takes all of them off.
 
 Expiry belongs to the owner's file. `expireDays` in the account scope - `["expireDays"] =
 14` in a typical file - is how many days the addon keeps an item shared after it was first
