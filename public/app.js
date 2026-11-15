@@ -534,7 +534,11 @@ if (listRegion) {
 
     if (groupButton) {
       event.preventDefault();
-      writeGroupCookie(groupButton.getAttribute('aria-pressed') === 'true' ? '0' : '1');
+      // The switch says which list it belongs to, so pressing it changes that list alone.
+      writeGroupCookie(
+        groupButton.getAttribute('data-group-list') || 'request',
+        groupButton.getAttribute('aria-pressed') === 'true' ? '0' : '1'
+      );
       scheduleRefresh(0);
       return;
     }
@@ -719,8 +723,14 @@ if (listRegion) {
   // grouping the server sends anyway, which also clears a choice made on an earlier visit.
   // Its own cookie, for the same reason: a display choice should not be in the URL, and
   // the two choices are independent, so one must not overwrite the other.
-  function writeGroupCookie(value) {
-    document.cookie = `itemshare_group=${encodeURIComponent(
+  // One cookie per list. Browse Offers keeps the name it has always used; My Inventory has its
+  // own, so the two can be grouped differently and each switch reports the list it sits on.
+  const GROUP_COOKIES = { request: 'itemshare_group', mine: 'itemshare_group_mine' };
+
+  function writeGroupCookie(list, value) {
+    const name = GROUP_COOKIES[list] || GROUP_COOKIES.request;
+
+    document.cookie = `${name}=${encodeURIComponent(
       value
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }

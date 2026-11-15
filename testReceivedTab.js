@@ -408,6 +408,25 @@ t('a link can name the tab it opens, and the request email names this one', () =
   );
 });
 
+// The other two tabs put their box in the tools row, which is what makes it span the card and
+// keeps the clear cross at its right-hand end; these two do the same rather than sitting in a
+// narrow column of their own.
+t('the new search boxes sit in the same tools row as the other tabs', () => {
+  const html = render({ received: [] });
+  const mine = html.slice(html.indexOf('data-panel="mine"'), html.indexOf('data-panel="offer"'));
+  const received = html.slice(html.indexOf('data-panel="received"'));
+
+  assert.match(mine, /<div class="list-tools"><div class="list-search">/, 'My Requests');
+  assert.match(received, /<div class="list-tools"><div class="list-search">/, 'Requests Received');
+  assert.match(mine, /data-list-search-clear="mine"/, 'with its cross');
+  assert.match(received, /data-list-search-clear="received"/);
+  assert.doesNotMatch(
+    read('public/styles.css'),
+    /\.list-panel > \.list-search/,
+    'and no narrower rule left over from when they were outside the row'
+  );
+});
+
 t('the send instruction is a size up and has air under it', () => {
   const css = read('public/styles.css');
   const rule = css.slice(css.indexOf('.bag-note {'));

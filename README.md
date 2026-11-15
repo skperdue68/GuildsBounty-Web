@@ -521,13 +521,18 @@ table that draws it: **Location** is on **My Inventory** alone, so a sort left t
 not take the first place on **Request**, where its heading is not drawn and could not be
 switched off. Rows with nothing in the
 column - no trait, no recorded location - sink to the bottom whichever way it runs. The
-queue is remembered in the `itemshare_sort` cookie and the grouping in `itemshare_group`,
-so both survive a reload without ever appearing in the URL.
+queue is remembered in the `itemshare_sort` cookie and the grouping in `itemshare_group` for
+**Browse Offers** and `itemshare_group_mine` for **My Inventory**, so both survive a reload
+without ever appearing in the URL. The two grouping choices are independent: one list can be
+cut up by type while the other is a flat list, and the switch on each tab shows the state of
+the list it sits on. Turning the headings off on **My Inventory** does not turn them off on
+**Browse Offers**, and neither switch moves the other's sort.
 
 On the row above the table, beside **Grouped by type**, **Search this list** narrows what is
 already on the page, and a cross at the end of the box empties it and puts the list back. It
 applies about a second after the last keystroke rather than on every letter, so a word is
-finished before the table redraws around it. Browse Offers and My Inventory each have their own box and
+finished before the table redraws around it. The box spans the row it sits in, on every tab
+that has one, with the cross at its right-hand end. Browse Offers and My Inventory each have their own box and
 their own word: typing on one leaves the other list untouched, and switching tabs brings
 back that tab's word with the rows it narrows. Matching is partial and ignores case, and looks at everything a row says:
 the name, its type and trait, its enchantment, style and set, the storage place, and who
