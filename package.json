@@ -27,8 +27,6 @@
     "test:upload-summary": "node testUploadSummary.js",
     "test:demo-mode": "node testDemoMode.js",
     "test:guild-codes": "node testGuildCodes.js",
-    "test:discord-api": "node --test testDiscordBotApi.js testDiscordBotGuildSync.js testDiscordBotNotifications.js",
-    "test:discord-store": "node testDiscordBotStore.js",
     "test:requests-sort": "node testRequestsSort.js",
     "requests:reopen": "node reopenRequests.js",
     "seed:demo": "node seedDemo.js",
