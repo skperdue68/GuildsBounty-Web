@@ -378,12 +378,18 @@ app.use((req, res, next) => {
     return;
   }
 
-  withDatabase((connection) => listViewAsUsers(connection, { isDemo: Boolean(real.isDemo) }))
-    .then((people) => {
-      const acting = viewAsOriginal(req)
-        ? { id: Number(req.session.user.id), name: String(req.session.user.username || '') }
-        : null;
+  const acting = viewAsOriginal(req)
+    ? { id: Number(req.session.user.id), name: String(req.session.user.username || '') }
+    : null;
 
+  // Never offered in its own list: your own name is not a place to go, it is the place the
+  // way back leads, and the person being looked at is the page you are already on.
+  const skip = [Number(real.id), acting ? acting.id : 0].filter((id) => id > 0);
+
+  withDatabase((connection) =>
+    listViewAsUsers(connection, { isDemo: Boolean(real.isDemo), exclude: skip })
+  )
+    .then((people) => {
       Object.defineProperty(req.session.user, 'viewAs', {
         value: { people, acting },
         enumerable: false,

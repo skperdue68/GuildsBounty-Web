@@ -12,7 +12,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { isViewAsOperator, providerLabelFor, VIEW_AS_USERNAME } from './lib/viewAs.js';
+import {
+  arrangeForMenu,
+  isViewAsOperator,
+  providerLabelFor,
+  VIEW_AS_USERNAME,
+} from './lib/viewAs.js';
 import { renderMessagePage, viewAsMenu } from './lib/views.js';
 
 const tests = [];
@@ -224,7 +229,10 @@ t('the menu data is kept out of the stored session', () => {
     /enumerable: false/,
     'the session is written with JSON.stringify, so a list of everybody must not be in it'
   );
-  assert.match(server, /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\) \}\)/);
+  assert.match(
+    server,
+    /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\), exclude: skip \}\)/
+  );
 });
 
 t('the person who really signed in is what every gate is checked against', () => {
@@ -265,6 +273,108 @@ t('a form value that is not a person is refused before any query', () => {
     body.indexOf('Number.isInteger(id)') < body.indexOf('connection.execute'),
     'the check comes first'
   );
+});
+
+// The bug this replaced: the identity table is keyed on (provider, provider_user_id) and has
+// no id column, so ordering by one failed at the database and the swap never happened.
+t('the sign-in rows are ordered by columns that table actually has', () => {
+  const body = storeFunction('getViewAsUser');
+  const schema = read('migrations/005_itemshare_users.sql');
+  const from = schema.indexOf('CREATE TABLE IF NOT EXISTS itemshare_user_identities');
+  const create = schema.slice(from, schema.indexOf(') ENGINE', from));
+
+  assert.ok(from > -1 && create.length > 0, 'the identity table is in the schema');
+
+  const named = [...new Set([...body.matchAll(/\bi\.(\w+)/g)].map((match) => match[1]))];
+
+  assert.ok(named.length > 0, 'the subquery refers to its own columns');
+
+  for (const column of named) {
+    assert.match(create, new RegExp(`\\b${column}\\b`), `itemshare_user_identities has ${column}`);
+  }
+});
+
+t('choosing a person is the whole action, with no confirm click', () => {
+  const menu = viewAsMenu({ people, acting: null });
+  // Everything outside <noscript> is what a browser with script draws.
+  const withScript = menu.replace(/<noscript>[\s\S]*?<\/noscript>/g, '');
+
+  assert.match(withScript, /data-view-as-picker/);
+  assert.doesNotMatch(withScript, /<button/, 'no submit button to press after choosing');
+  assert.match(menu, /<noscript>[\s\S]*type="submit"/, 'a way through without script');
+});
+
+t('the page script sends the picker as soon as it changes', () => {
+  const header = read('public/header-menu.js');
+
+  assert.match(header, /\[data-view-as-picker\]/);
+  assert.match(header, /requestSubmit/);
+});
+
+t('switching who you are does not raise the browser leaving question', () => {
+  assert.match(
+    read('public/app.js'),
+    /action === '\/browsing-account' \|\| action === '\/view-as'/,
+    'a held basket survives the switch, so nothing should ask about leaving'
+  );
+});
+
+// ------------------------------------------------------------- who the list leaves out
+
+t('a person who is not the operator is offered in alphabetical order', () => {
+  const people = arrangeForMenu([
+    { id: 7, name: 'zara' },
+    { id: 3, name: 'Bram' },
+    { id: 5, name: 'ada' },
+    { id: 9, name: 'Ada' },
+  ]);
+
+  assert.deepEqual(
+    people.map((person) => person.name),
+    ['ada', 'Ada', 'Bram', 'zara'],
+    'alphabetical ignoring case, and the two Adas keep a steady order by id'
+  );
+});
+
+t('the order does not depend on the database, so the menu sorts for itself', () => {
+  const body = storeFunction('listViewAsUsers');
+
+  assert.match(body, /ORDER BY display_name ASC/, 'the query still asks for it');
+  assert.match(body, /return arrangeForMenu\(/, 'and the result is put in order here too');
+});
+
+t('somebody with no name is still a person to look at, listed by id', () => {
+  const people = arrangeForMenu([{ id: 12, name: '   ' }, { id: 4, name: 'Ada' }]);
+
+  assert.equal(people.length, 2, 'a blank name is not a reason to hide somebody');
+  assert.deepEqual(
+    people.find((person) => person.id === 12),
+    { id: 12, name: '#12' },
+    'they are listed as their id rather than as an empty line'
+  );
+});
+
+t('a row that is not a person is dropped rather than drawn', () => {
+  assert.deepEqual(arrangeForMenu([{ id: 0, name: 'nobody' }, { id: 2, name: 'Ada' }]), [
+    { id: 2, name: 'Ada' },
+  ]);
+  assert.deepEqual(arrangeForMenu(null), []);
+});
+
+t('the list leaves out the person looking, and the one being looked at', () => {
+  const body = storeFunction('listViewAsUsers');
+
+  assert.match(body, /exclude = \[\]/);
+  assert.match(body, /AND id NOT IN \(\$\{inClause\(skip\)\}\)/, 'the query skips them');
+  assert.match(body, /\[isDemo \? 1 : 0, \.\.\.skip\]/, 'and binds their ids');
+
+  // Both ids are what the server hands over: yours, and the one the page is already showing.
+  assert.match(server, /const skip = \[Number\(real\.id\), acting \? acting\.id : 0\]/);
+  assert.match(server, /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\), exclude: skip \}\)/);
+});
+
+t('with nobody else to offer, the menu is not drawn rather than empty', () => {
+  assert.equal(viewAsMenu({ people: [], acting: null }), '');
 });
 
 let passed = 0;

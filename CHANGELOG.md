@@ -8,9 +8,11 @@ landed on `main`.
 ### Added
 
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
-  in the avatar menu lists every person in the system, and picking one makes the session act
-  as them: their guilds and their shelf, the requests addressed to them, their name on the
-  avatar and their pending count. A banner across the top of every page says whose site is on
+  in the avatar menu lists everybody else in the system, alphabetically - your own name is not
+  in it, and neither is whoever's page you are already on - and picking one, with no button to
+  press after it because the choice is the action, makes the session act as them: their guilds
+  and their shelf, the requests addressed to them, their name on the avatar and their pending
+  count. A banner across the top of every page says whose site is on
   screen, and *Return to my own login* puts it back - picking your own name does the same.
   It is a test tool and not a role: nothing grants it, it is checked on every request rather
   than remembered, it needs Discord (a Google or email login with that name does not get it),
@@ -126,6 +128,14 @@ landed on `main`.
   from your Saved Variables Folder Here*, rather than naming the saved-variables file. The file
   it accepts is unchanged: the addon writes `ItemShare.lua` into the Saved Variables folder, and
   that is the one to drop on the card.
+- **The demo and the simulator build rows the same shape as an upload.** Their fixtures still
+  filled in the thirteen fields the tables no longer have, so a demo item and a simulated item
+  described data the site cannot store - harmless, because the insert only ever reads the
+  column list, but misleading to anybody reading the catalogue and expecting those fields to
+  arrive. They are gone from both, and a check in `npm run test:schema` now turns each field a
+  demo or simulated item carries into the column it would need and fails if there is no such
+  column. The database itself needed nothing: the demo copy is built from the same migrations
+  on every start, so it has no such columns either way.
 - **The item tables are down to what the site actually uses.** Thirteen columns were stored
   and never read: the numeric item type, the quality's own name, the trait type, the apparel
   and weapon descriptors, the furniture data id, the flavour text, the raw dump of every ESO

@@ -201,6 +201,11 @@ armour and weapon class, handedness), the furniture data id, the flavour text an
 of every ESO getter that answered; none of that was ever drawn or filtered on, so the parser
 stopped reading it and migration 030 drops the columns it used to fill.
 
+The demo catalogue (`lib/demoItems.js`), `npm run simulate` and the fulfilment fixture build
+their items the same way, so none of them carries those fields either. The demo database needs
+no separate migration: it is dropped and rebuilt from the same migrations on every start, so it
+gets migration 030 along with everything else.
+
 **Fill in, then prune.** An upload writes every item the file mentions where it already
 stands - same row, same id, same first-seen date - and only afterwards deletes the rows
 the file no longer mentions. Nothing blinks out of the list between one upload and the
@@ -911,10 +916,13 @@ database-error card rather than a blank screen.
 ## Looking at the site as somebody else
 
 One Discord handle - `evainefaye` - gets an extra item in the avatar menu: *View the site as
-another person*, a list of everybody in the system. Picking a name makes the session act as
-that person, so the list shows their guilds and their shelf, the request pages show what is
-addressed to them, the avatar carries their name and their pending count, and a person with no
-ESO account linked sees the prompts that person would see. A banner across the top of every
+another person*, a list of everybody else in the system, in alphabetical order. Your own name is
+not in the list - being yourself is what *Return to my own login* is for - and neither is the
+person whose page you are already on. Picking a name is the whole action: the page switches as
+soon as it is chosen, with no button to confirm it, and the session then acts as that person, so
+the list shows their guilds and their shelf, the request pages show what is addressed to them,
+the avatar carries their name and their pending count, and a person with no ESO account linked
+sees the prompts that person would see. A banner across the top of every
 page names who is being looked at and carries *Return to my own login*; picking your own name
 in the list does the same thing.
 
