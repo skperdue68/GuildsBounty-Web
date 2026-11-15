@@ -162,11 +162,12 @@ landed on `main`.
 
 ### Changed
 
-- **The avatar menu carries the name under the picture.** The name used to sit to the left of
-  the avatar as a separate label; it is the pill's own second row now, centred under the
-  picture with the caret to the right, and the pill is as wide as the name needs (an ellipsis
-  at 132px). The header is one piece instead of two, and the button keeps the accessible name
-  it reads out, so the visible name is not announced twice.
+- **The avatar is just the picture.** The header used to draw the name beside the avatar, and
+  then on a row under it inside a pill; either way it was the same name the menu already says
+  when it opens, and it left the picture cramped. The name and the caret are gone and the
+  circle is bigger - 38px, up from 30px - inside a light ring that answers to hover. The
+  picture itself opens the menu. The button keeps its label - *Account menu for Develia, 3
+  requests to process* - so a screen reader still hears whose menu it is and what is waiting.
 - **The fold's caret is a chevron you can read.** It was a 10px text arrow beside 11px
   capitals, which read as a speck rather than an indicator; it is now a drawn chevron at
   15px, turning from right to down in 120 ms (no turn at all where reduced motion is asked
