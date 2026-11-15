@@ -2081,8 +2081,9 @@ if (listRegion) {
     }
 
     const slot = button.querySelector('.avatar-slot');
-    const nameNode = document.querySelector('.account-name');
-    const state = pendingBadgeState(count, nameNode ? nameNode.textContent.trim() : '');
+    // The header draws no name of its own any more, so the button carries it as data - the
+    // label it says out loud is built from the same word the page was drawn with.
+    const state = pendingBadgeState(count, button.dataset.accountName || '');
     let badge = slot ? slot.querySelector('.avatar-badge') : null;
 
     if (!state.badge) {
