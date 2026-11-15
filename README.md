@@ -553,11 +553,13 @@ something in game and saving again updates it without anyone touching the site.
 A filter bar narrows the list by item type, owner account and how recently it was added.
 Type and owner are menus that accept several values at once, each ticked value becoming a
 chip on a row underneath; clicking a chip removes just that value. **Added** is one choice
-at a time - the last day, the last 7 days, the last 30 days, or **LAST CHANCE** - and it is
-the same menu as the other two rather than a dropdown. Filters are ordinary query
+at a time - **Any Time**, Last 24 Hours, Last 3 Days, Last 7 Days, Last 2 Weeks, Last 30
+Days, or **LAST CHANCE** - and it is the same menu as the other two rather than a dropdown.
+Its summary names the window it is on and carries no count, because one choice at a time
+could only ever say 1. **Any Time** comes first, so a window is let go of without taking the
+other filters off with it. Filters are ordinary query
 parameters, repeated once per value (`/?type=Weapon&type=Armor&owner=@Name&added=7`), so a
-filtered view can be bookmarked and works with scripts off. **Reset** takes all of them
-off.
+filtered view can be bookmarked and works with scripts off. **RESET** takes all of them off.
 
 Expiry belongs to the owner's file. `expireDays` in the account scope - `["expireDays"] =
 14` in a typical file - is how many days the addon keeps an item shared after it was first
