@@ -358,6 +358,57 @@ t('the order inside a type is still the one that was chosen', () => {
   );
 });
 
+// ----------------------------------------------------- two lists, two answers
+
+// Whether a list is cut up by type is a reading choice about that list. Browse Offers and My
+// Inventory used to share one cookie, so turning the headings off on one turned them off on
+// the other, and the switch on each tab reported the other tab's state.
+t('one list can be grouped while the other is a flat list', () => {
+  const offersGrouped = { group: true, groupMine: false };
+  const mineGrouped = { group: false, groupMine: true };
+
+  assert.match(
+    groupToggle(offersGrouped, '', 'request'),
+    /data-group-toggle aria-pressed="true" data-group-list="request"/,
+    'Browse Offers says grouped'
+  );
+  assert.match(
+    groupToggle(offersGrouped, '', 'mine'),
+    /data-group-toggle aria-pressed="false" data-group-list="mine"/,
+    'while the switch on My Inventory says one list'
+  );
+  assert.match(groupToggle(mineGrouped, '', 'request'), /aria-pressed="false" data-group-list="request"/);
+  assert.match(groupToggle(mineGrouped, '', 'mine'), /aria-pressed="true" data-group-list="mine"/);
+});
+
+t('and each table is drawn the way its own list says', () => {
+  const draw = (mine, filters) => headingCount(inventoryTable(items, { mine, filters }));
+
+  assert.equal(draw(false, { group: true, groupMine: false }), 2, 'Browse Offers grouped');
+  assert.equal(draw(true, { group: true, groupMine: false }), 0, 'My Inventory flat at the same time');
+  assert.equal(draw(false, { group: false, groupMine: true }), 0, 'the other way round');
+  assert.equal(draw(true, { group: false, groupMine: true }), 2);
+
+  assert.equal(draw(true, { groupMine: false }), 0, 'a missing Browse Offers flag leaves My Inventory alone');
+  assert.equal(draw(false, { group: false }), 0, 'and a missing My Inventory flag leaves Browse Offers alone');
+});
+
+t('each switch writes the cookie for the list it sits on', () => {
+  const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const server = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+
+  assert.match(app, /const GROUP_COOKIES = \{ request: 'itemshare_group', mine: 'itemshare_group_mine' \}/);
+  assert.match(app, /writeGroupCookie\(\s*groupButton\.getAttribute\('data-group-list'\) \|\| 'request'/);
+  assert.match(server, /const GROUP_COOKIE_MINE = 'itemshare_group_mine'/);
+  assert.match(server, /function readFilters\(query, sortCookie = '', groupCookie = '', groupMineCookie = ''\)/);
+  assert.match(server, /groupMine: readGrouping\(groupMineCookie\)/);
+  assert.equal(
+    (server.match(/readCookie\(req\.headers\.cookie, GROUP_COOKIE_MINE\)/g) || []).length,
+    2,
+    'both the page and the live fragment read it'
+  );
+});
+
 console.log(`\n${total - failures}/${total} passed`);
 
 process.exit(failures ? 1 : 0);

@@ -1327,14 +1327,6 @@ a.primary-button {
    drawn over, and the switch changes how that table is cut up, so the two belong together.
    The box takes whatever room the switch leaves and keeps its blue, its white text and its
    rounded corners. */
-/* A search box that opens a panel rather than sitting in a tools row: the two request tabs put
-   theirs above the first heading, so it is given the air that row would have taken and does not
-   stretch the width of the table. */
-.list-panel > .list-search {
-  margin: 4px 0 12px;
-  max-width: 320px;
-}
-
 .list-search {
   position: relative;
   display: flex;

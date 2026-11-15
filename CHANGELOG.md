@@ -152,6 +152,14 @@ landed on `main`.
 
 ### Changed
 
+- **Grouping is per list.** **Browse Offers** and **My Inventory** each remember whether they
+  are cut up by type or shown as one flat list (`itemshare_group` and `itemshare_group_mine`),
+  so one can be grouped while the other is not, and the switch on each tab reports its own
+  list. Turning the headings off on one no longer turns them off on the other.
+- **The search boxes on My Requests and Requests Received span the card.** They sit in the
+  same tools row as the other two tabs rather than in a narrow column of their own, with the
+  cross at the right-hand end clearing them, and they narrow both tables on the tab as the
+  word is typed.
 - **Every request table says what it is, even when it is empty.** *In your basket* and
   *Already sent* on My Requests, and *Waiting on your items* and *Already answered* on
   Requests Received, keep their headings and put one line across every column when there is

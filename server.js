@@ -916,9 +916,12 @@ const SORT_COOKIE = 'itemshare_sort';
 // Grouping is its own preference, for the same reason: turning the type headings off
 // should not disturb the order somebody chose from the column headings.
 const GROUP_COOKIE = 'itemshare_group';
+// My Inventory keeps its own: whether one list is cut up by type is a reading choice about
+// that list, so turning the headings off there must not turn them off on Browse Offers too.
+const GROUP_COOKIE_MINE = 'itemshare_group_mine';
 
 
-function readFilters(query, sortCookie = '', groupCookie = '') {
+function readFilters(query, sortCookie = '', groupCookie = '', groupMineCookie = '') {
   const added = readParam(query.added);
   const asked = readParam(query.sort);
   const askedDir = readParam(query.dir) === 'desc' ? 'desc' : 'asc';
@@ -940,8 +943,10 @@ function readFilters(query, sortCookie = '', groupCookie = '') {
     // or ?added= falls back to the default instead of reaching the query.
     added: ADDED_WINDOWS.has(added) ? added : '',
     order,
-    // Headings are drawn while this is true, whatever the order is.
+    // Headings are drawn while this is true, whatever the order is. One flag per list: Browse
+    // Offers reads `group`, My Inventory reads `groupMine`, and neither moves the other.
     group: readGrouping(groupCookie),
+    groupMine: readGrouping(groupMineCookie),
   };
 }
 
@@ -1100,7 +1105,8 @@ async function viewerAccountNames(req, connection, user) {
     const data = await collectViewerData(req, readFilters(
       req.query,
       readCookie(req.headers.cookie, SORT_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE)
+      readCookie(req.headers.cookie, GROUP_COOKIE),
+      readCookie(req.headers.cookie, GROUP_COOKIE_MINE)
     ));
 
     // Only the page somebody lands on says this: the notice is about the address they used,
@@ -1168,7 +1174,8 @@ async function viewerAccountNames(req, connection, user) {
 app.get('/items', async (req, res) => {    const data = await collectViewerData(req, readFilters(
       req.query,
       readCookie(req.headers.cookie, SORT_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE)
+      readCookie(req.headers.cookie, GROUP_COOKIE),
+      readCookie(req.headers.cookie, GROUP_COOKIE_MINE)
     ));
 
   if (data.dbError) {
