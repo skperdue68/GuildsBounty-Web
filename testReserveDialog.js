@@ -14,8 +14,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-// Git may check out CRLF on Windows; source anchors describe code, not line endings.
-const source = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
+const source = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
 
 /** The text between two anchors, failing loudly when either has moved. */
 function between(start, end) {
