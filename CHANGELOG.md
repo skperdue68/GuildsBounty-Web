@@ -106,12 +106,12 @@ landed on `main`.
 ### Changed
 
 - **The site is Guild's Bounty now.** Every page title, the footer, the *Back to ...* buttons,
-  the guide, the sign-in card, the demo banner, the request, fulfilment and password reset
-  emails, the site's own User-Agent strings, the boot
-  log line, the systemd description and the README all name it that way. The addon is still
-  called ItemShare: `ItemShareSavedVars.lua`, *Download ItemShare AddOn*, the
-  `X-ItemShare-*` headers and the `itemshare_*` tables keep their names, because a machine
-  on the other end reads them.
+  the guide, the sign-in card, the demo banner, the header's download button, the request,
+  fulfilment and password reset emails, the site's own User-Agent strings, the boot log line,
+  the systemd description and the README all name it that way. What a machine on the other
+  end reads keeps its name: `ItemShareSavedVars.lua`, the `X-ItemShare-*` headers,
+  `ItemShareExport.lua` and the `itemshare_*` tables. The button still points at the addon's
+  ESOUI page, which is where the file the site reads comes from.
 
 - **ADDED means the day the item was added, not the day it reached this site.** The column,
   the countdown under it, the day filters, the LAST CHANCE pill and the ADDED sort are all
