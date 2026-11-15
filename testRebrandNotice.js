@@ -101,7 +101,7 @@ t('ten seconds, or the cross, whichever comes first', () => {
 t('the old name is the one the site used before the rebrand', () => {
   const server = read('server.js');
 
-  assert.match(server, /'itemsync\.perdues\.me'/);
+  assert.match(server, /'itemshare\.perdues\.me'/);
   assert.match(server, /process\.env\.LEGACY_HOSTS/, 'and it can be changed without a deploy');
 });
 
