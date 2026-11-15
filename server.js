@@ -49,11 +49,13 @@ import {
   listAccountServers,
   getViewerFacets,
   getViewerGuilds,
+  getViewAsUser,
   createGuildCode,
   findGuildCode,
   findOwnGuild,
   revokeGuildCode,
   listGuildCodes,
+  listViewAsUsers,
   redeemGuildCode,
   getBrowsingAccount,
   issueRequestEmailToken,
@@ -98,6 +100,7 @@ import { emailConfig, renderRequestEmail, renderStatusEmail, sendEmail } from '.
 import { renderPasswordResetEmail } from './lib/passwordResetEmail.js';
 import { getItemTip } from './lib/uesp.js';
 import { buildProviders } from './lib/providers.js';
+import { isViewAsOperator } from './lib/viewAs.js';
 import { isGuildCode, normalizeGuildCode } from './lib/guildCodes.js';
 import { normalizeEsoAccountName } from './lib/accountNames.js';
 import {
@@ -319,6 +322,79 @@ app.use((req, res, next) => {
     })
     // A count that could not be read must not cost somebody the page they asked for: the
     // header is drawn without it and the next page tries again.
+    .catch(() => next());
+});
+
+// --------------------------------------------------- looking at the site as somebody else
+//
+// A test tool, hidden behind one Discord handle (see lib/viewAs.js). It swaps the person the
+// session acts as, so every page, count, query and write sees the site the way that person
+// does - their guilds, their shelf, their requests, their empty states - without anybody
+// being handed a password. The person who really signed in is kept beside it in the session,
+// which is what makes the way back possible and what every gate below is checked against.
+//
+// It is deliberately not a role: nothing in the database grants it, and no page, option or
+// error message mentions it to anybody who does not already have it. Both routes answer
+// everybody else with the 404 the site gives for a page that is not there.
+function viewAsOriginal(req) {
+  const view = req.session ? req.session.viewAs : null;
+
+  return view && view.original ? view.original : null;
+}
+
+/** Who really signed in - the person who picked somebody else, not the person picked. */
+function viewAsSignedIn(req) {
+  if (!req.session || !req.session.user) {
+    return null;
+  }
+
+  return viewAsOriginal(req) || req.session.user;
+}
+
+/** Back to being yourself, whatever the session was looking at. */
+function restoreOwnLogin(req) {
+  const original = viewAsOriginal(req);
+
+  if (!original) {
+    return;
+  }
+
+  req.session.user = original;
+  delete req.session.viewAs;
+  // Which ESO accounts are "mine" was read for the person being looked at.
+  req.session.accountNames = null;
+}
+
+// The menu's own data, worked out per page and hung on the user that page is drawn for.
+// Defined as a non-enumerable property on purpose: the session store writes the session with
+// JSON.stringify, so a list of everybody in the site never reaches itemshare_sessions and is
+// rebuilt fresh on the next page instead of going stale in a row.
+app.use((req, res, next) => {
+  const real = viewAsSignedIn(req);
+  const accept = req.get('accept') || '';
+
+  if (!isViewAsOperator(real) || req.method !== 'GET' || !accept.includes('text/html')) {
+    next();
+    return;
+  }
+
+  withDatabase((connection) => listViewAsUsers(connection, { isDemo: Boolean(real.isDemo) }))
+    .then((people) => {
+      const acting = viewAsOriginal(req)
+        ? { id: Number(req.session.user.id), name: String(req.session.user.username || '') }
+        : null;
+
+      Object.defineProperty(req.session.user, 'viewAs', {
+        value: { people, acting },
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
+
+      next();
+    })
+    // A menu that could not be built must not cost somebody their page: the rest of the
+    // menu is drawn as usual and the next page tries again.
     .catch(() => next());
 });
 
@@ -2854,6 +2930,94 @@ app.post('/logout', (req, res) => {
   }
 
   finish();
+});
+
+// Becoming somebody else. Checked again here rather than trusted from the session, because
+// a session outlives a deploy and this is the only thing standing between the tool and
+// every other person on the site.
+app.post('/view-as', async (req, res) => {
+  const real = viewAsSignedIn(req);
+
+  if (!isViewAsOperator(real)) {
+    res.status(404).type('text').send('Not found');
+    return;
+  }
+
+  const wanted = Number.parseInt(String((req.body && req.body.userId) || ''), 10);
+
+  if (!Number.isInteger(wanted) || wanted <= 0) {
+    sendPage(req, res, 400, {
+      heading: 'Choose somebody from the list',
+      message: 'The form arrived without a person to look at the site as.',
+      details: 'Nothing was changed. Pick a name from the menu at the top of the page.',
+      tone: 'notice',
+    });
+    return;
+  }
+
+  // Picking your own name is the way back, so it does what the way back does.
+  if (wanted === Number(real.id)) {
+    restoreOwnLogin(req);
+    res.redirect(303, '/');
+    return;
+  }
+
+  try {
+    const person = await withDatabase((connection) =>
+      getViewAsUser(connection, wanted, { isDemo: Boolean(real.isDemo) })
+    );
+
+    if (!person) {
+      sendPage(req, res, 404, {
+        heading: 'That person is not in the system',
+        message: 'Nobody with that id is here, or they are on the other side of the demo.',
+        details: 'Nothing was changed.',
+        tone: 'notice',
+      });
+      return;
+    }
+
+    req.session.viewAs = { original: real, since: new Date().toISOString() };
+    req.session.user = {
+      id: person.id,
+      provider: person.provider,
+      providerLabel: person.providerLabel,
+      username: person.displayName,
+      email: person.email,
+      emailVerified: person.emailVerified,
+      avatarUrl: person.avatarUrl,
+      // Which database a session reads follows the person who really signed in, never the
+      // one being looked at: the demo's rows and the real ones are not interchangeable.
+      isDemo: Boolean(real.isDemo),
+    };
+    // Which ESO accounts are "mine" is read fresh for whoever the session now is.
+    req.session.accountNames = null;
+
+    logLine(
+      `View as: ${real.username} is looking at the site as ${person.displayName} (#${person.id})`
+    );
+
+    res.redirect(303, '/');
+  } catch (error) {
+    sendPage(req, res, 500, {
+      heading: 'That person could not be loaded',
+      message: 'The site could not read who that is, so nothing was changed.',
+      details: error.message,
+      tone: 'error',
+    });
+  }
+});
+
+// The way back. It trusts only the person stored beside the swap, so a session that was never
+// looking at anybody has nothing to return from and is answered the way an unknown page is.
+app.post('/view-as/return', (req, res) => {
+  if (!isViewAsOperator(viewAsSignedIn(req)) || !viewAsOriginal(req)) {
+    res.status(404).type('text').send('Not found');
+    return;
+  }
+
+  restoreOwnLogin(req);
+  res.redirect(303, '/');
 });
 
 // ---------------------------------------------------------------- applying a file

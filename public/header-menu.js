@@ -27,7 +27,9 @@ if (accountMenuButton && accountMenuPanel) {
     accountMenuButton.setAttribute('aria-expanded', String(open));
 
     if (open) {
-      const firstItem = accountMenuPanel.querySelector('button, a');
+      // A picker first, when the menu has one: focusing the button after it would put the
+      // keyboard on a submit that acts on whatever the list happens to be showing.
+      const firstItem = accountMenuPanel.querySelector('select, button, a');
       if (firstItem) {
         firstItem.focus();
       }
