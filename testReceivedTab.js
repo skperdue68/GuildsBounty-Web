@@ -394,6 +394,23 @@ t('each table carries the words its search box looks through', () => {
 
 // ------------------------------------------------------------------- where links land
 
+t('neither tab explains the headings any more, and the waiting table says nothing of its own', () => {
+  const page = render({ requests: [pending[0]], received: pending, basketRows: [] });
+  const mine = page.slice(page.indexOf('data-panel="mine"'), page.indexOf('data-panel="offer"'));
+  const received = page.slice(page.indexOf('data-panel="received"'));
+
+  for (const [name, region] of [['My Requests', mine], ['Requests Received', received]]) {
+    assert.equal(region.includes('Press a heading'), false, name + ' has no sort hint');
+    assert.equal(region.includes('sort-note'), false, name + ' draws no note line at all');
+  }
+
+  assert.equal(
+    received.includes('Nothing is recorded until you press Fulfilled'),
+    false,
+    'and the waiting table does not narrate its own button'
+  );
+});
+
 t('a link can name the tab it opens, and the request email lands on this one', () => {
   const app = read('public/app.js');
   const email = read('lib/email.js');
@@ -404,7 +421,11 @@ t('a link can name the tab it opens, and the request email lands on this one', (
   // The email's own link is the way in: it signs the owner in from its token and redirects to
   // this tab, so the message needs no second `/?tab=received` link of its own - that one only
   // reached a sign-in screen for anybody who was not already signed in.
-  assert.match(server, /res\.redirect\(303, '\/\?tab=received'\)/, 'the answer link lands on the tab');
+  assert.match(
+    server,
+    /res\.redirect\(303, '\/\?tab=received&waiting=1'\)/,
+    'the answer link lands on the tab, at the waiting list'
+  );
   assert.match(email, /Requests Received/, 'and the message says where it goes');
   assert.match(server, /\/requests\/fulfill\/\$\{token\}/, 'the message still carries the form link');
 });

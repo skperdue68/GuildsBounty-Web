@@ -325,9 +325,13 @@ await t('a row with no recorded place sorts as empty rather than as an em dash',
   assert.doesNotMatch(card, /data-sort-stored="&mdash;"/);
 });
 
-await t('the card says how the headings behave', () => {
-  assert.match(card, /once for A to Z, twice for Z to A, three times to stop/);
-  assert.match(card, /breaks the ties in what the first left/);
+// The card used to carry a paragraph explaining the presses. It is gone: the badge and the
+// arrow say it, and the paragraph was read once and skipped on every visit after that.
+await t('the card no longer explains the headings, and still says what the buttons do', () => {
+  assert.doesNotMatch(card, /once for A to Z, twice for Z to A/);
+  assert.doesNotMatch(card, /breaks the ties in what the first left/);
+  assert.match(card, />Fulfilled</, 'the row still offers the answer');
+  assert.match(card, />Not fulfilled</, 'both ways of answering it');
 });
 
 // A table says what it sorts by on its own container, so a second table needs markup rather

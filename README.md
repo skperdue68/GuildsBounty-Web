@@ -1631,10 +1631,13 @@ more, and no number in it is editable.
 
 The link goes to `/requests/fulfill/:token`, and it arrives **signed in, on Requests
 Received**: the token already names the person whose ESO accounts these requests are aimed
-at, so the site builds their session from it and redirects to `/?tab=received` rather than
-showing a password box to somebody who has just come out of their inbox. The requests are
-there with everything else waiting on their items, and the owner sets a row to what actually
-left their bag, saves it, and `0` means nothing was sent from that row - which cancels it.
+at, so the site builds their session from it and redirects to `/?tab=received&waiting=1`
+rather than showing a password box to somebody who has just come out of their inbox.
+`waiting=1` is the jump: the page opens **Waiting on your items** at the top of the screen
+instead of the tab strip, with the pinned top bar, tabs and search row allowed for, so the
+reader lands on the table they came to answer. The requests are there with everything else
+waiting on their items, and the owner sets a row to what actually left their bag, saves it,
+and `0` means nothing was sent from that row - which cancels it.
 
 A signed-out write under `/requests` is still refused - asking for an item needs a person
 behind it - but `/requests/fulfill/:token` is exempt, because its token is the whole

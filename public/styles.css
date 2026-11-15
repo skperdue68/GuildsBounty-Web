@@ -1603,6 +1603,15 @@ a.primary-button {
   color: #6b7688;
 }
 
+/* A heading a link jumps to - the waiting list at the end of a request email - has to clear
+   the rows pinned above it: the top bar, the line of tabs and the search row. Without the room
+   the jump lands with the heading it aimed at hidden behind them. */
+.subhead[id] {
+  scroll-margin-top: calc(
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px)
+  );
+}
+
 .subhead {
   margin: 20px 0 6px;
   font-size: 12px;
@@ -1761,13 +1770,6 @@ th .sort-queue[hidden] {
 
 .empty-row:hover td {
   background: none;
-}
-
-.sort-note {
-  margin: 8px 0 0;
-  font-size: 12px;
-  color: var(--muted);
-  text-align: center;
 }
 
 .seen-cell {

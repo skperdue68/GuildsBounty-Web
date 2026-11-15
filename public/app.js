@@ -654,6 +654,14 @@ if (listRegion) {
   // in a private window and on whatever device the email was opened on.
   if (new URLSearchParams(window.location.search).has('answered')) activeTab = 'received';
   setTab(activeTab);
+
+  // A request email lands here to be answered, so its link also says which table to bring up:
+  // the waiting list, rather than the tab strip with the completed history below the fold.
+  if (new URLSearchParams(window.location.search).get('waiting') === '1') {
+    const waiting = document.getElementById('receivedWaiting');
+
+    if (waiting) waiting.scrollIntoView({ block: 'start' });
+  }
   window.addEventListener('popstate', () => {
     liveHistoryPage = Number(new URLSearchParams(window.location.search).get('historyPage')) || null;
     setTab('mine');
