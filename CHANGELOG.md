@@ -7,6 +7,18 @@ landed on `main`.
 
 ### Fixed
 
+- **The link in a request email now lands on the site signed in, on Requests Received.** It used
+  to offer two ways in and neither worked from an inbox: the **Answer these requests** button
+  opened a plain quantity-and-Save page whose Save was refused with *sign in*, because every
+  signed-out write under `/requests` was turned away - and the **Already signed in? Open
+  Requests Received** link only ever reached a login screen, since it required the session it
+  was offering a shortcut to. The email's token already names whose ESO accounts the requests
+  are aimed at, so the link now builds that person's session and redirects to
+  `/?tab=received`, where the rows wait with everything else on their items. Save from the bare
+  form works too, signed in or not - the token is that form's whole permission. A browser
+  already signed in as somebody else is left alone and gets the bare form instead of a silent
+  account switch.
+
 - **A sort on Location no longer hides on the Request list, or numbers the first column there
   `2`.** Location is a column on My Inventory only. Sorting by it and then opening Request left
   a queue the Request headings could not show - no badge anywhere, so the list looked unsorted -

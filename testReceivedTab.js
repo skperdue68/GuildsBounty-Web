@@ -394,18 +394,19 @@ t('each table carries the words its search box looks through', () => {
 
 // ------------------------------------------------------------------- where links land
 
-t('a link can name the tab it opens, and the request email names this one', () => {
+t('a link can name the tab it opens, and the request email lands on this one', () => {
   const app = read('public/app.js');
   const email = read('lib/email.js');
+  const server = read('server.js');
 
   assert.match(app, /const asked = new URLSearchParams\(window\.location\.search\)\.get\('tab'\)/);
   assert.match(app, /asked === 'received'/, 'received is one of the names a link may use');
-  assert.match(email, /\/\?tab=received/, 'the email offers the tab beside the no-sign-in page');
-  assert.match(
-    read('server.js'),
-    /\/requests\/fulfill\/\$\{token\}/,
-    'and the message it builds still opens the page that needs no sign-in'
-  );
+  // The email's own link is the way in: it signs the owner in from its token and redirects to
+  // this tab, so the message needs no second `/?tab=received` link of its own - that one only
+  // reached a sign-in screen for anybody who was not already signed in.
+  assert.match(server, /res\.redirect\(303, '\/\?tab=received'\)/, 'the answer link lands on the tab');
+  assert.match(email, /Requests Received/, 'and the message says where it goes');
+  assert.match(server, /\/requests\/fulfill\/\$\{token\}/, 'the message still carries the form link');
 });
 
 // The other two tabs put their box in the tools row, which is what makes it span the card and
