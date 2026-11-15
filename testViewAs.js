@@ -139,13 +139,6 @@ t('the picker names itself, so nothing has to sit above it', () => {
   assert.match(menu, /<option value="" disabled selected>/, 'the placeholder is not a person');
 });
 
-t('while somebody is on screen the placeholder is there but not chosen', () => {
-  const menu = viewAsMenu({ people, acting: { id: 9, name: 'Ada' } });
-
-  assert.match(menu, /View the Site As:/, 'the name of the picker is still visible');
-  assert.doesNotMatch(menu, /disabled selected/, 'but the person looked at is the chosen line');
-});
-
 t('the picker sits at the bottom of the menu, just above Log out', () => {
   const html = pageFor({ ...operator, viewAs: { people, acting: null } });
   const picker = html.indexOf('data-view-as-picker');
@@ -168,13 +161,25 @@ t('it posts the chosen id to the route the server watches', () => {
   assert.match(menu, /name="userId"/);
 });
 
-t('while looking at somebody, the list marks who it is and offers the way back', () => {
+t('while looking at somebody, the menu is the way back and nothing else', () => {
   const menu = viewAsMenu({ people, acting: { id: 9, name: 'Ada' } });
 
-  assert.match(menu, /value="9" selected/, 'the person being looked at is the chosen one');
-  assert.equal((menu.match(/ selected/g) || []).length, 1, 'and only that one');
   assert.match(menu, /action="\/view-as\/return"/);
   assert.match(menu, /Return to my own login/);
+  assert.doesNotMatch(menu, /data-view-as-picker/, 'no picker: another person is picked from your own login');
+  assert.doesNotMatch(menu, /<option/, 'and no list of names either');
+  assert.doesNotMatch(menu, /action="\/view-as"/, 'nothing posts a new person from here');
+});
+
+t('while looking at somebody, Log out is not in the menu', () => {
+  const actingPage = pageFor({
+    ...operator,
+    viewAs: { people, acting: { id: 4, name: 'Ada' } },
+  });
+  const ownPage = pageFor({ ...operator, viewAs: { people, acting: null } });
+
+  assert.doesNotMatch(actingPage, /action="\/logout"/, 'return first, then log out');
+  assert.match(ownPage, /action="\/logout"/, 'your own login still has it');
 });
 
 t('with nothing chosen there is no way back, because there is nowhere to go back from', () => {
@@ -403,23 +408,25 @@ t('the list leaves out the person looking, and nobody else', () => {
   assert.match(body, /AND id NOT IN \(\$\{inClause\(skip\)\}\)/, 'the query skips them');
   assert.match(body, /\[isDemo \? 1 : 0, \.\.\.skip\]/, 'and binds their ids');
 
-  // Only your own id: whoever is being looked at stays in the list, because the picker shows
-  // them as the line it is on. Leaving them out emptied the list on a small site and took the
-  // picker with it.
+  // Only your own id is left out: being yourself is what the way back is for.
   assert.match(server, /const skip = \[Number\(real\.id\)\]/);
-  assert.doesNotMatch(server, /acting \? acting\.id : 0/, 'the person being looked at is not skipped');
   assert.match(server, /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\), exclude: skip \}\)/);
+
+  // And while acting the list is not asked for at all, since nothing would draw it.
+  assert.match(server, /const listPeople = acting\s*\? Promise\.resolve\(\[\]\)/, 'no query while acting');
 });
 
-t('while looking at somebody the picker is still there, on their line', () => {
+t('a list left over from your own view does not become a picker while acting', () => {
+  // The server hands over nobody while acting, but if a list ever arrives it must not draw a
+  // picker either: the way back is the only thing this menu offers while somebody else is on
+  // screen, whatever it was handed.
   const menu = viewAsMenu({
-    people: [{ id: 9, name: 'workswithdragons' }],
+    people: [{ id: 9, name: 'workswithdragons' }, { id: 4, name: 'Ada' }],
     acting: { id: 9, name: 'workswithdragons' },
   });
 
-  assert.match(menu, /data-view-as-picker/, 'the picker is drawn while acting');
-  assert.match(menu, /value="9" selected/, 'and says whose page is on screen');
-  assert.match(menu, /Return to my own login/, 'with the way back beside it');
+  assert.doesNotMatch(menu, /data-view-as-picker/);
+  assert.match(menu, /Return to my own login/);
 });
 
 t('with nobody else to offer, the menu is not drawn rather than empty', () => {

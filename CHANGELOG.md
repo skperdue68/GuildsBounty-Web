@@ -124,6 +124,12 @@ landed on `main`.
 
 ### Changed
 
+- **While you are somebody else, the avatar menu is the way back - and nothing else.** It used
+  to keep the *View the Site As:* picker and **Log out** under that. Both are gone while another
+  person's site is on screen: stepping from one person to another goes through your own login
+  first, and Log out ends the whole session rather than just the view. Return, then pick again
+  or log out. The list of people is not even fetched while you are acting, since nothing draws
+  it.
 - **The view-as picker moved to the bottom of the avatar menu and names itself.** Its first
   line reads **View the Site As:** rather than a separate *View the site as another person*
   heading above it, and the whole block now sits just above **Log out** instead of above the
