@@ -218,7 +218,7 @@ const bar = filterBar({ types: [{ name: 'Apparel', total: 1 }], owners: ['@Teste
 
 t('Added is a menu like Type and Offered by, not a dropdown', () => {
   assert.doesNotMatch(bar, /<select name="added"/);
-  assert.match(bar, /data-filter-menu data-all-label="Any time"/);
+  assert.match(bar, /data-filter-menu data-all-label="Any Time"/);
   assert.match(bar, /<span class="filter-label">Added<\/span>/);
 });
 
@@ -234,16 +234,16 @@ t('LAST CHANCE is the last choice', () => {
 
   assert.match(added, /LAST CHANCE<\/span>/, 'the option is there');
   assert.ok(
-    added.indexOf('LAST CHANCE') > added.indexOf('The last 30 days'),
+    added.indexOf('LAST CHANCE') > added.indexOf('Last 30 Days'),
     'and it comes after the windows'
   );
   assert.match(added, /filter-option-warn/, 'drawn as the warning it is');
 });
 
-t('the filter card has no item name box and says Reset', () => {
+t('the filter card has no item name box and says RESET', () => {
   assert.doesNotMatch(bar, /name="q"/);
   assert.doesNotMatch(bar, /Item name/);
-  assert.match(bar, />Reset</);
+  assert.match(bar, />RESET</);
   assert.doesNotMatch(bar, /Clear filters/);
 });
 
@@ -252,6 +252,87 @@ t('a chosen window is reported by its own label', () => {
 
   assert.match(chosen, /filter-select-label">LAST CHANCE</, 'not the raw last-chance value');
   assert.match(chosen, /value="last-chance" checked/);
+});
+
+// The Added menu as it is offered: its heading, its summary, and every window in its list.
+// The heading is what comes first - the list's own aria-label sits after the summary, so
+// slicing from there would miss the very thing the summary says.
+const addedMenu = (html) => {
+  const from = html.indexOf('<span class="filter-label">Added</span>');
+
+  return from === -1 ? '' : html.slice(from, html.indexOf('</details>', from));
+};
+
+t('the Added menu offers the windows in the order they are read', () => {
+  const menu = addedMenu(bar);
+  const labels = [
+    'Any Time',
+    'Last 24 Hours',
+    'Last 3 Days',
+    'Last 7 Days',
+    'Last 2 Weeks',
+    'Last 30 Days',
+    'LAST CHANCE',
+  ];
+  const places = labels.map((label) => menu.indexOf(`>${label}<`));
+
+  assert.ok(
+    places.every((at) => at > -1),
+    `every window is offered, missing: ${labels.filter((_, i) => places[i] === -1).join(', ')}`
+  );
+
+  for (let i = 1; i < places.length; i += 1) {
+    assert.ok(places[i] > places[i - 1], `${labels[i]} comes after ${labels[i - 1]}`);
+  }
+});
+
+t('nothing chosen is Any Time, and it is the choice already on', () => {
+  const menu = addedMenu(bar);
+
+  assert.match(menu, /value="" checked/, 'the list starts with no window, and says so');
+  assert.match(bar, /filter-select-label">Any Time</, 'so the summary reads Any Time');
+});
+
+t('Any Time is how a window is let go of without resetting the rest', () => {
+  const chosen = filterBar({ types: [], owners: ['@eva'] }, { added: '3', owner: ['@eva'] });
+  const menu = addedMenu(chosen);
+
+  assert.match(menu, /value="3" checked/, 'the chosen window is the one ticked');
+  assert.doesNotMatch(menu, /value="" checked/, 'and Any Time is not');
+  assert.match(menu, /value=""/, 'but it is still there to choose');
+  // Picking it drops `added` from the address bar and leaves the other filters alone
+  // (app.js sends only the values that are on), which is what makes it a way back.
+  assert.match(chosen, /name="owner" value="@eva" checked/);
+});
+
+t('the Added summary names its window and carries no count', () => {
+  const chosen = filterBar({ types: [], owners: [] }, { added: '14' });
+  const menu = addedMenu(chosen);
+  const summary = menu.slice(0, menu.indexOf('</summary>'));
+
+  assert.match(summary, /filter-select-label">Last 2 Weeks</);
+  assert.doesNotMatch(summary, /filter-count/, 'one choice at a time cannot count for you');
+  // Type and owner still say how many of their values are on.
+  assert.match(chosen, /class="filter-count/, 'the multi-value menus keep theirs');
+});
+
+t('every window the menu offers is one the server lets through', () => {
+  const server = readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const found = /const ADDED_WINDOWS = new Set\(\[([^\]]*)\]\);/.exec(server);
+
+  assert.ok(found, 'the whitelist is where the test can find it');
+
+  const allowed = found[1]
+    .split(',')
+    .map((value) => value.trim().replace(/^'|'$/g, ''))
+    .filter(Boolean)
+    .sort();
+
+  assert.deepEqual(
+    allowed,
+    ['1', '3', '7', '14', '30', 'last-chance'].sort(),
+    'a window the server drops would fall silently back to Any Time'
+  );
 });
 
 // The markup was right both times and the stylesheet was not: a pill stretched into a bar,

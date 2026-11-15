@@ -733,7 +733,7 @@ async function withDatabase(handler) {
   return withDatabaseOn(requestDatabase.getStore() || readConfig().database, handler);
 }
 
-const ADDED_WINDOWS = new Set(['1', '7', '30', 'last-chance']);
+const ADDED_WINDOWS = new Set(['1', '3', '7', '14', '30', 'last-chance']);
 
 // The sort order is a reading preference, not a filter: it is kept in a small cookie so
 // the address bar stays a plain link to the filters, safe to share or bookmark. The

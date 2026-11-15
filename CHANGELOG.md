@@ -88,6 +88,13 @@ landed on `main`.
 
 ### Changed
 
+- **The Added menu gained the windows it was missing, and a way back.** It now reads *Any
+  Time*, Last 24 Hours, Last 3 Days, Last 7 Days, Last 2 Weeks, Last 30 Days and **LAST
+  CHANCE**, in that order. *Any Time* is first and is the choice that is on when nothing is
+  chosen, so a window can be let go of without resetting every other filter - before it,
+  there was no way back to "no Added filter" except the reset button. LAST CHANCE keeps its
+  warning colour. The Added summary no longer carries a count, since one choice at a time
+  could only ever read 1, and the reset button is spelled **RESET**.
 - **ADDED means the day the item was added, not the day it reached this site.** The column,
   the countdown under it, the day filters, the LAST CHANCE pill and the ADDED sort are all
   measured from the date the owner's own file carries for that item - `firstDumpedAt`, kept
