@@ -7,6 +7,16 @@ landed on `main`.
 
 ### Changed
 
+- **The filter card belongs to Browse Offers and My Inventory, and the two now keep their own
+  filters.** It used to sit above every tab and narrow one shared idea of the list, so a type
+  chosen on what the guild shares also hid rows inside your own bag, and carrying the card
+  onto My Requests and Requests Received offered filters that had nothing to say about those
+  tables. Each of the two item lists now has its own row, its own three names in the address
+  bar (`type`/`owner`/`added` for Browse Offers, `mtype`/`mowner`/`madded` for My Inventory)
+  and its own menus, built from its own rows. Switching tabs shows the filters that tab was
+  left with, RESET clears just that row, and the card is gone entirely from My Requests and
+  Requests Received.
+
 - **The two tabs that explain their sorting no longer do.** My Requests and Requests Received
   both carried a paragraph under their last table about pressing a heading once, twice, three
   times, and about the small number beside an active heading - a lot of words to read every
