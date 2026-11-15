@@ -8,7 +8,7 @@
 -- client left empty.
 
 ALTER TABLE itemshare_shared_items
-  ADD COLUMN IF NOT EXISTS set_name VARCHAR(255) NOT NULL DEFAULT '' AFTER weapon_handedness;
+  ADD COLUMN IF NOT EXISTS set_name VARCHAR(255) NOT NULL DEFAULT '';
 
 ALTER TABLE itemshare_shared_items
   ADD COLUMN IF NOT EXISTS enchant_name VARCHAR(255) NOT NULL DEFAULT '' AFTER set_name;
@@ -21,11 +21,3 @@ ALTER TABLE itemshare_shared_items
 
 ALTER TABLE itemshare_shared_items
   ADD COLUMN IF NOT EXISTS required_cp INT NOT NULL DEFAULT 0 AFTER required_level;
-
-ALTER TABLE itemshare_shared_items
-  ADD COLUMN IF NOT EXISTS flavor_text TEXT NULL AFTER required_cp;
-
--- One entry per getter that answered, e.g.
--- {"GetItemLinkSetInfo":[true,"Briarheart",5,3,5],"GetItemLinkFlavorText":["..."]}
-ALTER TABLE itemshare_shared_items
-  ADD COLUMN IF NOT EXISTS eso_data JSON NULL AFTER flavor_text;

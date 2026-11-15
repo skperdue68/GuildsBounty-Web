@@ -19,6 +19,7 @@
     "test:password-forms": "node testPasswordForms.js",
     "test:reopen-requests": "node testReopenRequests.js",
     "test:server-identity": "node testServerIdentity.js",
+    "test:schema": "node testSchema.js",
     "test:upload-summary": "node testUploadSummary.js",
     "test:demo-mode": "node testDemoMode.js",
     "test:guild-codes": "node testGuildCodes.js",

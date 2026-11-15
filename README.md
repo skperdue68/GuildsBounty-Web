@@ -195,6 +195,12 @@ flavour text. Plus every ESO account in the file, each with its own guild member
 the server it was written on (`worldName` and `platformRaw`), and the standing offers.
 Fields the game does not expose are simply absent rather than being invented.
 
+Only what the site reads is kept. The addon once sent the numeric item type, the quality's
+own name, the trait type, the apparel and weapon descriptors (slot, equip type, weight,
+armour and weapon class, handedness), the furniture data id, the flavour text and a raw dump
+of every ESO getter that answered; none of that was ever drawn or filtered on, so the parser
+stopped reading it and migration 030 drops the columns it used to fill.
+
 **Fill in, then prune.** An upload writes every item the file mentions where it already
 stands - same row, same id, same first-seen date - and only afterwards deletes the rows
 the file no longer mentions. Nothing blinks out of the list between one upload and the
