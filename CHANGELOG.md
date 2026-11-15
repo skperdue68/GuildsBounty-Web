@@ -22,7 +22,10 @@ landed on `main`.
   `guildsbounty.perdues.me` linked - that closes itself after ten seconds or on the cross. It
   appears only on the page somebody lands on, only for the old name: a visit by the new one has
   nothing to read, and a live refresh does not bring it back. Which names count is
-  `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`.
+  `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`. The name is read from `Forwarded`
+  (`host=`), then `X-Forwarded-Host`, then `X-Served-By`, then `Host`, and every response says
+  the name it settled on in **`X-Site-Host`** - one `curl -I` then tells a proxy that is
+  passing the name from one that is rewriting it.
 
 - **Requests Received: a fourth tab, where the owner's list used to live behind the account
   menu.** It is the same working list the owner's page draws - one row per item, the quantity
@@ -189,7 +192,9 @@ landed on `main`.
   *Collapse all* while anything is open and *Expand all* once everything is shut, with a
   chevron that turns the same way as the per-type one. It acts on the tab it sits on, in that
   list's own cookie, so folding everything on **Browse Offers** leaves **My Inventory** as it
-  was, and it is drawn only when the list is grouped and has more than one type.
+  was. It is drawn whenever a list is grouped, even one holding a single type - a guild that
+  shares only collectibles would otherwise never see it - and only a flat list has no folds
+  for it to reach.
 - **The search boxes on My Requests and Requests Received filter as they are typed.** They
   were accepted and then dropped by the handler that whitelisted the older two tabs, so a word
   in either box waited for a reload; all four now narrow on the same delay as each other.

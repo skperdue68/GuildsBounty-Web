@@ -107,12 +107,24 @@ t('the old name is the one the site used before the rebrand', () => {
 
 t('the name the browser asked for is what is compared, not the proxy in front', () => {
   const server = read('server.js');
-  const body = server.slice(server.indexOf('function requestHost(req)'));
+  const at = server.indexOf('function requestHost(req)');
+  // The whole function rather than a fixed slice of it: it grew, and a byte count is a test
+  // that fails for the wrong reason.
+  const body = server.slice(at, server.indexOf('\n}\n', at));
 
-  assert.match(body.slice(0, 500), /x-forwarded-host/);
-  assert.ok(body.slice(0, 600).includes(".split(',')"), 'a proxy may list more than one');
-  assert.match(body.slice(0, 500), /replace\(\/:\\d\+\$\/, ''\)/, 'a port is not part of the name');
-  assert.match(body.slice(0, 500), /toLowerCase\(\)/);
+  assert.match(body, /headers\.forwarded/, 'RFC 7239 Forwarded is read too');
+  assert.match(body, /x-forwarded-host/);
+  assert.ok(body.includes(".split(',')"), 'a proxy may list more than one');
+  assert.match(body, /replace\(\/:\\d\+\$\/, ''\)/, 'a port is not part of the name');
+  assert.match(body, /toLowerCase\(\)/);
+
+  // A proxy that rewrites Host may still say what it was asked for in X-Served-By, which is
+  // not a standard header at all - so it is read, and read before the Host it rewrote.
+  const served = body.indexOf("headers['x-served-by']");
+  const host = body.indexOf('headers.host');
+
+  assert.ok(served !== -1, 'X-Served-By is read');
+  assert.ok(served < host, 'and before the Host the proxy rewrote');
 });
 
 t('only the landing page carries it, so a live refresh cannot nag', () => {

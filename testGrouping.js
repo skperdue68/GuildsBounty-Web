@@ -524,9 +524,16 @@ t('with every type shut, the word offers to open them', () => {
   assert.match(html, /Expand all/);
 });
 
-t('one type, or a flat list, has nothing to do all at once', () => {
-  assert.doesNotMatch(inventoryTable([items[0]], { mine: false, filters: {} }), /data-fold-all/);
-  assert.doesNotMatch(render({ group: false }), /data-fold-all/);
+t('a flat list has no folds to reach, but one type is still a list to fold', () => {
+  assert.doesNotMatch(render({ group: false }), /data-fold-all/, 'ungrouped, so no button');
+
+  // A guild that shares only collectibles has one type, and folding that heading away is
+  // still worth a press - Browse Offers would otherwise never show the button at all.
+  assert.match(
+    foldAllTag(inventoryTable([items[0]], { mine: false, filters: {} })),
+    /data-fold-all-shut="true"/,
+    'one type still gets the press'
+  );
 });
 
 t('the press moves its own list, writes its own cookie and opens through the search', () => {
