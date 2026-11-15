@@ -1327,6 +1327,14 @@ a.primary-button {
    drawn over, and the switch changes how that table is cut up, so the two belong together.
    The box takes whatever room the switch leaves and keeps its blue, its white text and its
    rounded corners. */
+/* A search box that opens a panel rather than sitting in a tools row: the two request tabs put
+   theirs above the first heading, so it is given the air that row would have taken and does not
+   stretch the width of the table. */
+.list-panel > .list-search {
+  margin: 4px 0 12px;
+  max-width: 320px;
+}
+
 .list-search {
   position: relative;
   display: flex;
@@ -1702,6 +1710,20 @@ th .sort-queue[hidden] {
 
 /* The sentence explaining the headings. Centred to match the note under the table, and
    quieter than it: one is how the table works, the other is what it means. */
+/* A table with nothing in it says so across every column, rather than vanishing and leaving the
+   reader to wonder whether the section failed to load. Not a row of data: no hover, no lines
+   between cells, and it is skipped by the sort and the search. */
+.empty-row td {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-row:hover td {
+  background: none;
+}
+
 .sort-note {
   margin: 8px 0 0;
   font-size: 12px;
@@ -2968,10 +2990,12 @@ th.action-cell {
 
 /* A sentence where a paragraph used to be: centred and bold, because it is a statement
    about what the bag means rather than instructions to read. */
+/* The one instruction on My Requests. A size up from the table text and given its own air
+   below, so it reads as the sentence to act on rather than as a caption to the heading. */
 .bag-note {
-  margin: 10px 0 0;
+  margin: 12px 0 14px;
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--muted-strong);
 }

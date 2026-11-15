@@ -418,8 +418,19 @@ t('the search shares the row with the grouping switch', () => {
   assert.ok(panel > -1 && tools > -1 && search > -1 && toggle > -1, 'all four are drawn');
   assert.ok(panel < tools, 'the row belongs to the list it narrows');
   assert.ok(tools < search && search < toggle, 'the box and the switch share the row, box first');
-  assert.equal(region.indexOf('class="list-search"', search + 1), -1, 'one box for the tab');
+  // One box for this tab, and the other tabs have their own: browsing offers and looking at
+  // requests are different searches even when both are open at once.
+  const mine = region.indexOf('id="panelMine"');
+  const inRequestTab = region.slice(panel, mine > panel ? mine : undefined);
+
+  assert.equal(
+    inRequestTab.indexOf('class="list-search"', inRequestTab.indexOf('class="list-search"') + 1),
+    -1,
+    'one box for the tab'
+  );
   assert.match(region, /id="listSearch-request"/);
+  assert.match(region, /id="listSearch-mine"/, 'My Requests has one too');
+  assert.match(region, /id="listSearch-received"/, 'and so does Requests Received');
 });
 
 // ------------------------------------------------- the count while searching
@@ -607,7 +618,7 @@ t('a term matches a row the heading does not name', () => {
   assert.equal(weapons.count.textContent, '(1 of 2)');
 });
 
-t('an empty My Requests tab says where to ask', () => {
+t('an empty My Requests tab draws both tables and says so in each', () => {
   const region = renderListRegion({
     user: { id: 1, username: 'eva', provider: 'password' },
     accounts: [{ accountName: '@eva', guildCount: 1, guilds: [{}] }],
@@ -621,13 +632,18 @@ t('an empty My Requests tab says where to ask', () => {
     basketRows: [],
   });
 
-  const panel = region.slice(region.indexOf('id=\"panelMine\"'));
-
-  assert.match(panel, /class="muted list-empty"/, 'centred like the other empty lists');
-  assert.match(
-    panel,
-    /You have no pending requests\. Use the &ldquo;Browse Offers&rdquo; tab to request items\./
+  const panel = region.slice(
+    region.indexOf('id="panelMine"'),
+    region.indexOf('id="panelOffer"')
   );
+
+  // Neither table disappears when it is empty: the headings stay, and one line across every
+  // column says there is nothing in it. A section that vanishes reads as one that failed.
+  assert.match(panel, /In your basket/);
+  assert.match(panel, /<tr class="empty-row"><td colspan="5">No items have been requested\./, 'the basket says so across its columns');
+  assert.match(panel, /Already sent/);
+  assert.match(panel, /No requests have been sent yet\./, 'and so does the log');
+  assert.match(panel, />Qty<span class="sort-queue"/, 'the headings are still drawn under an empty list');
   assert.doesNotMatch(region, /You have not asked for anything yet/, 'the old sentence is gone');
 });
 

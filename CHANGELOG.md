@@ -29,8 +29,10 @@ landed on `main`.
   asked for, the amount sent filled in ready to change, and **Fulfilled** / **Not fulfilled** -
   but it is in the item list rather than a modal, so answering does not replace what you were
   reading. Under it is **Already answered**: what was handed over, how many arrived of how many
-  were asked, to whom, and when. Answering from the tab comes back to the tab and says what it
-  recorded. The account menu's **Process Requests** entry is gone, since the tab is where it
+  were asked, to whom, and when. New asks reach an open page the same way every other change
+  does, so the tab fills in - and its count moves - without a reload, and the tab somebody is
+  reading stays open across that refresh. Answering from the tab comes back to the tab and says
+  what it recorded. The account menu's **Process Requests** entry is gone, since the tab is where it
   was pointing; `/owner/requests` still works for a bookmark.
 
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
@@ -149,6 +151,24 @@ landed on `main`.
   measure from the same instant, exactly as before.
 
 ### Changed
+
+- **Every request table says what it is, even when it is empty.** *In your basket* and
+  *Already sent* on My Requests, and *Waiting on your items* and *Already answered* on
+  Requests Received, keep their headings and put one line across every column when there is
+  nothing in them - *No items have been requested.*, and so on - instead of disappearing. The
+  line leaves as soon as a row arrives and returns once the last one has been sent, cancelled
+  or has timed out. The sentence above the basket is a size up and has air under it, because
+  it is the instruction on that tab rather than a caption.
+- **All four of those tables sort, and each remembers its own order.** Basket, sent, waiting
+  and answered each cycle a heading through ascending, descending and off, several at once,
+  under their own cookie (`itemshare_basket_sort`, `itemshare_sent_sort`,
+  `itemshare_owner_sort`, `itemshare_answered_sort`), so an order read in the basket says
+  nothing about the log.
+- **My Requests and Requests Received have a search box.** *Search this list* narrows both
+  tables on the tab at once, and each tab keeps its own word.
+- **A request email can open the tab.** The message still leads with the link that answers
+  without signing in, and now also offers *Open Requests Received* (`/?tab=received`); the
+  list opens any tab named in a link.
 
 - **The tabs are named for what they do, and marked.** *Others Inventory* is now **Browse
   Offers**, with a magnifier beside it; **My Requests** has a list, **My Inventory** a box and

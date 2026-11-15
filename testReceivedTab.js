@@ -11,6 +11,8 @@ import fs from 'node:fs';
 
 import { renderListRegion, renderPage } from './lib/views.js';
 
+const read = (path) => fs.readFileSync(new URL(`./${path}`, import.meta.url), 'utf8');
+
 let total = 0;
 let failures = 0;
 
@@ -206,6 +208,17 @@ t('the page carries the tab, with its waiting row and its history on it', () => 
   assert.match(html, /Ancient Silk/, 'and so is what was answered');
 });
 
+// A live refresh replaces the list region with a freshly drawn copy, so the tab has to be
+// reapplied to the new tabs and panels or the reader is thrown back to Browse Offers - and
+// the received rows, which arrive in that same swap, would be drawn on a hidden panel.
+t('the tab stays open across a live refresh', () => {
+  const app = read('public/app.js');
+
+  assert.match(app, /panel\.hidden = panel\.dataset\.panel !== activeTab/, 'the new panels follow the tab');
+  assert.match(app, /stored === 'received'/, 'and the choice outlives a page rebuild');
+  assert.match(app, /has\('answered'\)\) activeTab = 'received'/, 'an answer comes back to it');
+});
+
 // ------------------------------------------------------------- the working list
 
 t('the waiting list is the owner list: quantity asked for, and the two answers', () => {
@@ -279,6 +292,19 @@ t('the answer posted from the tab redirects to the list, not the old page', () =
   assert.match(server, /req\.body\.from\) === 'list' \? '\/' : '\/owner\/requests'/);
 });
 
+// A pushed change redraws the list through /items, not through the page, so the fragment has
+// to be built from the same loader - otherwise the tab updates its count and its rows only on
+// a reload, which is the one thing a live list must not do.
+t('the live refresh draws the received list from the same data as the page', () => {
+  const server = read('server.js');
+  const at = server.indexOf("app.get('/items'");
+  const route = server.slice(at, at + 900);
+
+  assert.ok(at > -1, 'the fragment route is still there');
+  assert.match(route, /collectViewerData\(/);
+  assert.match(route, /renderListRegion\(data\)/);
+});
+
 t('the list loads both halves for a signed-in person', () => {
   const server = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
 
@@ -292,6 +318,103 @@ t('the mark is styled to sit on the text baseline', () => {
 
   assert.match(rule.slice(0, 200), /width: 16px/);
   assert.match(rule.slice(0, 200), /margin-right: 6px/);
+});
+
+// ------------------------------------------------------------------ empty tables
+
+// A section that disappears when it has nothing in it reads as one that failed to load, so
+// each of the four tables keeps its headings and says so in one line across them.
+t('an empty Requests Received tab keeps both tables and says so in each', () => {
+  const empty = render({ received: [], receivedHistory: [] });
+  const received = empty.slice(empty.indexOf('data-panel="received"'));
+
+  assert.match(received, /Waiting on your items/);
+  assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing is waiting on your items right now\./);
+  assert.match(received, /Already answered/);
+  assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing has been answered yet\./);
+  assert.match(received, />Mail to<span class="sort-queue"/, 'the headings stay, including the answered ones');
+});
+
+t('the empty line goes away as soon as a row is there, and comes back with it', () => {
+  const waiting = render({ receivedHistory: [] });
+  const onlyWaiting = waiting.slice(waiting.indexOf('data-panel="received"'));
+  const waitingTable = onlyWaiting.slice(0, onlyWaiting.indexOf('Already answered'));
+  const answeredTable = onlyWaiting.slice(onlyWaiting.indexOf('Already answered'));
+
+  assert.doesNotMatch(waitingTable, /class="empty-row"/, 'a request is waiting, so nothing says there is none');
+  assert.match(waitingTable, /Briarheart Dagger/);
+  assert.match(answeredTable, /class="empty-row"/, 'nothing answered on this fixture, so the log says so');
+
+  const answered = render({ received: [] });
+  const back = answered.slice(answered.indexOf('data-panel="received"'));
+
+  assert.match(back.slice(0, back.indexOf('Already answered')), /class="empty-row"/);
+  assert.doesNotMatch(back.slice(0, back.indexOf('Already answered')), /Briarheart Dagger/);
+});
+
+// ------------------------------------------------------------- sorting and searching
+
+t('all four tables sort by their own headings and remember it in their own cookie', () => {
+  const html = render({
+    requests: [],
+    basketRows: [
+      { id: 9, item_name: 'Soul Gem', owner_account_name: '@Owner', quantity: 2, status: 'draft' },
+    ],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = html.slice(html.indexOf('data-panel="mine"'), html.indexOf('data-panel="offer"'));
+
+  assert.match(mine, /data-sort-cookie="itemshare_basket_sort"/);
+  assert.match(mine, /data-sort-fields="name,from,qty,status"/);
+  assert.match(mine, /data-sort-cookie="itemshare_sent_sort"/);
+  assert.match(mine, /data-sort-fields="name,from,qty,sent,status"/);
+  assert.match(html, /data-sort-cookie="itemshare_answered_sort"/);
+  assert.match(html, /data-sort-fields="name,mail,requested,amount,answered,when"/);
+  assert.match(html, /data-owner-requests/, 'the waiting table keeps the sorts it already had');
+  assert.match(mine, /data-sort-name="Soul Gem"/);
+  assert.match(mine, /data-sort-status="Not requested"/);
+  assert.match(html, /data-sort-requested="3"/, 'asked for, on the answered row');
+  assert.match(html, /data-sort-amount="1"/, 'and how many arrived');
+});
+
+t('each table carries the words its search box looks through', () => {
+  const html = render({
+    requests: [],
+    basketRows: [
+      { id: 9, item_name: 'Soul Gem', owner_account_name: '@Owner', quantity: 2, status: 'draft' },
+    ],
+  });
+
+  assert.match(html, /id="listSearch-mine"/);
+  assert.match(html, /id="listSearch-received"/);
+  assert.match(html, /data-search="Briarheart Dagger Weapons Sharpened @Eva @Bob Bank"/);
+  assert.match(html, /data-search="Ancient Silk Apparel @Cy Fulfilled"/);
+  assert.match(html, /data-search="Soul Gem @Owner Not requested"/);
+});
+
+// ------------------------------------------------------------------- where links land
+
+t('a link can name the tab it opens, and the request email names this one', () => {
+  const app = read('public/app.js');
+  const email = read('lib/email.js');
+
+  assert.match(app, /const asked = new URLSearchParams\(window\.location\.search\)\.get\('tab'\)/);
+  assert.match(app, /asked === 'received'/, 'received is one of the names a link may use');
+  assert.match(email, /\/\?tab=received/, 'the email offers the tab beside the no-sign-in page');
+  assert.match(
+    read('server.js'),
+    /\/requests\/fulfill\/\$\{token\}/,
+    'and the message it builds still opens the page that needs no sign-in'
+  );
+});
+
+t('the send instruction is a size up and has air under it', () => {
+  const css = read('public/styles.css');
+  const rule = css.slice(css.indexOf('.bag-note {'));
+
+  assert.match(rule.slice(0, 200), /font-size: 14px/);
+  assert.match(rule.slice(0, 200), /margin: 12px 0 14px/);
+  assert.match(css.slice(css.indexOf('.empty-row td {')), /text-align: center/);
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

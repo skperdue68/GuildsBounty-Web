@@ -545,8 +545,10 @@ offers it. The type headings are labels for the rows rather than entries of thei
 they take no part in the matching: a heading stays while any row under it matches and goes
 when none do, until the search is cleared. Its count follows the search too, reading
 `(4 of 12)` while a term is narrowing the group and `(12)` again once it is cleared, so a
-heading never claims twelve rows above the four that are on screen. The search belongs to the lists of things on
-offer, so the box is not drawn while **My Requests** is open.
+heading never claims twelve rows above the four that are on screen. Every tab has its own
+box: **My Requests** and **Requests Received** narrow both of their tables at once - the
+basket and the log, the waiting list and the answered one - because the word is about an
+item, and which half of the tab a row sits in does not make it a different item.
 
 The *Requests Received* table sorts differently, because its four columns
 answer different questions and one order cannot serve all of them. `Item`, `Stored at`,
@@ -562,6 +564,19 @@ second column looks idle while the first decides most of the table. A row with n
 descending pass, and the queue is remembered in `itemshare_owner_sort`, never in the
 address bar. `Requested` and `Amount Sent` do not sort: they describe what you have
 answered, not how to find a row.
+
+The other three request tables sort the same way, and each remembers its own order under its
+own cookie rather than borrowing one: **In your basket** (`itemshare_basket_sort`) sorts by
+item, the account it is from, quantity and status; **Already sent** (`itemshare_sent_sort`)
+adds the day it went; and **Already answered** (`itemshare_answered_sort`) sorts by item, who
+it went to, requested, amount sent, whether it was fulfilled and when. None of it reaches the
+address bar, so a link stays a plain link to the page.
+
+A table is never removed for being empty. All four keep their headings and put one line
+across every column - *No items have been requested.*, *No requests have been sent yet.*,
+*Nothing is waiting on your items right now.*, *Nothing has been answered yet.* - and the
+line goes as soon as there is a row, coming back when the last one is sent, cancelled or
+times out. A section that vanished read as one that had failed to load.
 
 `Added` is the day an item first entered its owner's shared list - the day they offered
 it - not the day of their latest upload, so re-uploading a long-held item does not make
@@ -1592,6 +1607,12 @@ pending, and the same link answers them later.
   over, how many arrived of how many were asked, and when. `/owner/requests` is still a whole
   page for a bookmark or a direct visit and still draws the same table, which is why the card
   and the tab share one renderer - they cannot drift apart.
+- The request email still opens `/requests/fulfill/<token>`, which answers those rows without
+  a sign-in - the token is the whole permission, so a person reading mail on a phone does not
+  have to find their password. Under that button the message also offers **Open Requests
+  Received**, a `/?tab=received` link to the same work beside everything else waiting. The
+  list reads `?tab=` on load (`request`, `offer`, `mine`, `received`) and opens that tab
+  instead of the remembered one.
 - **One row per item, however many times it was asked for.** Two, then two more, then one
   is a page row reading **Requested 5**, because that is one conversation. The database
   rows stay separate: the number you send is spent on the oldest asks first, so 3 against
