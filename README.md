@@ -75,9 +75,19 @@ Three have no sensible default and are worth setting before anyone else uses the
 | `BASE_URL` | Sign-in redirects and the links in request emails are built from it. Wrong here means people are sent to `localhost` that is not theirs |
 | `SESSION_SECRET` | Without it a fresh random secret is made on every boot, so a restart signs everybody out |
 | `MARIADB_USER` / `MARIADB_PASSWORD` | The defaults (`root`, no password) are for a throwaway local server only |
+| `LEGACY_HOSTS` | Names the site used before the rebrand, comma separated. Defaults to `itemsync.perdues.me`; set it to `''` to show the redirect notice nowhere |
+| `NEW_SITE_URL` | What that notice points at. Defaults to `https://guildsbounty.perdues.me` |
 
 Everything else - sign-in providers, email, the `/ingest` token, the hold window,
 retry timers - is optional and off when blank. See `.env.example` for each one.
+
+**One name is the old one for now.** The site answers on both `itemsync.perdues.me` and
+`guildsbounty.perdues.me`, and somebody who arrives by the old name gets a short card:
+*ItemShare is now Guild's Bounty*, with the new address linked. It goes away after ten seconds
+or on the cross, and it is drawn only on the page they land on - a visit by the new name never
+sees it, and a live refresh never brings it back. The name is read from `X-Forwarded-Host` when
+a proxy supplies one, then `Host`, so the check follows the address the browser asked for
+rather than the proxy's own.
 
 One deliberate oddity: **`MARIADB_DATABASE` is ignored.** Guild's Bounty always uses its
 own database (`ITEMSHARE_DATABASE`, default `itemshare`), so it cannot write into

@@ -1789,6 +1789,83 @@ th .sort-queue[hidden] {
 }
 
 /* ------------------------------------------------------- the request dialog */
+/* The notice for somebody arriving by the site's old name. It sits over everything for ten
+   seconds, so the backdrop is there to make it read as a message rather than as part of the
+   page - but it takes no pointer events, because reading the list should not have to wait for
+   a notice to go away, and the card itself stays clickable for its cross and its link. */
+.rebrand-notice {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.rebrand-notice-card {
+  position: relative;
+  pointer-events: auto;
+  width: min(440px, 100%);
+  padding: 20px 46px 20px 22px;
+  border: 1px solid var(--panel-border-strong);
+  border-radius: 14px;
+  background: #0b1630;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: rebrand-notice-in 180ms ease-out;
+}
+
+.rebrand-notice-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.rebrand-notice-card p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.45;
+}
+
+.rebrand-notice-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rebrand-notice-close:hover,
+.rebrand-notice-close:focus-visible {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text);
+}
+
+@keyframes rebrand-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rebrand-notice-card {
+    animation: none;
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

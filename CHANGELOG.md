@@ -17,6 +17,13 @@ landed on `main`.
 
 ### Added
 
+- **Arriving by the old address says the site has a new name.** `itemsync.perdues.me` still
+  works, and a visit by it opens a short card - *ItemShare is now Guild's Bounty*, with
+  `guildsbounty.perdues.me` linked - that closes itself after ten seconds or on the cross. It
+  appears only on the page somebody lands on, only for the old name: a visit by the new one has
+  nothing to read, and a live refresh does not bring it back. Which names count is
+  `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`.
+
 - **Requests Received: a fourth tab, where the owner's list used to live behind the account
   menu.** It is the same working list the owner's page draws - one row per item, the quantity
   asked for, the amount sent filled in ready to change, and **Fulfilled** / **Not fulfilled** -

@@ -155,6 +155,41 @@ const STARTED_LABEL = new Date().toISOString().replace('T', ' ').replace(/\.\d+Z
 const PORT = Number(process.env.PORT || 3000);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
+// The site answers on more than one name while the rebrand settles. `itemsync.perdues.me` is
+// the old one: it still serves everything, and somebody arriving by it is told once where the
+// site has moved. Any other name is simply the site, so the notice never appears for people
+// who came in the new way. Set LEGACY_HOSTS to a comma separated list to change which names
+// count as the old address, or to '' to serve the notice on none of them.
+const LEGACY_HOSTS = new Set(
+  String(process.env.LEGACY_HOSTS === undefined ? 'itemsync.perdues.me' : process.env.LEGACY_HOSTS)
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+// The address the notice points at; the one the site is being renamed to.
+const NEW_SITE_URL = String(process.env.NEW_SITE_URL || 'https://guildsbounty.perdues.me').trim();
+
+/**
+ * The name the browser asked for, without the port.
+ *
+ * A proxy in front of the site keeps the original name in X-Forwarded-Host, so that is read
+ * first: the Host the app itself sees would otherwise be the proxy's own, and the notice would
+ * appear for everybody or for nobody depending on the setup.
+ */
+function requestHost(req) {
+  const raw = String(
+    (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || ''
+  );
+
+  return raw.split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+}
+
+/** Whether this request came in by one of the site's old names. */
+function arrivedFromLegacyHost(req) {
+  return LEGACY_HOSTS.has(requestHost(req));
+}
+
 // Both providers speak OAuth2 authorization code, so one flow serves both. Only
 // the endpoints, scopes and profile fields differ.
 // Both providers speak OAuth2 authorization code, so one flow serves both. Their
@@ -1062,13 +1097,17 @@ async function viewerAccountNames(req, connection, user) {
 
   return data;
 }  app.get('/', async (req, res) => {
-    res
-      .type('html')
-      .send(renderPage(await collectViewerData(req, readFilters(
+    const data = await collectViewerData(req, readFilters(
       req.query,
       readCookie(req.headers.cookie, SORT_COOKIE),
       readCookie(req.headers.cookie, GROUP_COOKIE)
-    ))));
+    ));
+
+    // Only the page somebody lands on says this: the notice is about the address they used,
+    // not about the site, and repeating it on every live refresh would be a nag.
+    data.rebrandNotice = arrivedFromLegacyHost(req) ? { newUrl: NEW_SITE_URL } : null;
+
+    res.type('html').send(renderPage(data));
   });
 
   // Choosing the account to browse as. A plain form POST, so it still works with the
