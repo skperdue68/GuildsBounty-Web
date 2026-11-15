@@ -112,6 +112,14 @@ landed on `main`.
 
 ### Changed
 
+- **The item tables are down to what the site actually uses.** Thirteen columns were stored
+  and never read: the numeric item type, the quality's own name, the trait type, the apparel
+  and weapon descriptors, the furniture data id, the flavour text, the raw dump of every ESO
+  getter and the row's own last-dumped stamp. The addon no longer sends them, so
+  `itemshare_shared_items` and `itemshare_always_share` no longer create them, migration 030
+  drops them once, and the parser stops reading them. Everything the list draws - type name,
+  quality, trait, set, enchantment, style, level and champion points, location, counts and
+  dates - is unchanged.
 - **The Added menu gained the windows it was missing, and a way back.** It now reads *Any
   Time*, Last 24 Hours, Last 3 Days, Last 7 Days, Last 2 Weeks, Last 30 Days and **LAST
   CHANCE**, in that order. *Any Time* is first and is the choice that is on when nothing is
@@ -119,7 +127,6 @@ landed on `main`.
   there was no way back to "no Added filter" except the reset button. LAST CHANCE keeps its
   warning colour. The Added summary no longer carries a count, since one choice at a time
   could only ever read 1, and the reset button is spelled **RESET**.
-
 - **The site is Guild's Bounty now.** Every page title, the footer, the *Back to ...* buttons,
   the guide, the sign-in card, the demo banner, the header's download button, the request,
   fulfilment and password reset emails, the site's own User-Agent strings, the boot log line,
