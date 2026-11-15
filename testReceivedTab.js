@@ -510,11 +510,17 @@ const rowOf = (markup) => {
 function wireTab(tab, panelHtml) {
   const input = { value: '', getAttribute: (name) => (name === 'data-list-search' ? tab : null) };
   const clear = { hidden: true };
-  const rows = [...panelHtml.matchAll(/<tr\b[^>]*>/g)].map((match) => rowOf(match[0]));
+  // One body per table: these tabs draw two, and the box is meant to narrow both.
+  const bodies = panelHtml
+    .split('<tbody')
+    .slice(1)
+    .map((chunk) => ({
+      rows: [...chunk.matchAll(/<tr\b[^>]*>/g)].map((match) => rowOf(match[0])),
+    }));
   const node = {
     querySelector: (selector) =>
       selector === '[data-list-search]' ? input : selector === '[data-list-search-clear]' ? clear : null,
-    querySelectorAll: (selector) => (selector === 'table tbody' ? [{ rows }] : []),
+    querySelectorAll: (selector) => (selector === 'table tbody' ? bodies : []),
   };
   const listRegion = {
     querySelector: (selector) => (selector === `[data-panel="${tab}"]` ? node : null),
@@ -555,7 +561,9 @@ function wireTab(tab, panelHtml) {
     wordOnTheTab: () => listSearchByTab[tab],
     crossShown: () => clear.hidden === false,
     // Only the rows that can be narrowed: a heading row has nothing to match on.
-    showing: () => rows.filter((row) => row.hasAttribute('data-search') && !row.hidden),
+    showing: (body = 0) =>
+      bodies[body].rows.filter((row) => row.hasAttribute('data-search') && !row.hidden),
+    tableCount: () => bodies.length,
   };
 }
 
@@ -578,13 +586,42 @@ t('a word typed on Requests Received keeps, shows the cross and narrows the rows
   assert.ok(box.crossShown(), 'the cross is still there to clear it');
 });
 
+t('the word narrows both tables on the tab, not just the first one', () => {
+  const box = wireTab('received', panelOf(render(), 'received'));
+
+  assert.equal(box.tableCount(), 2, 'the tab draws a waiting table and an answered one');
+
+  box.type('briarheart');
+
+  assert.equal(box.showing(0).length, 1, 'the waiting table keeps the row that matches');
+  assert.equal(box.showing(1).length, 0, 'and the answered table below it lets its rows go');
+
+  box.type('ancient');
+
+  assert.equal(box.showing(0).length, 0, 'the other way round: the waiting table empties');
+  assert.equal(box.showing(1).length, 1, 'and the answered table keeps its match');
+});
+
 t('and the same on My Requests, which has two tables of its own', () => {
-  const box = wireTab('mine', panelOf(render(), 'mine'));
+  const sent = {
+    ...pending[0],
+    id: 11,
+    item_name: 'Ancient Silk',
+    item_type_name: 'Apparel',
+    status: 'sent',
+    sent_at: '2026-11-12T10:00:00Z',
+  };
+  const draft = { ...pending[0], id: 12, item_name: 'Hunting Bow', status: 'draft' };
+  const box = wireTab('mine', panelOf(render({ requests: [sent], basketRows: [draft] }), 'mine'));
 
-  box.type('sash');
+  assert.equal(box.tableCount(), 2, 'the basket and the submitted list');
 
-  assert.equal(box.wordOnTheTab(), 'sash');
+  box.type('hunting');
+
+  assert.equal(box.showing(0).length, 1, 'the basket keeps its row');
+  assert.equal(box.showing(1).length, 0, 'and the submitted table drops the row that does not match');
   assert.ok(box.crossShown(), 'the cross appears here too');
+  assert.equal(box.wordOnTheTab(), 'hunting');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);
