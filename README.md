@@ -477,7 +477,7 @@ token travels in a header and the file contents are plain text over the wire.
 | `POST` | `/accounts/remove` | Unlink one of their ESO accounts, leaving what it shared |
 | `POST` | `/logout` | Delete the session row and clear the cookie |
 | `POST` | `/simulate/nudge` | Token-authenticated "something changed" push, used by `npm run simulate` |
-| `GET` | `/requests/fulfill/:token` | The answer form a request email links to; the token in the address is the credential |
+| `GET` | `/requests/fulfill/:token` | The link a request email carries: it signs that email's owner in and lands on Requests Received (`?form=1` asks for the bare one-email form instead) |
 | `POST` | `/requests/fulfill/:token` | Records what the owner says they sent: `0` cancels that row, anything else hands it over |
 | `GET` | `/owner/requests` | Signed-in list of what is waiting on your own items; with `X-ItemShare-Fragment: 1` it returns just the card the modal shows |
 | `POST` | `/owner/requests` | Records an answer given on the site, then redirects back so a refresh cannot answer twice; the fragment request gets the refreshed card instead |
@@ -1629,9 +1629,23 @@ to mail them to, and one link at the end. Gmail and several other webmail client
 pressed - the answer was lost with no error shown. Nothing in the message is submitted any
 more, and no number in it is editable.
 
-The link goes straight to `/requests/fulfill/:token`, the page that answers this message:
-no sign-in, no dashboard, nothing to search for. The owner sets a row to what actually
+The link goes to `/requests/fulfill/:token`, and it arrives **signed in, on Requests
+Received**: the token already names the person whose ESO accounts these requests are aimed
+at, so the site builds their session from it and redirects to `/?tab=received` rather than
+showing a password box to somebody who has just come out of their inbox. The requests are
+there with everything else waiting on their items, and the owner sets a row to what actually
 left their bag, saves it, and `0` means nothing was sent from that row - which cancels it.
+
+A signed-out write under `/requests` is still refused - asking for an item needs a person
+behind it - but `/requests/fulfill/:token` is exempt, because its token is the whole
+permission. That guard is why Save in the email used to answer "Sign in before asking for an
+item" after the row had already been filled in.
+
+The link only ever signs in as the owner the token belongs to. If the browser is already
+signed in as somebody else, the session is left alone and the bare form is shown instead: an
+emailed link decides what one email may answer, never whose account the browser is using.
+`?form=1` shows that same form on purpose - the one page that answers this email and nothing
+else - and it is what a link with no readable owner falls back to.
 
 A message is rarely answered in one go - half a stack today, the rest next week - so each
 row is submitted on its own. Saving one row records only that row: the others stay
@@ -1655,12 +1669,13 @@ pending, and the same link answers them later.
   over, how many arrived of how many were asked, and when. `/owner/requests` is still a whole
   page for a bookmark or a direct visit and still draws the same table, which is why the card
   and the tab share one renderer - they cannot drift apart.
-- The request email still opens `/requests/fulfill/<token>`, which answers those rows without
-  a sign-in - the token is the whole permission, so a person reading mail on a phone does not
-  have to find their password. Under that button the message also offers **Open Requests
-  Received**, a `/?tab=received` link to the same work beside everything else waiting. The
-  list reads `?tab=` on load (`request`, `offer`, `mine`, `received`) and opens that tab
-  instead of the remembered one.
+- The request email's **Answer these requests** button opens `/requests/fulfill/<token>`,
+  which signs the owner in from the token and redirects to Requests Received - the same work,
+  beside everything else waiting on their items, with no password to find on a phone. The
+  message no longer carries a second **Already signed in?** link, since that one depended on a
+  session the reader did not have and only reached a sign-in screen. The list reads `?tab=` on
+  load (`request`, `offer`, `mine`, `received`) and opens that tab instead of the remembered
+  one.
 - **One row per item, however many times it was asked for.** Two, then two more, then one
   is a page row reading **Requested 5**, because that is one conversation. The database
   rows stay separate: the number you send is spent on the oldest asks first, so 3 against

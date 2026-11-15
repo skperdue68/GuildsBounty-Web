@@ -43,6 +43,7 @@ import {
   getBasketRows,
   getDraftBasket,
   getFulfillForm,
+  getFulfillTokenOwner,
   getOwnerContacts,
   countOwnerRequests,
   getOwnerRequestHistory,
@@ -297,7 +298,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
   const user = req.session ? req.session.user : null;
 
-  if (user || req.method !== 'POST' || !req.path.startsWith('/requests')) {
+  // The email form's own link is the exception: its token is the whole credential, it answers
+  // only that email's rows, and refusing it for want of a session is what left owners looking
+  // at "sign in" after pressing Save in the message. Every other write under /requests is
+  // somebody asking for an item, and that needs a person behind it.
+  const byEmailToken = req.path.startsWith('/requests/fulfill/');
+
+  if (user || req.method !== 'POST' || !req.path.startsWith('/requests') || byEmailToken) {
     next();
     return;
   }
@@ -2159,6 +2166,34 @@ function sendAnsweredAlready(req, res) {
   });
 }
 
+/**
+ * A session for the person an email token belongs to.
+ *
+ * The label is the provider they signed up by, so the menu still says *signed in via Discord*
+ * rather than inventing a fourth kind of login. A person with no identity row - one made by a
+ * script, or whose provider was removed - reads "email link", which is exactly how they got in.
+ */
+function sessionUserForOwner(owner) {
+  const known = Object.values(PROVIDERS).find((provider) => provider.key === owner.provider);
+  const user = {
+    id: owner.id,
+    provider: owner.provider || 'email',
+    providerLabel: known ? known.label : 'email link',
+    username: owner.username,
+    email: owner.email,
+    emailVerified: owner.emailVerified,
+    avatarUrl: owner.avatarUrl,
+  };
+
+  // A demo person stays in the demo database: which rows a session reads follows the person,
+  // and the link must not quietly open the real guilds for them.
+  if (owner.isDemo) {
+    user.isDemo = true;
+  }
+
+  return user;
+}
+
 app.get('/requests/fulfill/:token', async (req, res) => {
   const token = String(req.params.token || '');
   // The token is in the address bar, so this page must not hand it on in a Referer
@@ -2181,6 +2216,33 @@ app.get('/requests/fulfill/:token', async (req, res) => {
     if (!form) {
       sendAnsweredAlready(req, res);
       return;
+    }
+
+    // Clicking the link should feel like the site already knows you: the token names the
+    // person whose accounts these requests are aimed at, so sign them in and put them on
+    // Requests Received, where the row sits beside everything else waiting on their items.
+    // `?form=1` asks for the bare form instead - the one page that answers this email and
+    // nothing else - and a session that belongs to somebody else is left alone: an emailed
+    // link decides what one email may answer, never whose account the browser is using.
+    const signedIn = req.session ? req.session.user || null : null;
+    const wantsBareForm = String(req.query.form || '') === '1';
+
+    if (!wantsBareForm) {
+      const owner = await withDatabase((connection) => getFulfillTokenOwner(connection, token));
+
+      if (owner && (!signedIn || Number(signedIn.id) === Number(owner.id))) {
+        if (!signedIn) {
+          req.session.user = sessionUserForOwner(owner);
+          // Which ESO accounts are "mine" is read fresh for whoever the session now is.
+          req.session.accountNames = null;
+          logLine(
+            `Email link: signed in ${owner.username || `#${owner.id}`} and opened Requests Received`
+          );
+        }
+
+        res.redirect(303, '/?tab=received');
+        return;
+      }
     }
 
     res.type('html').send(
