@@ -124,13 +124,12 @@ landed on `main`.
 
 ### Changed
 
-- **While you are somebody else, the avatar menu is the way back - and nothing else.** The panel
-  holds their name and *Return to my own login*; the *View the Site As:* picker, **Log out**,
-  **Add or remove ESO accounts**, **Process Requests**, **Create Guild Code** and **Use Guild
-  Code** are all gone from it while another person's site is on screen. Stepping from one person
-  to another, managing accounts and logging out all happen after returning to your own menu,
-  which is unchanged. The list of people is not even fetched while you are acting, since nothing
-  draws it.
+- **While you are somebody else, the menu drops the picker and Log out.** Everything else in it
+  still works as theirs, because that is the point of looking at their site. Picking a different
+  person and logging out both happen after returning to your own menu, where they are again -
+  Log out ends the whole session rather than the view, and stepping from one person to another
+  goes through your own login first. The list of people is not even fetched while you are
+  acting, since nothing draws it, and *Return to my own login* sits where the picker was.
 - **The view-as picker moved to the bottom of the avatar menu and names itself.** Its first
   line reads **View the Site As:** rather than a separate *View the site as another person*
   heading above it, and the whole block now sits just above **Log out** instead of above the

@@ -171,26 +171,27 @@ t('while looking at somebody, the menu is the way back and nothing else', () => 
   assert.doesNotMatch(menu, /action="\/view-as"/, 'nothing posts a new person from here');
 });
 
-t('while looking at somebody, the menu is their name and the way back, and nothing else', () => {
+t('while looking at somebody, the menu keeps its items but drops the picker and Log out', () => {
   const actingPage = pageFor({
     ...operator,
     viewAs: { people, acting: { id: 4, name: 'Ada' } },
   });
 
-  // None of their links and none of yours. Everything the panel can hold is a menu item, so the
-  // first check covers items nobody has written yet; the named ones say which they are today.
-  assert.doesNotMatch(actingPage, /role="menuitem"/, 'no menu items while acting');
-  assert.doesNotMatch(actingPage, /data-open-accounts/);
-  assert.doesNotMatch(actingPage, /Add or remove ESO accounts/);
-  assert.doesNotMatch(actingPage, /Process Requests/);
-  assert.doesNotMatch(actingPage, /Create Guild Code/);
-  assert.doesNotMatch(actingPage, /href="\/owner\/requests"/);
-  assert.doesNotMatch(actingPage, /href="\/guilds\/codes"/);
-  assert.doesNotMatch(actingPage, /action="\/logout"/, 'return first, then log out');
-  assert.match(actingPage, /Return to my own login/, 'the one thing the panel holds');
+  // The menu still works as theirs - that is the point of looking at their site - and Return is
+  // the extra line at the bottom of it.
+  assert.match(actingPage, /data-open-accounts/, 'their accounts are still there to look at');
+  assert.match(actingPage, /href="\/guilds\/codes"/);
+  assert.match(actingPage, /href="\/guilds\/join"/);
+  assert.match(actingPage, /action="\/view-as\/return"/);
+  assert.match(actingPage, /Return to my own login/);
+
+  // Two things are not: picking a different person from here, and logging out of everything.
+  assert.doesNotMatch(actingPage, /data-view-as-picker/, 'the picker is gone while acting');
+  assert.doesNotMatch(actingPage, /<option/, 'and so is the list of names under it');
+  assert.doesNotMatch(actingPage, /action="\/logout"/, 'no Log out: return first, then log out');
 });
 
-t('your own menu still has every item, including Log out', () => {
+t('your own menu has the picker and Log out, and everything else', () => {
   const ownPage = pageFor({ ...operator, viewAs: { people, acting: null } });
 
   assert.match(ownPage, /data-open-accounts/);
@@ -198,6 +199,7 @@ t('your own menu still has every item, including Log out', () => {
   assert.match(ownPage, /Use Guild Code/);
   assert.match(ownPage, /data-view-as-picker/);
   assert.match(ownPage, /action="\/logout"/);
+  assert.doesNotMatch(ownPage, /action="\/view-as\/return"/, 'nothing to return from');
 });
 
 t('with nothing chosen there is no way back, because there is nowhere to go back from', () => {
