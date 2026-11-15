@@ -936,10 +936,12 @@ with no ESO account linked sees the prompts that person would see. A banner acro
 every page names who is being looked at - *This is the site as workswithdragons sees it* - and
 carries *Return to my own login*.
 
-While somebody else's site is on screen that return is the only thing the menu offers: no picker,
-so stepping from one person to another goes through your own login first, and no **Log out**
-either - that ends the whole session, and the way back is the thing to reach for while you are
-somebody else. Everything else in the menu works as theirs.
+While somebody else's site is on screen the menu holds their name and that return, and nothing
+else: no picker, so stepping from one person to another goes through your own login first; no
+**Add or remove ESO accounts**, **Process Requests**, **Create Guild Code** or **Use Guild Code**,
+because those are theirs and the menu you are looking at is a way back rather than a place to act
+from; and no **Log out**, which ends the whole session rather than the view. Return, then pick
+again, manage accounts or log out from your own menu, where all of it is unchanged.
 
 It is a test tool, not a role. Nothing grants it, it is checked on every request rather than
 remembered from a session, it needs Discord (a Google or email login with that name does not
@@ -954,7 +956,7 @@ Two things follow from acting as somebody:
   answered, an account detached. The banner is there to keep that in mind.
 - **Log out** is hidden while somebody else's site is on screen, because it ends the whole
   session rather than just the view; *Return to my own login* is the way back that keeps you
-  signed in, and Log out is in the menu again once you are back.
+  signed in, and the whole menu - Log out included - is back once you are.
 
 ## Live updates
 
