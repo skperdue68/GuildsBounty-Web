@@ -2482,7 +2482,12 @@ document.addEventListener('change', (event) => {
 }, true);
 
 document.addEventListener('submit', (event) => {
-  if (event.target.getAttribute('action') === '/browsing-account') {
+  const action = event.target.getAttribute('action');
+
+  // Looking at the site as somebody else keeps the basket too: it is held against the
+  // person, and the person is coming back. Switching to it should not raise a question
+  // about leaving.
+  if (action === '/browsing-account' || action === '/view-as') {
     internalNavigation = true;
   }
 }, true);
