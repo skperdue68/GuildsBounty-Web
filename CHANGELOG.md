@@ -5,6 +5,21 @@ landed on `main`.
 
 ## Unreleased
 
+### Changed
+
+- **The two tabs that explain their sorting no longer do.** My Requests and Requests Received
+  both carried a paragraph under their last table about pressing a heading once, twice, three
+  times, and about the small number beside an active heading - a lot of words to read every
+  visit to be told what a press does. The headings still sort, still reverse, still stop, and
+  still number their place in the order; the sentences explaining it are gone. The **Waiting on
+  your items** table also drops its own line, *Nothing is recorded until you press Fulfilled on
+  that row*: the button says it.
+
+- **A request email now takes you straight to the table you came to answer.** Following the
+  link signs you in and opens Requests Received as before, and now also jumps the page to
+  **Waiting on your items**, with the pinned top bar, tabs and search row allowed for, instead
+  of leaving it below the fold under the tab strip.
+
 ### Fixed
 
 - **The link in a request email now lands on the site signed in, on Requests Received.** It used

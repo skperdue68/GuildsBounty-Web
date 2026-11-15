@@ -70,12 +70,31 @@ t('both versions still say what Save does, row by row, and that 0 cancels', () =
   assert.match(mail.html, /<strong>0<\/strong> means you sent nothing/, 'and says what 0 means');
 });
 
+t('arriving that way also brings up the waiting table, not just the tab', () => {
+  assert.match(server, /\?tab=received&waiting=1/, 'the redirect asks for the jump');
+  const app = read('public/app.js');
+
+  assert.match(
+    app,
+    /get\('waiting'\) === '1'/,
+    'the list reads the request from the address'
+  );
+  assert.match(app, /getElementById\('receivedWaiting'\)/, 'and finds the waiting heading');
+  assert.match(app, /scrollIntoView\(\{ block: 'start' \}\)/, 'to scroll it into place');
+  assert.match(read('lib/views.js'), /id="receivedWaiting"/, 'which the tab marks');
+  assert.match(
+    read('public/styles.css'),
+    /\.subhead\[id\] \{\s*scroll-margin-top:/,
+    'with room for the pinned rows above it'
+  );
+});
+
 t('the answer route signs the token owner in and redirects to the tab', () => {
   assert.match(server, /getFulfillTokenOwner/, 'the route asks the store who the token belongs to');
   assert.match(
     server,
-    /res\.redirect\(303, '\/\?tab=received'\)/,
-    'and sends them to the Requests Received tab'
+    /res\.redirect\(303, '\/\?tab=received&waiting=1'\)/,
+    'and sends them to the Requests Received tab, at its waiting list'
   );
   assert.match(
     server,

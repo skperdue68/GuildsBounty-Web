@@ -2240,7 +2240,7 @@ app.get('/requests/fulfill/:token', async (req, res) => {
           );
         }
 
-        res.redirect(303, '/?tab=received');
+        res.redirect(303, '/?tab=received&waiting=1');
         return;
       }
     }
