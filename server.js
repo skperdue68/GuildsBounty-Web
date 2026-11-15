@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readCookie, readGrouping } from './lib/preferences.js';
+import { readCollapsedTypes, readCookie, readGrouping } from './lib/preferences.js';
 import {
   SORT_FIELDS,
   SHARED_SORT_FIELDS,
@@ -920,8 +920,14 @@ const GROUP_COOKIE = 'itemshare_group';
 // that list, so turning the headings off there must not turn them off on Browse Offers too.
 const GROUP_COOKIE_MINE = 'itemshare_group_mine';
 
+// Which type headings are folded shut, again one list each. It is a reading choice about a
+// table, not something a link should carry, so it lives beside the grouping rather than in
+// the address bar.
+const FOLDED_COOKIE = 'itemshare_collapsed';
+const FOLDED_COOKIE_MINE = 'itemshare_collapsed_mine';
 
-function readFilters(query, sortCookie = '', groupCookie = '', groupMineCookie = '') {
+
+function readFilters(query, cookieHeader = '') {
   const added = readParam(query.added);
   const asked = readParam(query.sort);
   const askedDir = readParam(query.dir) === 'desc' ? 'desc' : 'asc';
@@ -931,7 +937,7 @@ function readFilters(query, sortCookie = '', groupCookie = '', groupMineCookie =
   // only one, which is a queue of one - and the cookie answers otherwise.
   const order = SORT_FIELDS.includes(asked)
     ? [{ field: asked, dir: askedDir }]
-    : parseSortOrder(sortCookie);
+    : parseSortOrder(readCookie(cookieHeader, SORT_COOKIE));
 
   return {
     // Several types or owners at once arrive as repeated parameters, so they stay
@@ -945,8 +951,11 @@ function readFilters(query, sortCookie = '', groupCookie = '', groupMineCookie =
     order,
     // Headings are drawn while this is true, whatever the order is. One flag per list: Browse
     // Offers reads `group`, My Inventory reads `groupMine`, and neither moves the other.
-    group: readGrouping(groupCookie),
-    groupMine: readGrouping(groupMineCookie),
+    group: readGrouping(readCookie(cookieHeader, GROUP_COOKIE)),
+    groupMine: readGrouping(readCookie(cookieHeader, GROUP_COOKIE_MINE)),
+    // And the types folded away inside each of those lists, kept the same way.
+    collapsed: readCollapsedTypes(readCookie(cookieHeader, FOLDED_COOKIE)),
+    collapsedMine: readCollapsedTypes(readCookie(cookieHeader, FOLDED_COOKIE_MINE)),
   };
 }
 
@@ -1102,12 +1111,7 @@ async function viewerAccountNames(req, connection, user) {
 
   return data;
 }  app.get('/', async (req, res) => {
-    const data = await collectViewerData(req, readFilters(
-      req.query,
-      readCookie(req.headers.cookie, SORT_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE_MINE)
-    ));
+    const data = await collectViewerData(req, readFilters(req.query, req.headers.cookie));
 
     // Only the page somebody lands on says this: the notice is about the address they used,
     // not about the site, and repeating it on every live refresh would be a nag.
@@ -1171,12 +1175,7 @@ async function viewerAccountNames(req, connection, user) {
 // The live update: the same list the page was built from, as a fragment, using the
 // filters this browser already has. A non-200 means "leave the screen alone" - a
 // database hiccup must not replace a good list with an error card.
-app.get('/items', async (req, res) => {    const data = await collectViewerData(req, readFilters(
-      req.query,
-      readCookie(req.headers.cookie, SORT_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE_MINE)
-    ));
+app.get('/items', async (req, res) => {    const data = await collectViewerData(req, readFilters(req.query, req.headers.cookie));
 
   if (data.dbError) {
     res.status(503).json({ error: data.dbError });
