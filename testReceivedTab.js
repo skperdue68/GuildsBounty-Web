@@ -320,6 +320,103 @@ t('the mark is styled to sit on the text baseline', () => {
   assert.match(rule.slice(0, 200), /margin-right: 6px/);
 });
 
+// ------------------------------------------------------------------ empty tables
+
+// A section that disappears when it has nothing in it reads as one that failed to load, so
+// each of the four tables keeps its headings and says so in one line across them.
+t('an empty Requests Received tab keeps both tables and says so in each', () => {
+  const empty = render({ received: [], receivedHistory: [] });
+  const received = empty.slice(empty.indexOf('data-panel="received"'));
+
+  assert.match(received, /Waiting on your items/);
+  assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing is waiting on your items right now\./);
+  assert.match(received, /Already answered/);
+  assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing has been answered yet\./);
+  assert.match(received, />Mail to<span class="sort-queue"/, 'the headings stay, including the answered ones');
+});
+
+t('the empty line goes away as soon as a row is there, and comes back with it', () => {
+  const waiting = render({ receivedHistory: [] });
+  const onlyWaiting = waiting.slice(waiting.indexOf('data-panel="received"'));
+  const waitingTable = onlyWaiting.slice(0, onlyWaiting.indexOf('Already answered'));
+  const answeredTable = onlyWaiting.slice(onlyWaiting.indexOf('Already answered'));
+
+  assert.doesNotMatch(waitingTable, /class="empty-row"/, 'a request is waiting, so nothing says there is none');
+  assert.match(waitingTable, /Briarheart Dagger/);
+  assert.match(answeredTable, /class="empty-row"/, 'nothing answered on this fixture, so the log says so');
+
+  const answered = render({ received: [] });
+  const back = answered.slice(answered.indexOf('data-panel="received"'));
+
+  assert.match(back.slice(0, back.indexOf('Already answered')), /class="empty-row"/);
+  assert.doesNotMatch(back.slice(0, back.indexOf('Already answered')), /Briarheart Dagger/);
+});
+
+// ------------------------------------------------------------- sorting and searching
+
+t('all four tables sort by their own headings and remember it in their own cookie', () => {
+  const html = render({
+    requests: [],
+    basketRows: [
+      { id: 9, item_name: 'Soul Gem', owner_account_name: '@Owner', quantity: 2, status: 'draft' },
+    ],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = html.slice(html.indexOf('data-panel="mine"'), html.indexOf('data-panel="offer"'));
+
+  assert.match(mine, /data-sort-cookie="itemshare_basket_sort"/);
+  assert.match(mine, /data-sort-fields="name,from,qty,status"/);
+  assert.match(mine, /data-sort-cookie="itemshare_sent_sort"/);
+  assert.match(mine, /data-sort-fields="name,from,qty,sent,status"/);
+  assert.match(html, /data-sort-cookie="itemshare_answered_sort"/);
+  assert.match(html, /data-sort-fields="name,mail,requested,amount,answered,when"/);
+  assert.match(html, /data-owner-requests/, 'the waiting table keeps the sorts it already had');
+  assert.match(mine, /data-sort-name="Soul Gem"/);
+  assert.match(mine, /data-sort-status="Not requested"/);
+  assert.match(html, /data-sort-requested="3"/, 'asked for, on the answered row');
+  assert.match(html, /data-sort-amount="1"/, 'and how many arrived');
+});
+
+t('each table carries the words its search box looks through', () => {
+  const html = render({
+    requests: [],
+    basketRows: [
+      { id: 9, item_name: 'Soul Gem', owner_account_name: '@Owner', quantity: 2, status: 'draft' },
+    ],
+  });
+
+  assert.match(html, /id="listSearch-mine"/);
+  assert.match(html, /id="listSearch-received"/);
+  assert.match(html, /data-search="Briarheart Dagger Weapons Sharpened @Eva @Bob Bank"/);
+  assert.match(html, /data-search="Ancient Silk Apparel @Cy Fulfilled"/);
+  assert.match(html, /data-search="Soul Gem @Owner Not requested"/);
+});
+
+// ------------------------------------------------------------------- where links land
+
+t('a link can name the tab it opens, and the request email names this one', () => {
+  const app = read('public/app.js');
+  const email = read('lib/email.js');
+
+  assert.match(app, /const asked = new URLSearchParams\(window\.location\.search\)\.get\('tab'\)/);
+  assert.match(app, /asked === 'received'/, 'received is one of the names a link may use');
+  assert.match(email, /\/\?tab=received/, 'the email offers the tab beside the no-sign-in page');
+  assert.match(
+    read('server.js'),
+    /\/requests\/fulfill\/\$\{token\}/,
+    'and the message it builds still opens the page that needs no sign-in'
+  );
+});
+
+t('the send instruction is a size up and has air under it', () => {
+  const css = read('public/styles.css');
+  const rule = css.slice(css.indexOf('.bag-note {'));
+
+  assert.match(rule.slice(0, 200), /font-size: 14px/);
+  assert.match(rule.slice(0, 200), /margin: 12px 0 14px/);
+  assert.match(css.slice(css.indexOf('.empty-row td {')), /text-align: center/);
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {
