@@ -928,8 +928,9 @@ One Discord handle - `evainefaye` - gets an extra item at the bottom of the avat
 above **Log out**: a picker whose own first line reads **View the Site As:**, listing everybody
 else in the system in alphabetical order. That line is the picker's name rather than a heading
 above it, so nothing has to be read before the list, and it cannot be chosen. Your own name is
-not in the list - being yourself is what *Return to my own login* is for - and neither is the
-person whose page you are already on. Picking a name is the whole action: the page switches as
+not in the list - being yourself is what *Return to my own login* is for. Whoever you are
+looking at stays in it, shown as the line the picker is on, so the picker always says whose site
+is on screen and moves straight on to somebody else without a trip back through your own view. Picking a name is the whole action: the page switches as
 soon as it is chosen, with no button to confirm it, and the session then acts as that person, so
 the list shows their guilds and their shelf, the request pages show what is addressed to them,
 the avatar carries their name and their pending count, and a person with no ESO account linked
