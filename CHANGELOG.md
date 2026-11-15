@@ -122,6 +122,13 @@ landed on `main`.
 
 ### Changed
 
+- **The Added count keeps every field, zeroes and all.** Days, hours, minutes and seconds are
+  written on every row, each two digits wide, so an item four days old reads
+  `04d 00h 00m 00s` rather than `04d`, and one two seconds old reads `00d 00h 00m 02s` rather
+  than `02s`. A field no longer disappears when it is zero, so the column is the same shape
+  from the newest row to the oldest and nothing drops out and comes back as the count rolls
+  over. Years and months still join on the left as an item ages, and at a month you still see
+  the `00d` next to them.
 - **The item tables are down to what the site actually uses.** Thirteen columns were stored
   and never read: the numeric item type, the quality's own name, the trait type, the apparel
   and weapon descriptors, the furniture data id, the flavour text, the raw dump of every ESO

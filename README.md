@@ -550,11 +550,18 @@ The age beside it is counted from a real UTC instant. Every connection is put in
 (`useUtcSession` in `lib/database.js`, and `timezone: '+00:00'` so the driver reads a date
 column as the same instant rather than as the server's own clock), and the lists ask for
 `UNIX_TIMESTAMP(first_seen_at)`
-rather than formatting the column, so an item offered a minute ago reads as `01m 00s`
-wherever the database host's own clock is set - and each reader still sees the count run
-in their own time zone. The seconds stay in the count at every age, written as `00s` on a
-whole minute, so the field does not drop out and come back as the count rolls over. Request times, `LAST CHANCE` and the *Added* windows measure from
-the same instant, as they always did.
+rather than formatting the column, so an item offered a minute ago reads as
+`00d 00h 01m 00s` wherever the database host's own clock is set - and each reader still sees
+the count run in their own time zone.
+
+The count is written as a set of fields that stay put: days, hours, minutes and seconds on
+every row, each two digits wide, so four days to the second reads `04d 00h 00m 00s` rather
+than `04d` and a row two seconds old carries its zeroes for the days, hours and minutes it has
+not reached yet. A field never drops out at zero, so nothing vanishes and comes back as the
+count rolls over, and the column reads down as fields rather than as sentences. Years and
+months join on the left as an item ages - `01mo 00d 00h 00m 00s` at a month, with the days
+still there at zero - and never take anything to their right away. Request times,
+`LAST CHANCE` and the *Added* windows measure from the same instant, as they always did.
 
 On **My Inventory**, `Location` is where the owner's copy was the last time they saved: `Bank`,
 `Inventory (Character Name)`, `Furnishing Vault (...)`. An upload rewrites it, so moving
