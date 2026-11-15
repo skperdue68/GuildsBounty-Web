@@ -472,6 +472,9 @@ if (listRegion) {
     // rather than fired against the tab that replaced it.
     window.clearTimeout(listSearchTimer);
     applyListSearch();
+    // The filter card belongs to the list being drawn, so it moves with the tab - and leaves
+    // the page on the two tabs whose tables no type or owner filter speaks for.
+    syncFilterCard();
   }
 
   listRegion.addEventListener('click', (event) => {
@@ -768,7 +771,58 @@ if (listRegion) {
   // ------------------------------------------------------------------- filters
   // Filters apply as soon as they change - there is no button to forget - and the
   // address bar keeps up, so a reload or a live refresh uses the same filters.
-  const filterForm = document.querySelector('[data-filters]');
+  //
+  // One row per list. Browse Offers and My Inventory each keep their own choices under their
+  // own names, so a type narrowed on what other people share never hides rows inside your own
+  // bag, and switching tabs shows the tab's own filters. My Requests and Requests Received
+  // have no row at all: a type or an owner says nothing about a request.
+  const FILTER_PARAMS = {
+    request: { type: 'type', owner: 'owner', added: 'added' },
+    offer: { type: 'mtype', owner: 'mowner', added: 'madded' },
+  };
+  let filterSearchTimer = null;
+
+  function filterForms() {
+    return Array.from(document.querySelectorAll('[data-filters]'));
+  }
+
+  function filterListOf(form) {
+    return form && form.dataset.filterList === 'offer' ? 'offer' : 'request';
+  }
+
+  /** The row belonging to the tab in front of the reader, or null on a tab with no filters. */
+  function activeFilterForm() {
+    if (activeTab !== 'request' && activeTab !== 'offer') {
+      return null;
+    }
+
+    const list = activeTab === 'offer' ? 'offer' : 'request';
+
+    return filterForms().find((form) => filterListOf(form) === list) || null;
+  }
+
+  /**
+   * Which row is on screen, and whether the card is drawn at all.
+   *
+   * The card is rendered once by the server, so this runs on every tab change and after every
+   * live refresh: a push can replace the rows without knowing which tab is open. A list with
+   * nothing to choose - an account with no rows yet - takes the whole card away rather than
+   * showing three menus with one option each.
+   */
+  function syncFilterCard() {
+    const card = document.getElementById('itemFilters');
+    const shown = activeFilterForm();
+
+    filterForms().forEach((form) => {
+      const on = form === shown;
+      if (form.hidden !== !on) form.hidden = !on;
+    });
+
+    if (card) {
+      const empty = !shown || shown.dataset.filterEmpty === '1';
+      if (card.hidden !== empty) card.hidden = empty;
+    }
+  }
 
   // The sort order is a reading preference, so it is remembered in a cookie and never
   // written into the address bar. An empty queue means "no choice": the plain type
@@ -939,10 +993,14 @@ if (listRegion) {
 
   // A filter can hold several values, and what is switched on is shown as chips
   // under the row, so the controls and the chips are built from one place.
-  function chosenValues(name) {
+  function chosenValues(form, name) {
     const values = [];
 
-    filterForm.querySelectorAll(`[data-filter][name="${name}"]`).forEach((field) => {
+    if (!form) {
+      return values;
+    }
+
+    form.querySelectorAll(`[data-filter][name="${name}"]`).forEach((field) => {
       // Radios carry Added's single window; an unchecked one is simply not part of it.
       if (field.type === 'checkbox' || field.type === 'radio') {
         if (field.checked && field.value) {
@@ -961,17 +1019,18 @@ if (listRegion) {
     return values;
   }
 
-  function renderFilterChips() {
-    const row = filterForm.querySelector('[data-filter-chips]');
+  function renderFilterChips(form) {
+    const row = form ? form.querySelector('[data-filter-chips]') : null;
 
     if (!row) {
       return;
     }
 
     row.textContent = '';
+    const names = FILTER_PARAMS[filterListOf(form)];
 
-    ['type', 'owner'].forEach((name) => {
-      chosenValues(name).forEach((value) => {
+    [names.type, names.owner].forEach((name) => {
+      chosenValues(form, name).forEach((value) => {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'filter-chip';
@@ -992,8 +1051,12 @@ if (listRegion) {
 
   // Each menu says how many of its values are on, so a closed menu still answers
   // whether it is doing anything.
-  function renderFilterMenus() {
-    filterForm.querySelectorAll('[data-filter-menu]').forEach((menu) => {
+  function renderFilterMenus(form) {
+    if (!form) {
+      return;
+    }
+
+    form.querySelectorAll('[data-filter-menu]').forEach((menu) => {
       const checked = Array.from(menu.querySelectorAll('input[data-filter]')).filter(
         (box) => box.checked
       );
@@ -1019,27 +1082,33 @@ if (listRegion) {
     });
   }
 
-  function applyFilters() {
-    if (!filterForm) {
+  function applyFilters(form = activeFilterForm()) {
+    if (!form) {
       return;
     }
 
-    const params = new URLSearchParams();
+    const names = FILTER_PARAMS[filterListOf(form)];
+    const params = new URLSearchParams(window.location.search);
 
     // The item name is not here any more: the list's own search box narrows the rows on
     // the page, so nothing about it belongs in the address bar.
-    ['type', 'owner', 'added'].forEach((name) => {
-      chosenValues(name).forEach((value) => params.append(name, value));
+    //
+    // Only this list's names are rewritten. The other list keeps what it was left with, which
+    // is the whole point of the two rows: its filters are its own business.
+    Object.values(names).forEach((name) => params.delete(name));
+    Object.values(names).forEach((name) => {
+      chosenValues(form, name).forEach((value) => params.append(name, value));
     });
 
-    renderFilterChips();
-    renderFilterMenus();
-
-    const query = params.toString();
+    renderFilterChips(form);
+    renderFilterMenus(form);
 
     // A new filter is a new list, so it starts at the first page rather than at whichever
     // page of the previous list happened to be open.
     liveHistoryPage = null;
+    params.delete('historyPage');
+
+    const query = params.toString();
 
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, '', query ? `/?${query}` : '/');
@@ -1048,90 +1117,101 @@ if (listRegion) {
     scheduleRefresh(0);
   }
 
-  if (filterForm) {
-    let searchTimer = null;
+  // Every row is handled from the document rather than from each form, because a live refresh
+  // can replace a form's markup while the reader is using it.
+  document.addEventListener('change', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
 
-    filterForm.addEventListener('change', (event) => {
-      if (!event.target.matches('[data-filter]')) {
-        return;
-      }
+    if (!form || !event.target.matches('[data-filter]')) {
+      return;
+    }
 
-      // Picking something in a menu closes it; the chip below shows the result.
-      const menu = event.target.closest('details');
+    // Picking something in a menu closes it; the chip below shows the result.
+    const menu = event.target.closest('details');
 
-      if (menu && (event.target.type === 'checkbox' || event.target.type === 'radio')) {
-        menu.open = false;
-      }
+    if (menu && (event.target.type === 'checkbox' || event.target.type === 'radio')) {
+      menu.open = false;
+    }
 
-      applyFilters();
-    });
+    applyFilters(form);
+  });
 
-    // Typing filters as it is typed, just slowly enough not to fetch on every key.
-    filterForm.addEventListener('input', (event) => {
-      if (!event.target.matches('input[type="search"][data-filter]')) {
-        return;
-      }
+  // Typing filters as it is typed, just slowly enough not to fetch on every key.
+  document.addEventListener('input', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
 
-      window.clearTimeout(searchTimer);
-      searchTimer = window.setTimeout(applyFilters, SEARCH_DELAY_MS);
-    });
+    if (!form || !event.target.matches('input[type="search"][data-filter]')) {
+      return;
+    }
 
-    filterForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      applyFilters();
-    });
+    window.clearTimeout(filterSearchTimer);
+    filterSearchTimer = window.setTimeout(() => applyFilters(form), SEARCH_DELAY_MS);
+  });
+
+  // Filters apply as they change, so the button is only there for a browser without scripts.
+  document.addEventListener('submit', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
+
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    applyFilters(form);
+  });
+
+  document.addEventListener('click', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
 
     // A chip removes its own value and leaves the rest of the filters alone.
-    filterForm.addEventListener('click', (event) => {
-      const chip = event.target.closest ? event.target.closest('[data-chip-filter]') : null;
+    const chip = event.target.closest ? event.target.closest('[data-chip-filter]') : null;
 
-      if (!chip) {
-        return;
-      }
-
+    if (chip && form) {
       event.preventDefault();
-      const name = chip.dataset.chipFilter;
-      const value = chip.dataset.chipValue;
 
-      filterForm.querySelectorAll(`[data-filter][name="${name}"]`).forEach((field) => {
-        if (field.type === 'checkbox' && field.value === value) {
+      form.querySelectorAll(`[data-filter][name="${chip.dataset.chipFilter}"]`).forEach((field) => {
+        if (field.type === 'checkbox' && field.value === chip.dataset.chipValue) {
           field.checked = false;
-        } else if (field.tagName === 'SELECT' && field.value === value) {
+        } else if (field.tagName === 'SELECT' && field.value === chip.dataset.chipValue) {
           field.value = '';
         }
       });
 
-      applyFilters();
-    });
-
-    const clearButton = filterForm.querySelector('[data-clear-filters]');
-
-    if (clearButton) {
-      clearButton.addEventListener('click', () => {
-        filterForm.querySelectorAll('[data-filter]').forEach((field) => {
-          if (field.type === 'checkbox' || field.type === 'radio') {
-            field.checked = false;
-          } else {
-            field.value = '';
-          }
-        });
-        applyFilters();
-      });
+      applyFilters(form);
+      return;
     }
 
-    // A click outside a menu closes it, so two open menus never sit over each other
-    // while the reader is trying to use the one underneath.
-    document.addEventListener('click', (event) => {
-      filterForm.querySelectorAll('details[open]').forEach((menu) => {
-        if (!menu.contains(event.target)) {
-          menu.open = false;
+    const clearButton = event.target.closest ? event.target.closest('[data-clear-filters]') : null;
+
+    if (clearButton && form) {
+      event.preventDefault();
+
+      form.querySelectorAll('[data-filter]').forEach((field) => {
+        if (field.type === 'checkbox' || field.type === 'radio') {
+          field.checked = false;
+        } else {
+          field.value = '';
         }
       });
-    });
 
-    renderFilterChips();
-    renderFilterMenus();
-  }
+      applyFilters(form);
+      return;
+    }
+
+    // A click outside a menu closes it, so two open menus never sit over each other while
+    // the reader is trying to use the one underneath.
+    document.querySelectorAll('[data-filters] details[open]').forEach((menu) => {
+      if (!menu.contains(event.target)) {
+        menu.open = false;
+      }
+    });
+  });
+
+  filterForms().forEach((form) => {
+    renderFilterChips(form);
+    renderFilterMenus(form);
+  });
+  syncFilterCard();
 
   // -------------------------------------------------------- keeping the place
   // The row the reader is looking at: the first one crossing the anchor line. Null
@@ -1317,16 +1397,13 @@ if (listRegion) {
     });
 
     const filterTemplate = next.querySelector('template[data-live-filters]');
-    const filters = document.getElementById('itemFilters');
-    if (filters && filterTemplate) {
-      // Preserve the form itself and its delegated listeners as facets come and go.
-      if (filterTemplate.content.childElementCount) {
-        reconcileLiveChildren(filters, filterTemplate.content);
-        const hidden = filterTemplate.dataset.empty === '1';
-        if (filters.hidden !== hidden) filters.hidden = hidden;
-      } else if (!filters.hidden) {
-        filters.hidden = true;
-      }
+    const filterCard = document.getElementById('itemFilters');
+
+    if (filterCard && filterTemplate && filterTemplate.content.childElementCount) {
+      // Preserve the rows themselves, and the menus and chips inside them, as the facets come
+      // and go. Which row is on screen - and whether the card is drawn at all - is decided by
+      // syncFilterCard() once the new markup is in place.
+      reconcileLiveChildren(filterCard, filterTemplate.content);
     }
 
     const rowTops = captureRowTops(listRegion);
@@ -1344,6 +1421,7 @@ if (listRegion) {
     noteClosedRequests();
     syncRequestDialog();
     applyListSearch();
+    syncFilterCard();
   }
 
   /**

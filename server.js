@@ -44,6 +44,7 @@ import {
   getDraftBasket,
   getFulfillForm,
   getFulfillTokenOwner,
+  getOwnItemFacets,
   getOwnerContacts,
   countOwnerRequests,
   getOwnerRequestHistory,
@@ -961,6 +962,9 @@ const FOLDED_COOKIE_MINE = 'itemshare_collapsed_mine';
 
 function readFilters(query, cookieHeader = '') {
   const added = readParam(query.added);
+  // My Inventory's own three, so one list's filters never narrow the other: a type chosen on
+  // the offers other people share says nothing about the types inside the viewer's own bag.
+  const addedMine = readParam(query.madded);
   const asked = readParam(query.sort);
   const askedDir = readParam(query.dir) === 'desc' ? 'desc' : 'asc';
 
@@ -980,6 +984,10 @@ function readFilters(query, cookieHeader = '') {
     // Only the values the list actually offers get through, so a hand-typed ?sort=
     // or ?added= falls back to the default instead of reaching the query.
     added: ADDED_WINDOWS.has(added) ? added : '',
+    // The same three for My Inventory, under their own names, kept apart the same way.
+    typeMine: filterList(query.mtype),
+    ownerMine: filterList(query.mowner),
+    addedMine: ADDED_WINDOWS.has(addedMine) ? addedMine : '',
     order,
     // Headings are drawn while this is true, whatever the order is. One flag per list: Browse
     // Offers reads `group`, My Inventory reads `groupMine`, and neither moves the other.
@@ -1041,6 +1049,7 @@ async function viewerAccountNames(req, connection, user) {
     basket: { count: 0, quantity: 0, secondsLeft: 0, holdMinutes: HOLD_MINUTES },
     basketRows: [],
     facets: { types: [], owners: [] },
+    facetsMine: { types: [], owners: [] },
     filters,
     dbError: null,
     accountServers: [],
@@ -1084,8 +1093,18 @@ async function viewerAccountNames(req, connection, user) {
         const sharedOrder = drawnQueue(filters.order, SHARED_SORT_FIELDS);
 
         data.facets = await getViewerFacets(connection, requestScope);
-        data.sharedItems = await getSharedItemsForViewer(connection, accountNames, {
+        data.facetsMine = await getOwnItemFacets(connection, accountNames);
+        // My Inventory reads its own three filters: the six names never meet, so narrowing the
+        // offers somebody else shares cannot hide a row inside the viewer's own bag.
+        const mineFilters = {
           ...filters,
+          type: filters.typeMine,
+          owner: filters.ownerMine,
+          added: filters.addedMine,
+        };
+
+        data.sharedItems = await getSharedItemsForViewer(connection, accountNames, {
+          ...mineFilters,
           viewerUserId,
         });
         data.requestItems = await getSharedItemsForViewer(connection, requestScope, {
@@ -1093,7 +1112,7 @@ async function viewerAccountNames(req, connection, user) {
           order: sharedOrder,
           viewerUserId,
         });
-        data.alwaysShare = await getAlwaysShareForViewer(connection, accountNames, filters);
+        data.alwaysShare = await getAlwaysShareForViewer(connection, accountNames, mineFilters);
 
         // The owner's side of the same table, in the page rather than a page of its own: what
         // is waiting on their items, and what they have already answered. A visitor has no

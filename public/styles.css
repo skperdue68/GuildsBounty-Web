@@ -1264,6 +1264,12 @@ a.primary-button {
   padding: 14px 18px;
 }
 
+/* One row per list, and only one of them belongs to the tab being read. The form is laid out
+   as a flex row, so it has to be told to go away when it is not the tab's own. */
+.filters[hidden] {
+  display: none;
+}
+
 .card-filters .filters {
   margin: 0;
 }
