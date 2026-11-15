@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "ItemShare MariaDB ingest CLI and upload website",
+  "description": "Guild's Bounty MariaDB ingest CLI and upload website",
   "scripts": {
     "start": "node server.js",
     "backfill": "node backfillIcons.js",

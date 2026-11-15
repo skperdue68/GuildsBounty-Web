@@ -7,6 +7,10 @@ landed on `main`.
 
 ### Added
 
+- **The header is the Guild's Bounty plaque.** The chest, the name and *Shared items across
+  your guilds* are one picture file shown at 180 pixels wide, so the top bar grows to the
+  artwork instead of stacking a mark, a wordmark and a line of text under them.
+
 - **The request count on the avatar keeps itself up to date.** A new ask for one of your
   items puts the number on your avatar the moment it lands - no refresh, and not only in the
   window it arrived in. The update is addressed to your sign-in alone and carries the total
@@ -100,6 +104,14 @@ landed on `main`.
   measure from the same instant, exactly as before.
 
 ### Changed
+
+- **The site is Guild's Bounty now.** Every page title, the footer, the *Back to ...* buttons,
+  the guide, the sign-in card, the demo banner, the request, fulfilment and password reset
+  emails, the site's own User-Agent strings, the boot
+  log line, the systemd description and the README all name it that way. The addon is still
+  called ItemShare: `ItemShareSavedVars.lua`, *Download ItemShare AddOn*, the
+  `X-ItemShare-*` headers and the `itemshare_*` tables keep their names, because a machine
+  on the other end reads them.
 
 - **ADDED means the day the item was added, not the day it reached this site.** The column,
   the countdown under it, the day filters, the LAST CHANCE pill and the ADDED sort are all

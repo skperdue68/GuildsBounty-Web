@@ -1,4 +1,4 @@
-// ItemShare page behaviour: uploads, the account menu and the live item lists.
+// Guild's Bounty page behaviour: uploads, the account menu and the live item lists.
 //
 // Everything here is an enhancement. The logout form posts without scripts and the
 // filter form still submits on its own, so a failed script costs convenience only.

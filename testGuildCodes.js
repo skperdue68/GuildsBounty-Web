@@ -290,9 +290,9 @@ await t('an account name typed without the @ is given one', () => {
 // ------------------------------------------------------------- getting back out
 
 await t('every page has a way back to the item list, and the codes page is no exception', () => {
-  assert.match(codesPage, /<a class="brand" href="\/" aria-label="ItemShare home">/);
-  assert.match(codesPage, /<p class="guild-back"><a class="primary-button" href="\/">Back to ItemShare<\/a><\/p>/);
-  assert.match(joinPage, /<p class="guild-back"><a class="primary-button" href="\/">Back to ItemShare<\/a><\/p>/);
+  assert.match(codesPage, /<a class="brand" href="\/" aria-label="Guild's Bounty home">/);
+  assert.match(codesPage, /<p class="guild-back"><a class="primary-button" href="\/">Back to Guild's Bounty<\/a><\/p>/);
+  assert.match(joinPage, /<p class="guild-back"><a class="primary-button" href="\/">Back to Guild's Bounty<\/a><\/p>/);
 });
 
 await t('the avatar menu works on the pages that have no item list', () => {
@@ -422,7 +422,7 @@ await t('a guild a code opened cannot be made into a code of its own', async () 
 });
 
 await t('the way back is a button, not a line of text', () => {
-  const button = /<p class="guild-back"><a class="primary-button" href="\/">Back to ItemShare<\/a><\/p>/;
+  const button = /<p class="guild-back"><a class="primary-button" href="\/">Back to Guild's Bounty<\/a><\/p>/;
 
   assert.match(codesPage, button);
   assert.match(joinPage, button);
