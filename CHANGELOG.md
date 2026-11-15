@@ -70,6 +70,13 @@ landed on `main`.
 
 ### Fixed
 
+- **Your own items can no longer disappear behind a guild.** The list lets you see a row
+  through a guild you belong to, and separately lets you see your own rows - but that second
+  branch only covered rows with *no* guild link at all. An item stamped with a guild the join
+  could not match (a guild the account had left, a guild row written on another world) was
+  therefore hidden from everybody, its owner included, even though the upload had stored it
+  and the answer had counted it. Your own shares are now yours however they are stamped;
+  other people still only see what their guilds reach.
 - **The date an item was first offered is read from the item, not the row.** 1.11.39 keeps
   one date per item link in `itemFirstDumped`, beside the item list, and clears the copy it
   used to write on every share row. So one thing standing in the bank and again in a house
