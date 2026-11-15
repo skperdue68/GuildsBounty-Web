@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import { filterList } from './lib/filters.js';
 import { SORT_FIELDS, parseSortOrder } from './lib/sortQueue.js';
 import { readCollapsedTypes, readCookie, readGrouping } from './lib/preferences.js';
-import { groupToggle, inventoryTable } from './lib/views.js';
+import { groupToggle, inventoryTable, renderListRegion } from './lib/views.js';
 
 function item(id, name, type, count) {
   return {
@@ -402,12 +402,12 @@ t('one list can be grouped while the other is a flat list', () => {
     'Browse Offers says grouped'
   );
   assert.match(
-    groupToggle(offersGrouped, '', 'mine'),
-    /data-group-toggle aria-pressed="false" data-group-list="mine"/,
+    groupToggle(offersGrouped, '', 'offer'),
+    /data-group-toggle aria-pressed="false" data-group-list="offer"/,
     'while the switch on My Inventory says one list'
   );
   assert.match(groupToggle(mineGrouped, '', 'request'), /aria-pressed="false" data-group-list="request"/);
-  assert.match(groupToggle(mineGrouped, '', 'mine'), /aria-pressed="true" data-group-list="mine"/);
+  assert.match(groupToggle(mineGrouped, '', 'offer'), /aria-pressed="true" data-group-list="offer"/);
 });
 
 t('and each table is drawn the way its own list says', () => {
@@ -426,7 +426,7 @@ t('each switch writes the cookie for the list it sits on', () => {
   const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
   const server = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
 
-  assert.match(app, /const GROUP_COOKIES = \{ request: 'itemshare_group', mine: 'itemshare_group_mine' \}/);
+  assert.match(app, /const GROUP_COOKIES = \{ request: 'itemshare_group', offer: 'itemshare_group_mine' \}/);
   assert.match(app, /writeGroupCookie\(\s*groupButton\.getAttribute\('data-group-list'\) \|\| 'request'/);
   assert.match(server, /const GROUP_COOKIE_MINE = 'itemshare_group_mine'/);
   assert.match(server, /groupMine: readGrouping\(readCookie\(cookieHeader, GROUP_COOKIE_MINE\)\)/);
@@ -487,7 +487,7 @@ t('the browser folds into the cookie for the list it is on, and every box filter
 
   assert.match(
     app,
-    /const FOLDED_COOKIES = \{ request: 'itemshare_collapsed', mine: 'itemshare_collapsed_mine' \}/
+    /const FOLDED_COOKIES = \{ request: 'itemshare_collapsed', offer: 'itemshare_collapsed_mine' \}/
   );
   assert.match(app, /setTypeFolded\(list, type, shut\)/);
   assert.match(app, /typeToggle\.getAttribute\('data-group-list'\) \|\| 'request'/);
@@ -498,6 +498,138 @@ t('the browser folds into the cookie for the list it is on, and every box filter
   );
   assert.match(app, /row\.classList\.contains\('is-collapsed'\)/, 'the search leaves a fold shut');
   assert.match(styles, /\.type-row:not\(\.is-collapsed\) \.type-caret/, 'the caret turns with the fold');
+});
+
+// ------------------------------------ opening a folded type really gives its rows back
+
+// The fold names its list with the tab's own word, because the click handler hands that
+// word to the search, which looks the list up by panel. `mine` was used for My Inventory,
+// which is the *My Requests* panel: folding worked, opening did nothing, because the rows
+// were handed back to a tab that draws no item table. These pin the name and the panel it
+// resolves to.
+const myInventory = renderListRegion({
+  user: { provider: 'discord', username: 'evainefaye', id: 1, accountNames: ['@Eva'] },
+  accounts: [{ accountName: '@Eva', guilds: [{ guild_name: 'G' }], platform: 'pc', worldName: 'NA' }],
+  browsingAccount: '@Eva',
+  // On the viewer's own account, which is what puts them on My Inventory.
+  sharedItems: [
+    { ...item(1, 'Briarheart Dagger', 'Weapons'), account_name: '@Eva' },
+    { ...item(3, 'Ancient Silk', 'Apparel'), account_name: '@Eva' },
+  ],
+  requestItems: [],
+  alwaysShare: [],
+  requestOffers: [],
+  facets: { types: ['Weapons', 'Apparel'], owners: ['@Eva'] },
+  filters: { type: [], owner: [], search: '', added: '', order: [], group: true },
+  requests: [],
+  requestHistory: null,
+  basket: { count: 0, quantity: 0, secondsLeft: 0, holdMinutes: 5 },
+  basketRows: [],
+  received: [],
+  receivedHistory: [],
+});
+
+t('a My Inventory heading names the tab its rows live in', () => {
+  const heading = myInventory.slice(myInventory.indexOf('data-panel="offer"'));
+
+  assert.match(
+    heading,
+    /data-type-toggle="Apparel" data-group-list="offer"/,
+    'offer is the My Inventory tab, the one whose panel holds that table'
+  );
+  assert.ok(
+    myInventory.indexOf('data-panel="mine"') > -1,
+    'and mine is the My Requests tab, which draws no type headings at all'
+  );
+});
+
+t('opening a folded type is aimed at the panel that has the rows, not at "mine"', () => {
+  const appSource = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const at = appSource.indexOf('function applyListSearch(');
+  let depth = 0;
+  let source = '';
+
+  for (let i = appSource.indexOf('{', at); i < appSource.length; i += 1) {
+    if (appSource[i] === '{') depth += 1;
+    if (appSource[i] === '}') depth -= 1;
+
+    if (depth === 0) {
+      source = appSource.slice(at, i + 1);
+      break;
+    }
+  }
+
+  // Only the rows the test needs: the ones the server drew for two types, one of each
+  // folded away, exactly as the browser would have them.
+  const rows = [...myInventory.matchAll(/<tr\b[^>]*>/g)]
+    .map((match) => match[0])
+    .filter((markup) => /class="type-row/.test(markup) || /data-search="/.test(markup))
+    .map((markup) => {
+      const classes = ((markup.match(/class="([^"]*)"/) || [])[1] || '').split(' ').filter(Boolean);
+      const search = (markup.match(/data-search="([^"]*)"/) || [])[1];
+
+      return {
+        classList: {
+          contains: (name) => classes.includes(name),
+          add: (name) => classes.push(name),
+          remove: (name) => {
+            const place = classes.indexOf(name);
+            if (place > -1) classes.splice(place, 1);
+          },
+        },
+        hasAttribute: (name) => name === 'data-search' && search !== undefined,
+        getAttribute: (name) => (name === 'data-search' ? search : null),
+        hidden: false,
+        querySelector: () => null,
+      };
+    });
+  const body = { rows };
+  const node = {
+    querySelector: () => null,
+    querySelectorAll: (selector) => (selector === 'table tbody' ? [body] : []),
+  };
+  const listRegion = {
+    querySelector: (selector) =>
+      selector === '[data-panel="offer"]' ? node : selector === '[data-panel="mine"]'
+        ? { querySelector: () => null, querySelectorAll: () => [] }
+        : null,
+  };
+  const listSearchByTab = { request: '', offer: '', mine: '', received: '' };
+  const { applyListSearch } = new Function(
+    'listRegion',
+    'listSearchByTab',
+    'activeTab',
+    `${source}\nreturn { applyListSearch };`
+  )(listRegion, listSearchByTab, 'offer');
+  const visible = () => rows.filter((row) => row.hasAttribute('data-search') && !row.hidden).length;
+
+  assert.equal(visible(), 2, 'two rows to start with');
+
+  // The word the handler uses is the one the heading carries, so this reads it rather than
+  // assuming it: the wrong name is what made opening a fold do nothing.
+  const name = (myInventory.match(/data-type-toggle="[^"]+" data-group-list="([^"]+)"/) || [])[1];
+
+  assert.ok(name, 'the heading names its list');
+
+  const heading = rows.find((row) => row.classList.contains('type-row'));
+  heading.classList.add('is-collapsed');
+  for (const row of rows.slice(1)) row.hidden = true;
+  assert.equal(visible(), 0, 'folded away');
+
+  heading.classList.remove('is-collapsed');
+  for (const row of rows.slice(1)) row.hidden = false;
+  applyListSearch(name);
+  assert.equal(visible(), 2, 'and back again, because that name is the panel with the table');
+
+  // And the same name finds those rows when a word is typed: proof it is the table's panel
+  // and not a tab with nothing in it.
+  listSearchByTab[name] = 'ancient';
+  applyListSearch(name);
+  assert.equal(visible(), 1, 'the word narrows the rows of that list');
+
+  listSearchByTab[name] = '';
+  applyListSearch(name);
+  assert.equal(visible(), 2, 'and clearing it brings them back');
 });
 
 console.log(`\n${total - failures}/${total} passed`);
