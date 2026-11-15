@@ -411,7 +411,7 @@ if (listRegion) {
 
   try {
     const stored = window.sessionStorage.getItem(TAB_KEY);
-    if (stored === 'request' || stored === 'offer' || stored === 'mine') {
+    if (stored === 'request' || stored === 'offer' || stored === 'mine' || stored === 'received') {
       activeTab = stored;
     }
   } catch (error) {
@@ -595,6 +595,11 @@ if (listRegion) {
   });
 
   if (new URLSearchParams(window.location.search).has('historyPage')) activeTab = 'mine';
+  // An answer given on the Requests Received tab comes back to the list carrying what it
+  // recorded, and that confirmation is drawn on the tab: opening it is the point of the
+  // redirect. Read from the address rather than from storage, so it works on a first visit,
+  // in a private window and on whatever device the email was opened on.
+  if (new URLSearchParams(window.location.search).has('answered')) activeTab = 'received';
   setTab(activeTab);
   window.addEventListener('popstate', () => {
     liveHistoryPage = Number(new URLSearchParams(window.location.search).get('historyPage')) || null;

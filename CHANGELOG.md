@@ -22,8 +22,10 @@ landed on `main`.
   asked for, the amount sent filled in ready to change, and **Fulfilled** / **Not fulfilled** -
   but it is in the item list rather than a modal, so answering does not replace what you were
   reading. Under it is **Already answered**: what was handed over, how many arrived of how many
-  were asked, to whom, and when. Answering from the tab comes back to the tab and says what it
-  recorded. The account menu's **Process Requests** entry is gone, since the tab is where it
+  were asked, to whom, and when. New asks reach an open page the same way every other change
+  does, so the tab fills in - and its count moves - without a reload, and the tab somebody is
+  reading stays open across that refresh. Answering from the tab comes back to the tab and says
+  what it recorded. The account menu's **Process Requests** entry is gone, since the tab is where it
   was pointing; `/owner/requests` still works for a bookmark.
 
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
