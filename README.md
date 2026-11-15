@@ -953,6 +953,12 @@ Discord's avatar hash turned into a CDN URL (animated avatars keep their GIF for
 https URLs are stored, and if a picture stops loading the initials underneath show
 instead, so the header never depends on a third party.
 
+The picture and the name share one pill: the picture on top, the name on a row under it, and
+the little caret at the right of both. The pill is as wide as the name needs - up to 132px,
+then the name ends in an ellipsis - so the header is one piece rather than a name and a
+button sitting beside each other. The name in the pill is decoration for the eye only: the
+button is labelled for a screen reader, so the name is not read out twice.
+
 **The red count on the avatar** says how many requests are waiting to be processed, in the
 top right corner of the circle and half outside it. It counts what the requests list
 groups: one per item, however many people asked for that item, because one answer settles

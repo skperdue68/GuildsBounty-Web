@@ -152,6 +152,11 @@ landed on `main`.
 
 ### Changed
 
+- **The avatar menu carries the name under the picture.** The name used to sit to the left of
+  the avatar as a separate label; it is the pill's own second row now, centred under the
+  picture with the caret to the right, and the pill is as wide as the name needs (an ellipsis
+  at 132px). The header is one piece instead of two, and the button keeps the accessible name
+  it reads out, so the visible name is not announced twice.
 - **Two request tables are named for what they hold.** *Already sent* on **My Requests** is
   now **Submitted requests**, and *Already answered* on **Requests Received** is now
   **Completed requests**: "already sent" read as though the item had gone out, when the table

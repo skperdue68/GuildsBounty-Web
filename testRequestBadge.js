@@ -73,6 +73,24 @@ await t('a request waiting puts a number on the avatar', () => {
   assert.match(button, /avatar-badge/, 'and inside the button that opens the menu');
 });
 
+// The name used to sit beside the pill, as a label on its left. It is the pill's own second
+// row now, under the picture, which is what makes the pill wider and the header one piece.
+await t('the name sits under the picture, inside the pill', () => {
+  const html = pageFor(0);
+  const button = html.slice(html.indexOf('id="accountMenuButton"'), html.indexOf('</button>'));
+
+  assert.match(button, /class="avatar-stack"/, 'one column holds the picture and the name');
+  assert.match(button, /class="account-name"[^>]*>Develia</, 'the name is inside the button');
+  assert.ok(
+    button.indexOf('avatar-slot') < button.indexOf('account-name'),
+    'and comes after the picture, so it reads as a row under it'
+  );
+
+  const beside = html.slice(html.lastIndexOf('<div class="account-menu">'), html.indexOf('id="accountMenuButton"'));
+
+  assert.doesNotMatch(beside, /account-name/, 'nothing of the name is left beside the pill');
+});
+
 await t('nothing waiting draws no circle at all', () => {
   assert.doesNotMatch(pageFor(0), /avatar-badge/);
   assert.doesNotMatch(pageFor(0), /requests to process/);
