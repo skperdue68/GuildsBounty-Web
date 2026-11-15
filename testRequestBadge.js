@@ -11,8 +11,9 @@
 //   npm run test:request-badge
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
-import { countOwnerRequests } from './lib/store.js';
+import { countOwnerRequests, pendingRequestBadges } from './lib/store.js';
 import { renderOwnerRequestsPage } from './lib/views.js';
 
 let total = 0;
@@ -43,6 +44,17 @@ const pageFor = (waiting) =>
     rows: [],
     user: waiting === undefined ? { ...user } : { ...user, pendingRequests: waiting },
   });
+
+// The browser's half of the same circle: the function that redraws it when the server pushes
+// a new count. Sliced out of the file the browser actually loads, so this is the real code.
+const appSource = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+const badgeStart = appSource.indexOf('// ------------------------------------------------------------ pending requests badge');
+const badgeEnd = appSource.indexOf('// ------------------------------------------------------ end pending requests badge');
+
+const { pendingBadgeState } = new Function(`
+  ${appSource.slice(badgeStart, badgeEnd)}
+  return { pendingBadgeState };
+`)();
 
 // ------------------------------------------------------------------- the markup
 
@@ -89,6 +101,107 @@ await t('past ninety-nine the circle says 99+ rather than growing', () => {
 
   assert.match(html, />99\+<\/span>/);
   assert.doesNotMatch(html, />140</);
+});
+
+// ------------------------------------------------- the same words, drawn live
+
+await t('a pushed count says exactly what a reloaded page would say', () => {
+  for (const waiting of [0, 1, 2, 99, 100, 140]) {
+    const page = pageFor(waiting);
+    const state = pendingBadgeState(waiting, 'Develia');
+    const badge = state.badge.replace('+', '\\+');
+
+    if (state.badge) {
+      assert.match(
+        page,
+        new RegExp(`<span class="avatar-badge" aria-hidden="true">${badge}</span>`),
+        `${waiting}: the circle reads the same live as on a fresh page`
+      );
+    } else {
+      assert.doesNotMatch(page, /avatar-badge/, 'nothing waiting draws no circle either way');
+    }
+
+    assert.ok(page.includes(`title="${state.title}"`), `${waiting}: the tooltip matches`);
+    assert.ok(page.includes(state.label), `${waiting}: what a screen reader hears matches`);
+  }
+});
+
+await t('one request is said in the singular', () => {
+  assert.equal(pendingBadgeState(1, 'Develia').label, 'Account menu for Develia, 1 request to process');
+  assert.equal(pendingBadgeState(2, 'Develia').label, 'Account menu for Develia, 2 requests to process');
+});
+
+await t('a nonsense or missing count is nothing waiting, not a broken circle', () => {
+  for (const value of [undefined, null, '', 'nonsense', -3, NaN]) {
+    const state = pendingBadgeState(value, 'Develia');
+
+    assert.equal(state.waiting, 0);
+    assert.equal(state.badge, '');
+    assert.equal(state.title, 'Develia');
+  }
+});
+
+await t('the circle caps at 99+ and the exact number is not shown', () => {
+  assert.equal(pendingBadgeState(99, 'Develia').badge, '99');
+  assert.equal(pendingBadgeState(100, 'Develia').badge, '99+');
+  assert.equal(pendingBadgeState(140, 'Develia').badge, '99+');
+});
+
+// --------------------------------------------------------- who gets told, and what
+
+function sequencedConnection(responses) {
+  const calls = [];
+  let index = 0;
+
+  return {
+    calls,
+    async execute(sql, params) {
+      calls.push({ sql, params });
+      const rows = responses[Math.min(index, responses.length - 1)];
+      index += 1;
+      return [rows];
+    },
+  };
+}
+
+await t('an owner is found from the account a request landed on', async () => {
+  const connection = sequencedConnection([
+    [{ user_id: 5 }],
+    [{ eso_account_name: '@Eva', user_id: 5 }],
+    [{ waiting: 2 }],
+  ]);
+
+  const badges = await pendingRequestBadges(connection, ['@Eva', ' @Eva ']);
+
+  assert.deepEqual(badges, [{ userId: 5, count: 2 }]);
+  assert.equal(connection.calls.length, 3, 'owner, their accounts, then the count');
+
+  const [owners, accounts, count] = connection.calls;
+
+  assert.match(owners.sql, /SELECT DISTINCT a\.user_id/);
+  assert.match(owners.sql, /a\.user_id IS NOT NULL/, 'an account nobody signed in for has no owner');
+  assert.match(owners.sql, /eso_account_name IN \(\?\)/, 'one name given twice is one lookup');
+  assert.deepEqual(owners.params, ['@Eva']);
+
+  assert.deepEqual(accounts.params, [5], 'the count is taken over every account they own');
+  assert.match(count.sql, /SELECT COUNT\(\*\) AS waiting/, 'the same query the header uses');
+});
+
+await t('no owner to tell means no query and no push', async () => {
+  const connection = {
+    async execute() {
+      throw new Error('nothing should be asked of the database');
+    },
+  };
+
+  assert.deepEqual(await pendingRequestBadges(connection, []), []);
+  assert.deepEqual(await pendingRequestBadges(connection, ['   ']), []);
+});
+
+await t('an account nobody claimed is not told anything', async () => {
+  const connection = sequencedConnection([[], [], []]);
+
+  assert.deepEqual(await pendingRequestBadges(connection, ['@Nobody']), []);
 });
 
 // -------------------------------------------------------------------- the count
