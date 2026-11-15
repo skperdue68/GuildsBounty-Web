@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { renderListRegion } from './lib/views.js';
+import { renderListRegion, renderPage } from './lib/views.js';
 
 let total = 0;
 let failures = 0;
@@ -112,6 +112,30 @@ const render = (overrides = {}) =>
     ...overrides,
   });
 
+// The whole page, as the route draws it: the list region is handed the received lists by
+// renderPage, and a check on the region alone would not notice if it stopped doing that.
+const page = () =>
+  renderPage({
+    user,
+    providers: ['discord'],
+    accounts,
+    browsingAccount: '@Eva',
+    sharedItems: [item(1, 'Briarheart Dagger', 'Weapons')],
+    requestItems: [item(1, 'Briarheart Dagger', 'Weapons')],
+    alwaysShare: [],
+    requestOffers: [],
+    facets: { types: ['Weapons'], owners: ['@Owner'] },
+    filters: { type: [], owner: [], search: '', added: '', order: [], group: true },
+    requests: [],
+    requestHistory: null,
+    basket: { count: 0, quantity: 0, secondsLeft: 0, holdMinutes: 5 },
+    basketRows: [],
+    received: pending,
+    receivedHistory: history,
+    answered: null,
+    dbError: null,
+  });
+
 const panel = (html, name) => {
   const from = html.indexOf(`data-panel="${name}"`);
 
@@ -171,6 +195,15 @@ t('a visitor gets the one list that applies to them', () => {
   assert.match(html, /Browse Offers/);
   assert.doesNotMatch(html, /Requests Received/);
   assert.doesNotMatch(html, /data-panel="received"/);
+});
+
+t('the page carries the tab, with its waiting row and its history on it', () => {
+  const html = page();
+
+  assert.match(html, /Requests Received/);
+  assert.match(html, /data-panel="received"/);
+  assert.match(html, /Briarheart Dagger/, 'what is waiting is on the page');
+  assert.match(html, /Ancient Silk/, 'and so is what was answered');
 });
 
 // ------------------------------------------------------------- the working list
