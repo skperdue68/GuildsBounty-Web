@@ -984,6 +984,14 @@ th.num {
   background: #1b2136;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
   z-index: 20;
+  /* The menu is anchored under the avatar and hangs downwards, so anything past the bottom of
+     the window is simply gone - there was nothing to scroll. Log out is the last item, and the
+     view-as block above it made the menu about a hundred pixels taller, which was enough for a
+     short window to cut the way out off entirely. Bounded and scrollable, the last item is
+     always reachable whatever gets added next. */
+  max-height: min(72vh, calc(100vh - 130px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The author rule above outranks the browser's [hidden] rule, so restate it. */
