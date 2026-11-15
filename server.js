@@ -155,13 +155,13 @@ const STARTED_LABEL = new Date().toISOString().replace('T', ' ').replace(/\.\d+Z
 const PORT = Number(process.env.PORT || 3000);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-// The site answers on more than one name while the rebrand settles. `itemsync.perdues.me` is
+// The site answers on more than one name while the rebrand settles. `itemshare.perdues.me` is
 // the old one: it still serves everything, and somebody arriving by it is told once where the
 // site has moved. Any other name is simply the site, so the notice never appears for people
 // who came in the new way. Set LEGACY_HOSTS to a comma separated list to change which names
 // count as the old address, or to '' to serve the notice on none of them.
 const LEGACY_HOSTS = new Set(
-  String(process.env.LEGACY_HOSTS === undefined ? 'itemsync.perdues.me' : process.env.LEGACY_HOSTS)
+  String(process.env.LEGACY_HOSTS === undefined ? 'itemshare.perdues.me' : process.env.LEGACY_HOSTS)
     .split(',')
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean)
