@@ -207,6 +207,10 @@ handled inside one transaction, so either all of them are replaced or none are.
 Guild membership is replaced in full as well (`itemshare_account_guilds`), so leaving a
 guild in game removes that guild's visibility after the next upload.
 
+Who may see a row is decided per row. A share reaches somebody through a guild you both
+belong to, on the same megaserver and platform; your own shares are yours whatever they are
+stamped with, so a guild you have left cannot take your own list away from you.
+
 The answer says what the file did to each account's list, per account and in total: how many
 items were **removed**, how many were **added**, and how many were **refreshed** - an item
 that was already there whose quantity the file reports differently, up or down. A refresh is
