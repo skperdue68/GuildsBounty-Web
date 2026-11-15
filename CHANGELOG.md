@@ -124,6 +124,10 @@ landed on `main`.
 
 ### Changed
 
+- **The upload card names the file the addon writes.** It reads *Upload your ItemShare.lua File
+  from your Saved Variables Folder Here*, rather than naming the saved-variables file. The file
+  it accepts is unchanged: the addon writes `ItemShare.lua` into the Saved Variables folder, and
+  that is the one to drop on the card.
 - **The demo and the simulator build rows the same shape as an upload.** Their fixtures still
   filled in the thirteen fields the tables no longer have, so a demo item and a simulated item
   described data the site cannot store - harmless, because the insert only ever reads the
