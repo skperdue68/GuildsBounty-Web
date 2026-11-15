@@ -122,6 +122,10 @@ landed on `main`.
 
 ### Changed
 
+- **The upload card names the file the addon writes.** It reads *Upload your ItemShare.lua File
+  from your Saved Variables Folder Here*, rather than naming the saved-variables file. The file
+  it accepts is unchanged: the addon writes `ItemShare.lua` into the Saved Variables folder, and
+  that is the one to drop on the card.
 - **The item tables are down to what the site actually uses.** Thirteen columns were stored
   and never read: the numeric item type, the quality's own name, the trait type, the apparel
   and weapon descriptors, the furniture data id, the flavour text, the raw dump of every ESO

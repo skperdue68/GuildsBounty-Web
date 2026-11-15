@@ -783,7 +783,7 @@ check('a signed-in person with no ESO account is asked to upload', () => {
   });
 
   assertMatch(page, /id="savedvars"/, 'the upload field is missing');
-  assertMatch(page, /Upload your ItemShareSavedVariables\.lua/, 'the upload card is missing');
+  assertMatch(page, /Upload your ItemShare\.lua File from your Saved Variables Folder Here/, 'the upload card is missing');
   assert(!page.includes('data-item-key'), 'no item may be listed before an upload');
 });
 
