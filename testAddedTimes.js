@@ -107,14 +107,30 @@ const { relativeText } = new Function(`${relativeSource}\nreturn { relativeText 
 const born = new Date('2026-11-11T07:29:30Z');
 const after = (seconds) => new Date(born.getTime() + seconds * 1000);
 
-t('the seconds are written even when they are zero', () => {
+t('the count starts at the first unit with something in it', () => {
   assert.equal(relativeText(born, after(0)), 'just now');
-  assert.equal(relativeText(born, after(2)), '02s');
+  assert.equal(relativeText(born, after(2)), '02s', 'a young row is not padded out');
   assert.equal(relativeText(born, after(52)), '52s');
   assert.equal(relativeText(born, after(60)), '01m 00s');
   assert.equal(relativeText(born, after(61)), '01m 01s');
-  assert.equal(relativeText(born, after(3600)), '01h 00s');
-  assert.equal(relativeText(born, after(86400)), '01d 00s');
+  assert.equal(relativeText(born, after(3600)), '01h 00m 00s', 'no 00d in front of an hour');
+  assert.equal(relativeText(born, after(86400)), '01d 00h 00m 00s');
+});
+
+t('a zero only appears after a bigger unit that holds something', () => {
+  // Four days and not a second more: the days are there, so the empty hours, minutes and
+  // seconds are written as 00 rather than dropped.
+  assert.equal(relativeText(born, after(4 * 86400)), '04d 00h 00m 00s');
+  assert.equal(relativeText(born, after(9 * 86400 + 7 * 3600)), '09d 07h 00m 00s');
+  // A minute is there and the hours are not, so there is no 00h - and no 00d either.
+  assert.equal(relativeText(born, after(2 * 3600 + 15 * 60)), '02h 15m 00s');
+});
+
+t('a month or a year keeps the days even at zero', () => {
+  // 11 November to 11 December is one month and no days: the days do not disappear with the
+  // months that arrived, they sit at 00 next to them.
+  assert.equal(relativeText(born, after(30 * 86400)), '01mo 00d 00h 00m 00s');
+  assert.equal(relativeText(born, after(365 * 86400)), '01y 00mo 00d 00h 00m 00s');
 });
 
 t('a count never loses its last field, at any age', () => {
@@ -126,7 +142,14 @@ t('a count never loses its last field, at any age', () => {
       continue;
     }
 
-    assert.match(text, /(^| )\d{2}s$/, `${seconds}s read as "${text}"`);
+    // The seconds are the last field at every age, and nothing is ever padded on the left:
+    // the first field written is one that holds something.
+    const fields = text.split(' ');
+
+    assert.ok(
+      !fields[0].startsWith('00'),
+      `${seconds}s read as "${text}", with a leading field of zero`
+    );
 
     for (const part of text.split(' ')) {
       assert.match(part, /^\d{2}(y|mo|d|h|m|s)$/, `"${part}" in "${text}" is not two digits`);

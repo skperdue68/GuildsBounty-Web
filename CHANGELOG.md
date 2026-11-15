@@ -124,6 +124,13 @@ landed on `main`.
 
 ### Changed
 
+- **The Added count keeps every field below the biggest one that has a value.** It starts at
+  the largest field holding anything and writes everything to the right of it, two digits
+  each, so an item four days old reads `04d 00h 00m 00s` rather than `04d`, and a month old
+  reads `01mo 00d 00h 00m 00s` with the days still there at zero. A `00` never appears to the
+  left of a field with a value: two seconds old still reads `02s`, not `00d 00h 00m 02s`. A
+  field no longer disappears when it is zero, so nothing drops out and comes back as the count
+  rolls over.
 - **The upload card names the file the addon writes.** It reads *Upload your ItemShare.lua File
   from your Saved Variables Folder Here*, rather than naming the saved-variables file. The file
   it accepts is unchanged: the addon writes `ItemShare.lua` into the Saved Variables folder, and
