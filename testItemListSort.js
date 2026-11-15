@@ -641,7 +641,7 @@ t('an empty My Requests tab draws both tables and says so in each', () => {
   // column says there is nothing in it. A section that vanishes reads as one that failed.
   assert.match(panel, /In your basket/);
   assert.match(panel, /<tr class="empty-row"><td colspan="5">No items have been requested\./, 'the basket says so across its columns');
-  assert.match(panel, /Already sent/);
+  assert.match(panel, /Submitted requests/);
   assert.match(panel, /No requests have been sent yet\./, 'and so does the log');
   assert.match(panel, />Qty<span class="sort-queue"/, 'the headings are still drawn under an empty list');
   assert.doesNotMatch(region, /You have not asked for anything yet/, 'the old sentence is gone');

@@ -248,7 +248,7 @@ t('the confirmation the page would show is shown in the tab', () => {
 
 t('everything already answered is under it, with what was asked and what was sent', () => {
   const html = panel(render(), 'received');
-  const from = html.indexOf('Already answered');
+  const from = html.indexOf('Completed requests');
 
   assert.ok(from > -1, 'the history has a heading');
   const rows = html.slice(from);
@@ -330,7 +330,7 @@ t('an empty Requests Received tab keeps both tables and says so in each', () => 
 
   assert.match(received, /Waiting on your items/);
   assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing is waiting on your items right now\./);
-  assert.match(received, /Already answered/);
+  assert.match(received, /Completed requests/);
   assert.match(received, /<tr class="empty-row"><td colspan="6">Nothing has been answered yet\./);
   assert.match(received, />Mail to<span class="sort-queue"/, 'the headings stay, including the answered ones');
 });
@@ -338,8 +338,8 @@ t('an empty Requests Received tab keeps both tables and says so in each', () => 
 t('the empty line goes away as soon as a row is there, and comes back with it', () => {
   const waiting = render({ receivedHistory: [] });
   const onlyWaiting = waiting.slice(waiting.indexOf('data-panel="received"'));
-  const waitingTable = onlyWaiting.slice(0, onlyWaiting.indexOf('Already answered'));
-  const answeredTable = onlyWaiting.slice(onlyWaiting.indexOf('Already answered'));
+  const waitingTable = onlyWaiting.slice(0, onlyWaiting.indexOf('Completed requests'));
+  const answeredTable = onlyWaiting.slice(onlyWaiting.indexOf('Completed requests'));
 
   assert.doesNotMatch(waitingTable, /class="empty-row"/, 'a request is waiting, so nothing says there is none');
   assert.match(waitingTable, /Briarheart Dagger/);
@@ -348,8 +348,8 @@ t('the empty line goes away as soon as a row is there, and comes back with it', 
   const answered = render({ received: [] });
   const back = answered.slice(answered.indexOf('data-panel="received"'));
 
-  assert.match(back.slice(0, back.indexOf('Already answered')), /class="empty-row"/);
-  assert.doesNotMatch(back.slice(0, back.indexOf('Already answered')), /Briarheart Dagger/);
+  assert.match(back.slice(0, back.indexOf('Completed requests')), /class="empty-row"/);
+  assert.doesNotMatch(back.slice(0, back.indexOf('Completed requests')), /Briarheart Dagger/);
 });
 
 // ------------------------------------------------------------- sorting and searching
@@ -434,6 +434,194 @@ t('the send instruction is a size up and has air under it', () => {
   assert.match(rule.slice(0, 200), /font-size: 14px/);
   assert.match(rule.slice(0, 200), /margin: 12px 0 14px/);
   assert.match(css.slice(css.indexOf('.empty-row td {')), /text-align: center/);
+});
+
+// ---------------------------------------- typing in these boxes really narrows them
+
+// The two newer boxes go through the same handler as the older two, and that handler used
+// to drop any box whose tab was not `request` or `offer`: the word stayed in the box, no
+// cross arrived and no row moved. This runs the real handler and the real narrowing out of
+// public/app.js over the rows the server actually drew, with just enough of a DOM to stand
+// in for the browser - so the next version of that early return fails here rather than in
+// somebody's list.
+const appSource = read('public/app.js');
+
+function appSourceOf(name) {
+  const at = appSource.indexOf('function ' + name + '(');
+
+  assert.ok(at > -1, `MISSING ANCHOR: function ${name} in public/app.js`);
+
+  let depth = 0;
+
+  for (let i = appSource.indexOf('{', at); i < appSource.length; i += 1) {
+    if (appSource[i] === '{') depth += 1;
+    if (appSource[i] === '}') depth -= 1;
+    if (depth === 0) return appSource.slice(at, i + 1);
+  }
+
+  throw new Error('unbalanced function ' + name);
+}
+
+function inputHandlerSource() {
+  const anchor = "listRegion.addEventListener('input', ";
+  const at = appSource.indexOf(anchor);
+
+  assert.ok(at > -1, 'MISSING ANCHOR: the list search input handler');
+
+  let depth = 0;
+
+  for (let i = appSource.indexOf('{', at); i < appSource.length; i += 1) {
+    if (appSource[i] === '{') depth += 1;
+    if (appSource[i] === '}') depth -= 1;
+    if (depth === 0) return appSource.slice(at + anchor.length, i + 1);
+  }
+
+  throw new Error('unbalanced list search handler');
+}
+
+const panelOf = (html, name) => {
+  const order = ['request', 'mine', 'offer', 'received'];
+  const from = html.indexOf(`data-panel="${name}"`);
+  const after = order[order.indexOf(name) + 1];
+
+  assert.ok(from > -1, `the ${name} panel is drawn`);
+
+  return html.slice(from, after ? html.indexOf(`data-panel="${after}"`) : undefined);
+};
+
+// One row, as much of it as the narrowing touches: its classes, its searchable text and
+// whether it is showing.
+const rowOf = (markup) => {
+  const classes = ((markup.match(/class="([^"]*)"/) || [])[1] || '').split(' ').filter(Boolean);
+  const search = (markup.match(/data-search="([^"]*)"/) || [])[1];
+
+  return {
+    text: search === undefined ? '' : search,
+    classList: { contains: (name) => classes.includes(name) },
+    hasAttribute: (name) => name === 'data-search' && search !== undefined,
+    getAttribute: (name) => (name === 'data-search' ? search : null),
+    hidden: /<tr\b[^>]*\shidden[\s>]/.test(markup),
+    querySelector: () => null,
+  };
+};
+
+// A tab's panel, wired the way app.js wires it: the handler, the narrowing, the box and
+// its cross.
+function wireTab(tab, panelHtml) {
+  const input = { value: '', getAttribute: (name) => (name === 'data-list-search' ? tab : null) };
+  const clear = { hidden: true };
+  // One body per table: these tabs draw two, and the box is meant to narrow both.
+  const bodies = panelHtml
+    .split('<tbody')
+    .slice(1)
+    .map((chunk) => ({
+      rows: [...chunk.matchAll(/<tr\b[^>]*>/g)].map((match) => rowOf(match[0])),
+    }));
+  const node = {
+    querySelector: (selector) =>
+      selector === '[data-list-search]' ? input : selector === '[data-list-search-clear]' ? clear : null,
+    querySelectorAll: (selector) => (selector === 'table tbody' ? bodies : []),
+  };
+  const listRegion = {
+    querySelector: (selector) => (selector === `[data-panel="${tab}"]` ? node : null),
+  };
+  const listSearchByTab = { request: '', offer: '', mine: '', received: '' };
+  const view = new Function(
+    'listRegion',
+    'listSearchByTab',
+    'activeTab',
+    [
+      appSourceOf('applyListSearch'),
+      appSourceOf('updateSearchClear'),
+      'return { applyListSearch, updateSearchClear };',
+    ].join('\n')
+  )(listRegion, listSearchByTab, tab);
+  const fire = new Function(
+    'listRegion',
+    'listSearchByTab',
+    'updateSearchClear',
+    'applyListSearch',
+    'window',
+    'LIST_SEARCH_DELAY_MS',
+    `let listSearchTimer = null;\nreturn ${inputHandlerSource()};`
+  )(
+    listRegion,
+    listSearchByTab,
+    view.updateSearchClear,
+    view.applyListSearch,
+    { clearTimeout() {}, setTimeout: (run) => { run(); return 0; } },
+    1000
+  );
+
+  return {
+    type(text) {
+      input.value = text;
+      fire({ target: { closest: (selector) => (selector === '[data-list-search]' ? input : null) } });
+    },
+    wordOnTheTab: () => listSearchByTab[tab],
+    crossShown: () => clear.hidden === false,
+    // Only the rows that can be narrowed: a heading row has nothing to match on.
+    showing: (body = 0) =>
+      bodies[body].rows.filter((row) => row.hasAttribute('data-search') && !row.hidden),
+    tableCount: () => bodies.length,
+  };
+}
+
+t('a word typed on Requests Received keeps, shows the cross and narrows the rows', () => {
+  const box = wireTab('received', panelOf(render(), 'received'));
+
+  box.type('briarheart');
+
+  assert.equal(box.wordOnTheTab(), 'briarheart', 'the handler kept the word');
+  assert.ok(box.crossShown(), 'the cross arrived with the first letter');
+  assert.ok(box.showing().length > 0, 'the row that matches is still there');
+  assert.ok(
+    box.showing().every((row) => row.text.toLowerCase().includes('briarheart')),
+    'and every row on screen matches'
+  );
+
+  box.type('nothing-that-exists');
+
+  assert.equal(box.showing().length, 0, 'a word that matches nothing leaves nothing');
+  assert.ok(box.crossShown(), 'the cross is still there to clear it');
+});
+
+t('the word narrows both tables on the tab, not just the first one', () => {
+  const box = wireTab('received', panelOf(render(), 'received'));
+
+  assert.equal(box.tableCount(), 2, 'the tab draws a waiting table and an answered one');
+
+  box.type('briarheart');
+
+  assert.equal(box.showing(0).length, 1, 'the waiting table keeps the row that matches');
+  assert.equal(box.showing(1).length, 0, 'and the answered table below it lets its rows go');
+
+  box.type('ancient');
+
+  assert.equal(box.showing(0).length, 0, 'the other way round: the waiting table empties');
+  assert.equal(box.showing(1).length, 1, 'and the answered table keeps its match');
+});
+
+t('and the same on My Requests, which has two tables of its own', () => {
+  const sent = {
+    ...pending[0],
+    id: 11,
+    item_name: 'Ancient Silk',
+    item_type_name: 'Apparel',
+    status: 'sent',
+    sent_at: '2026-11-12T10:00:00Z',
+  };
+  const draft = { ...pending[0], id: 12, item_name: 'Hunting Bow', status: 'draft' };
+  const box = wireTab('mine', panelOf(render({ requests: [sent], basketRows: [draft] }), 'mine'));
+
+  assert.equal(box.tableCount(), 2, 'the basket and the submitted list');
+
+  box.type('hunting');
+
+  assert.equal(box.showing(0).length, 1, 'the basket keeps its row');
+  assert.equal(box.showing(1).length, 0, 'and the submitted table drops the row that does not match');
+  assert.ok(box.crossShown(), 'the cross appears here too');
+  assert.equal(box.wordOnTheTab(), 'hunting');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

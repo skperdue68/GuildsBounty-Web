@@ -689,6 +689,57 @@ code {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: #cbd5e1;
+  /* The heading is a switch now, so the cell hands its padding to the button inside it:
+     the words stay where they were and the whole row is the target. */
+  padding: 0;
+}
+
+/* A press anywhere along the heading folds its type away, so there is no small caret to
+   aim at; the caret is only where the state is read from. */
+.type-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.type-toggle:hover,
+.type-toggle:focus-visible {
+  color: #f8fafc;
+}
+
+.type-toggle:focus-visible {
+  outline: 1px solid rgba(148, 163, 184, 0.6);
+  outline-offset: -2px;
+}
+
+/* Folded, the caret points at the heading; open, it points down at the rows. It is the one
+   thing on the row that says the type is shut rather than empty. */
+.type-caret {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--muted);
+}
+
+.type-row:not(.is-collapsed) .type-caret {
+  transform: rotate(90deg);
+}
+
+.type-row.is-collapsed td {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.type-row.is-collapsed .type-count {
+  opacity: 0.7;
 }
 
 .type-count {
@@ -3228,7 +3279,7 @@ th.action-cell {
   box-shadow: 0 0 0 2px rgba(45, 108, 223, 0.35);
 }
 
-/* Paging through Already sent sits under the table, centred and with a little air above
+/* Paging through Submitted requests sits under the table, centred with a little air above
    it. The items are separated by commas in the markup rather than by flex gaps, so the
    numbers read as a list instead of a run of boxes. */
 .request-history-pages {
