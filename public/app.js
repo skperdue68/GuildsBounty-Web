@@ -1916,6 +1916,73 @@ if (listRegion) {
 
   noteClosedRequests();
 
+  // ------------------------------------------------------------ pending requests badge
+  // The number on the avatar is drawn by the server along with the page, and a live refresh
+  // of the list under it is a fragment, so nothing ever redrew the circle. This is the other
+  // half: when an ask lands on something the signed-in person owns, the server tells their
+  // own pages the new total and the circle is brought up to date in place.
+  const PENDING_BADGE_CAP = 99;
+
+  /**
+   * What the badge should say for a count, and the two sentences that carry it to somebody
+   * who cannot see the circle.
+   *
+   * Kept as one pure function because the wording has to match the page the server draws:
+   * if the two drift, the count would appear to change when the page is reloaded.
+   */
+  function pendingBadgeState(count, name) {
+    const waiting = Math.max(0, Math.trunc(Number(count) || 0));
+    const said = `${waiting} request${waiting === 1 ? '' : 's'} to process`;
+
+    return {
+      waiting,
+      badge:
+        waiting === 0
+          ? ''
+          : waiting > PENDING_BADGE_CAP
+            ? `${PENDING_BADGE_CAP}+`
+            : String(waiting),
+      title: waiting > 0 ? `${name} - ${said}` : name,
+      label: `Account menu for ${name}${waiting > 0 ? `, ${said}` : ''}`,
+    };
+  }
+
+  /** Draw the count where the server would have drawn it, without reloading anything. */
+  function applyPendingBadge(count) {
+    const button = document.getElementById('accountMenuButton');
+
+    if (!button) {
+      return;
+    }
+
+    const slot = button.querySelector('.avatar-slot');
+    const nameNode = document.querySelector('.account-name');
+    const state = pendingBadgeState(count, nameNode ? nameNode.textContent.trim() : '');
+    let badge = slot ? slot.querySelector('.avatar-badge') : null;
+
+    if (!state.badge) {
+      // Nothing waiting is no circle at all, the same as a page drawn with nothing waiting.
+      if (badge) badge.remove();
+    } else if (slot) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'avatar-badge';
+        badge.setAttribute('aria-hidden', 'true');
+        slot.append(badge);
+      }
+      badge.textContent = state.badge;
+    }
+
+    button.title = state.title;
+
+    const said = button.querySelector('.visually-hidden');
+
+    if (said) {
+      said.textContent = state.label;
+    }
+  }
+  // ------------------------------------------------------ end pending requests badge
+
   // ------------------------------------------------------------------- socket
   const socket = typeof window.io === 'function' ? window.io({ withCredentials: true }) : null;
 
@@ -1934,6 +2001,13 @@ if (listRegion) {
     socket.on('disconnect', () => setLiveState('wait'));
     socket.on('connect_error', () => setLiveState('wait'));
     socket.on('items:changed', () => scheduleRefresh());
+    // Addressed to this person only, and carrying the total rather than a change: two tabs
+    // and a phone all end up showing the same number.
+    socket.on('requests:pending', (payload) => {
+      if (payload && typeof payload.count !== 'undefined') {
+        applyPendingBadge(payload.count);
+      }
+    });
   } else {
     setLiveState('off');
   }

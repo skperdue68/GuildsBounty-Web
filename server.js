@@ -30,6 +30,7 @@ import {
   createPasswordReset,
   consumePasswordReset,
   createRequest,
+  pendingRequestBadges,
   expireDueDrafts,
   fillKnownIcons,
   getAccountSummary,
@@ -324,12 +325,52 @@ app.use((req, res, next) => {
 // Socket.IO rides on the same HTTP server as Express, under /socket.io, so live
 // updates need no second port, no extra proxy rule and no separate auth.
 const httpServer = createServer(app);
-const realtime = attachRealtime({ httpServer, sessionMiddleware });
+const realtime = attachRealtime({
+  httpServer,
+  sessionMiddleware,
+  // The count a socket is greeted with, worked out exactly as the header's own query does.
+  resolvePending: (userId) =>
+    withDatabase(async (connection) => {
+      const accounts = await getViewerAccounts(connection, userId);
+
+      return countOwnerRequests(
+        connection,
+        accounts.map((row) => row.eso_account_name)
+      );
+    }),
+});
 
 // A demo reservation is real only inside the demo copy, so it is never announced to
 // everybody else's open page. The scope is already known: it is the database this
 // request is reading.
 const pushChange = realtime.notifyChange;
+
+/**
+ * Tells the owners of these accounts their new badge number, each on every page they have
+ * open. Called after anything that changes how many asks are waiting on their shelf.
+ *
+ * The number is read back from the database rather than adjusted by one, so a person with
+ * several accounts, or two requests landing at once, cannot end up with a count that the
+ * requests list disagrees with. A failure here costs a stale circle on somebody's avatar and
+ * nothing else, so it never fails the action that caused it.
+ */
+async function announcePendingRequests(accountNames) {
+  const names = (accountNames || []).map((name) => String(name || '').trim()).filter(Boolean);
+
+  if (names.length === 0) {
+    return;
+  }
+
+  try {
+    const badges = await withDatabase((connection) => pendingRequestBadges(connection, names));
+
+    for (const badge of badges) {
+      realtime.notifyPendingRequests(badge.userId, badge.count);
+    }
+  } catch (error) {
+    console.error(`Badge update failed for ${names.join(', ')}: ${error.message}`);
+  }
+}
 
 function notifyItemsChanged(kind, message) {
   // A demo change is real, but only inside the copy. It goes to the demo pages rather
@@ -1175,6 +1216,10 @@ app.post('/requests', async (req, res) => {
         });
     });
 
+    // The owner's own pages, and only theirs: the number on their avatar is about their
+    // shelf. Everyone else who is looking at that stack is told to refresh as before.
+    await announcePendingRequests([outcome.ownerAccountName]);
+
     // Everyone looking at that stack needs the new count straight away.
     notifyItemsChanged(
       'request',
@@ -1213,6 +1258,10 @@ app.post('/requests/:id/cancel', async (req, res) => {
       });
       return;
     }
+
+    // Taking a request back lowers the owner's count, so their badge has to hear about it
+    // as well - a circle that only ever goes up is worse than none.
+    await announcePendingRequests([outcome.ownerAccountName]);
 
     notifyItemsChanged(
       'request',
@@ -1284,6 +1333,11 @@ app.post('/requests/submit', async (req, res) => {
       submitted: outcome.submitted,
       contacts: new Map(outcome.contacts),
     });
+
+    // A basket can hold asks for several owners, so each of them hears their own total.
+    await announcePendingRequests(
+      (outcome.submitted || []).map((row) => row.owner_account_name)
+    );
 
     notifyItemsChanged(
       'request',
