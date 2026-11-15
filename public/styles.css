@@ -1011,6 +1011,86 @@ th.num {
   color: var(--muted);
 }
 
+/* The test tool's picker in the avatar menu. A real <select>, because the list is every
+   person in the site and a menu item per person would be unusable. */
+.account-menu-viewas {
+  margin: 4px 0;
+  padding: 8px 10px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-menu-viewas-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.account-menu-select {
+  width: 100%;
+  max-width: 260px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: #0f1424;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.account-menu-viewas-go {
+  padding-left: 0;
+}
+
+.account-menu-return {
+  color: #fbbf24;
+}
+
+/* The banner every page carries while somebody else's site is on screen: warm rather than
+   red, because nothing is wrong, but loud enough that a screenshot is never mistaken for
+   that person's own screen. */
+.view-as-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-left: 4px solid #fbbf24;
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.view-as-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 62ch;
+}
+
+.view-as-banner-return {
+  padding: 8px 14px;
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  border-radius: 999px;
+  background: transparent;
+  color: #fbbf24;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view-as-banner-return:hover,
+.view-as-banner-return:focus-visible {
+  background: rgba(251, 191, 36, 0.16);
+}
+
 .account-menu-item {
   display: block;
   width: 100%;

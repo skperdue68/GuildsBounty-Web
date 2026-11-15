@@ -7,6 +7,16 @@ landed on `main`.
 
 ### Added
 
+- **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
+  in the avatar menu lists every person in the system, and picking one makes the session act
+  as them: their guilds and their shelf, the requests addressed to them, their name on the
+  avatar and their pending count. A banner across the top of every page says whose site is on
+  screen, and *Return to my own login* puts it back - picking your own name does the same.
+  It is a test tool and not a role: nothing grants it, it is checked on every request rather
+  than remembered, it needs Discord (a Google or email login with that name does not get it),
+  both routes answer everybody else with the same 404 as a page that is not there, the list
+  is only the copy the session belongs to, and the database a session reads follows the person
+  who really signed in. Anything written while looking at somebody's site is written as them.
 - **The header is the Guild's Bounty plaque.** The chest, the name and *Shared items across
   your guilds* are one picture file shown at 180 pixels wide, so the top bar grows to the
   artwork instead of stacking a mark, a wordmark and a line of text under them.

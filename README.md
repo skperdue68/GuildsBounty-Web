@@ -902,6 +902,30 @@ Expired rows are pruned at startup and twice a day. If MariaDB is unreachable th
 layer reports "no session" instead of failing the request, so the page still renders its
 database-error card rather than a blank screen.
 
+## Looking at the site as somebody else
+
+One Discord handle - `evainefaye` - gets an extra item in the avatar menu: *View the site as
+another person*, a list of everybody in the system. Picking a name makes the session act as
+that person, so the list shows their guilds and their shelf, the request pages show what is
+addressed to them, the avatar carries their name and their pending count, and a person with no
+ESO account linked sees the prompts that person would see. A banner across the top of every
+page names who is being looked at and carries *Return to my own login*; picking your own name
+in the list does the same thing.
+
+It is a test tool, not a role. Nothing grants it, it is checked on every request rather than
+remembered from a session, it needs Discord (a Google or email login with that name does not
+get it, and neither does a similar name), and both routes answer everybody else with the same
+404 the site gives for a page that is not there. The list is only the copy the session belongs
+to, so a real login never sees the demo's people, and the database a session reads follows the
+person who really signed in rather than the person being looked at.
+
+Two things follow from acting as somebody:
+
+- Anything written while looking at their site is written as them - a request sent, an item
+  answered, an account detached. The banner is there to keep that in mind.
+- **Log out** ends the whole session, impersonation and all; *Return to my own login* is the
+  way back that keeps you signed in.
+
 ## Live updates
 
 The item list updates itself when somebody else uploads or a request changes. Socket.IO

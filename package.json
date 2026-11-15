@@ -20,6 +20,7 @@
     "test:reopen-requests": "node testReopenRequests.js",
     "test:server-identity": "node testServerIdentity.js",
     "test:visibility": "node testVisibility.js",
+    "test:view-as": "node testViewAs.js",
     "test:upload-summary": "node testUploadSummary.js",
     "test:demo-mode": "node testDemoMode.js",
     "test:guild-codes": "node testGuildCodes.js",
