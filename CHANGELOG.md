@@ -7,6 +7,11 @@ landed on `main`.
 
 ### Added
 
+- **An upload now says what it did to your list.** The answer under the file drop gives each
+  account's totals and then, underneath, `2 items removed, 5 items added, 1 item refreshed`.
+  A refresh is an item you already had whose quantity the file reports differently - a stack
+  that grew or shrank - so it is not mistaken for something new or something gone, and an
+  item left alone because a request is still open is counted as none of the three.
 - **A count on the avatar** says how many requests are waiting to be processed: a small red
   circle with the number in white, on the top right of the avatar and half outside it. It
   counts what the requests list counts - one per item, however many people asked for it,

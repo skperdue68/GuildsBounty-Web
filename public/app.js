@@ -125,6 +125,30 @@ function showToast(message, kind = 'info', { sticky = false } = {}) {
   }, kind === 'err' ? 7000 : 4500);
 }
 
+// ------------------------------------------------- upload change summary
+/**
+ * How an upload moved one account's list, in the order somebody reads it: what went, what
+ * arrived, and what was only re-counted.
+ *
+ * A refresh is an item that was already there whose quantity the file reports differently -
+ * a stack that grew or shrank. It is deliberately not called added or removed, because the
+ * item itself stayed.
+ */
+function uploadChangeSummary(account) {
+  const say = (count, word) => {
+    const number = Math.max(0, Math.trunc(Number(count) || 0));
+
+    return `${number} item${number === 1 ? '' : 's'} ${word}`;
+  };
+
+  return [
+    say(account.removedItems, 'removed'),
+    say(account.addedItems, 'added'),
+    say(account.refreshedItems, 'refreshed'),
+  ].join(', ');
+}
+// ---------------------------------------------- end upload change summary
+
 // --------------------------------------------------------------------- upload
 // Dropping a file or picking one both upload straight away: there is no button to
 // press and nothing to confirm first.
@@ -179,9 +203,11 @@ async function uploadFile(file) {
       [
         `${file.name} has been received.`,
         ...accounts.map(
-          (account) =>
-            `${account.accountName}: ${account.itemCount} item${account.itemCount === 1 ? '' : 's'}, quantity ${account.totalQuantity}`
+          (account) => `${account.accountName}: ${account.itemCount} item${account.itemCount === 1 ? '' : 's'}, quantity ${account.totalQuantity}`
         ),
+        // What the file did to that list: an item nobody had before, an item only re-counted,
+        // an item gone. A refresh is a quantity that went up or down on an item that stayed.
+        ...accounts.map((account) => `  ${uploadChangeSummary(account)}`),
         // An item with requests still open was not refreshed from this file, so the
         // count on screen is the one the requests were made against.
         ...(result.heldBack || []).map(
