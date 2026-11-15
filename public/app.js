@@ -398,10 +398,9 @@ if (listRegion) {
   let basketRevision = 0;
   let activeTab = 'request';
   // Each list has its own search: a word typed while reading My Inventory says nothing
-  // about Others Inventory, and emptying one must leave the other as it was. My Requests
-  // has no box, so
-  // it is not in here and is never narrowed.
-  let listSearchByTab = { request: '', offer: '' };
+  // about Browse Offers, and emptying one must leave the other as it was. My Requests and
+  // Requests Received carry one too, and each narrows both tables on its tab.
+  let listSearchByTab = { request: '', offer: '', mine: '', received: '' };
   let listSearchTimer = null;
 
   // Which page of Already sent is on screen. It is kept here rather than in the address
@@ -594,6 +593,15 @@ if (listRegion) {
     setTab(tabs[(index + step) % tabs.length].dataset.tab, { focus: true });
   });
 
+  // A link can name the tab it wants - the request email's "open Requests Received" does - and
+  // that beats the remembered one: somebody who followed a link asked for that tab, while the
+  // remembered one is only what they happened to look at last.
+  const asked = new URLSearchParams(window.location.search).get('tab');
+
+  if (asked === 'request' || asked === 'offer' || asked === 'mine' || asked === 'received') {
+    activeTab = asked;
+  }
+
   if (new URLSearchParams(window.location.search).has('historyPage')) activeTab = 'mine';
   // An answer given on the Requests Received tab comes back to the list carrying what it
   // recorded, and that confirmation is drawn on the tab: opening it is the point of the
@@ -616,12 +624,10 @@ if (listRegion) {
   // name. The filter card above keeps its search, which is a name filter the server applies
   // and the address bar carries.
   function applyListSearch(tab = activeTab) {
-    // My Requests is a log of what was asked for, not a list to search: no box, no word,
-    // nothing of its own to narrow.
-    if (tab !== 'request' && tab !== 'offer') return;
-
     // Each tab draws its own box and its own table, so the narrowing stops at that panel.
-    // The other tab keeps every row it had, and its own word, for when it comes back.
+    // The other tab keeps every row it had, and its own word, for when it comes back. A tab
+    // with two tables - My Requests and Requests Received - narrows both of them: the word is
+    // about the item, and which half of the tab a row is in does not make it a different item.
     const panel = listRegion.querySelector(`[data-panel="${tab}"]`);
     const scope = panel || listRegion;
     const typed = listSearchByTab[tab];

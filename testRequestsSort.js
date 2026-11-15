@@ -11,6 +11,7 @@ import { renderOwnerRequestsCard } from './lib/views.js';
 import {
   FIELDS,
   ORDER_COOKIE,
+  configFor,
   cycleOrder,
   formatOrder,
   parseOrder,
@@ -327,6 +328,48 @@ await t('a row with no recorded place sorts as empty rather than as an em dash',
 await t('the card says how the headings behave', () => {
   assert.match(card, /once for A to Z, twice for Z to A, three times to stop/);
   assert.match(card, /breaks the ties in what the first left/);
+});
+
+// A table says what it sorts by on its own container, so a second table needs markup rather
+// than another script. The owner's list says nothing and gets what it always had.
+await t('a table declares its columns and cookie, and the owner list keeps the defaults', () => {
+  const owner = configFor({ dataset: {} });
+
+  assert.equal(owner.cookie, ORDER_COOKIE);
+  assert.deepEqual(owner.fields, FIELDS);
+  assert.deepEqual(owner.numeric, ['asked']);
+
+  const basket = configFor({
+    dataset: {
+      sortCookie: 'itemshare_basket_sort',
+      sortFields: 'name,from,qty,status',
+      sortNumeric: 'qty',
+    },
+  });
+
+  assert.equal(basket.cookie, 'itemshare_basket_sort');
+  assert.deepEqual(basket.fields, ['name', 'from', 'qty', 'status']);
+  assert.deepEqual(basket.numeric, ['qty']);
+  assert.deepEqual(cycleOrder([], 'qty', basket.fields), [{ field: 'qty', dir: 'asc' }]);
+  assert.deepEqual(cycleOrder([], 'asked', basket.fields), [], 'a column the table does not draw is refused');
+});
+
+await t('a quantity compares as a number, a name as a name', () => {
+  const rows = [
+    { name: 'Bow', qty: '10' },
+    { name: 'Axe', qty: '9' },
+  ];
+  const order = [{ field: 'qty', dir: 'asc' }];
+
+  assert.deepEqual(sortRows(rows, order, ['qty']).map((row) => row.name), ['Axe', 'Bow']);
+
+  const names = [{ name: 'bow' }, { name: 'Axe' }];
+
+  assert.deepEqual(
+    sortRows(names, [{ field: 'name', dir: 'asc' }], []).map((row) => row.name),
+    ['Axe', 'bow'],
+    'a name sorts without regard to case'
+  );
 });
 
 console.log(`\n${total - failures}/${total} passed`);
