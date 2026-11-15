@@ -5,6 +5,16 @@ landed on `main`.
 
 ## Unreleased
 
+### Fixed
+
+- **A sort on Location no longer hides on the Request list, or numbers the first column there
+  `2`.** Location is a column on My Inventory only. Sorting by it and then opening Request left
+  a queue the Request headings could not show - no badge anywhere, so the list looked unsorted -
+  while the rows stayed ordered by it and the first heading pressed was numbered `2` with
+  nothing above it, then `3`. Each table now counts only the columns it draws, so the numbers
+  and the rows agree: Location still decides on My Inventory and is simply not part of the
+  Request list's order.
+
 ### Added
 
 - **Arriving by the old address says the site has a new name.** `itemsync.perdues.me` still
@@ -13,6 +23,15 @@ landed on `main`.
   appears only on the page somebody lands on, only for the old name: a visit by the new one has
   nothing to read, and a live refresh does not bring it back. Which names count is
   `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`.
+
+- **Requests Received: a fourth tab, where the owner's list used to live behind the account
+  menu.** It is the same working list the owner's page draws - one row per item, the quantity
+  asked for, the amount sent filled in ready to change, and **Fulfilled** / **Not fulfilled** -
+  but it is in the item list rather than a modal, so answering does not replace what you were
+  reading. Under it is **Already answered**: what was handed over, how many arrived of how many
+  were asked, to whom, and when. Answering from the tab comes back to the tab and says what it
+  recorded. The account menu's **Process Requests** entry is gone, since the tab is where it
+  was pointing; `/owner/requests` still works for a bookmark.
 
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
   in the avatar menu lists everybody else in the system, alphabetically - your own name is not
@@ -130,6 +149,14 @@ landed on `main`.
   measure from the same instant, exactly as before.
 
 ### Changed
+
+- **The tabs are named for what they do, and marked.** *Others Inventory* is now **Browse
+  Offers**, with a magnifier beside it; **My Requests** has a list, **My Inventory** a box and
+  **Requests Received** an inbox tray. The order follows the order the page is used in: browse
+  what others share, see what you asked for, look at what you hold, then answer what was asked
+  of you - so **My Requests** sits next to **Browse Offers** and **My Inventory** has moved to
+  third. Every place that named the old tabs, or sent somebody to Process Requests, now says
+  the new name.
 
 - **While you are somebody else, the menu drops the picker and Log out.** Everything else in it
   still works as theirs, because that is the point of looking at their site. Picking a different

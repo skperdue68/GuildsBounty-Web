@@ -1447,6 +1447,16 @@ a.primary-button {
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
 }
 
+/* The mark before a tab's name: sized to the word beside it and spaced like one, so the
+   row still reads as a line of names rather than a line of pictures. */
+.tab-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  flex: none;
+}
+
 .tab-count {
   padding: 1px 7px;
   border-radius: 999px;

@@ -113,7 +113,7 @@ await test('an offer offers what its owner holds beyond the reserve',()=>{
   assert.match(region,/<td class="num held-cell">2<\/td>/,'reserved is what a request stands on');
   assert.match(region,/<td class="num">3<\/td>/,'available is what is left of the offered');
   assert.match(region,/data-request data-kind="offer" data-id="31"/);
-  assert.match(region,/Others Inventory <span class="tab-count">1<\/span>/);
+  assert.match(region, /Browse Offers <span class="tab-count">1<\/span>/);
 });
 
 await test('an offer with nothing left to hand over is not a row to ask from',()=>{
