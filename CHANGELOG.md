@@ -130,6 +130,11 @@ landed on `main`.
   Log out ends the whole session rather than the view, and stepping from one person to another
   goes through your own login first. The list of people is not even fetched while you are
   acting, since nothing draws it, and *Return to my own login* sits where the picker was.
+- **The avatar menu scrolls instead of running past the bottom of the window.** The panel hangs
+  under the avatar with nothing bounding it, and Log out is its last item, so anything added
+  above pushed the way out off the screen with no way to reach it - the view-as block was
+  enough to hide it on a short window, and logging out needed a trip back to your own login
+  first. The panel now stops short of the window edge and scrolls inside itself.
 - **The view-as picker moved to the bottom of the avatar menu and names itself.** Its first
   line reads **View the Site As:** rather than a separate *View the site as another person*
   heading above it, and the whole block now sits just above **Log out** instead of above the

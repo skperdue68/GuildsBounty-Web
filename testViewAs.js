@@ -449,6 +449,16 @@ t('a list left over from your own view does not become a picker while acting', (
   assert.match(menu, /Return to my own login/);
 });
 
+t('the panel is bounded, so Log out cannot fall off the bottom of the window', () => {
+  const styles = read('public/styles.css');
+  const start = styles.indexOf('.account-menu-panel {');
+  const rule = styles.slice(start, styles.indexOf('.account-menu-panel[hidden]'));
+
+  assert.ok(start > -1 && rule.includes('position: absolute'), 'the panel rule was found');
+  assert.match(rule, /max-height:/, 'the menu stops short of the window edge');
+  assert.match(rule, /overflow-y: auto/, 'and scrolls to the last item inside itself');
+});
+
 t('with nobody else to offer, the menu is not drawn rather than empty', () => {
   assert.equal(viewAsMenu({ people: [], acting: null }), '');
 });
