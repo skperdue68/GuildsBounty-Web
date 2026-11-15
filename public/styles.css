@@ -71,34 +71,13 @@ body {
   max-width: 100%;
 }
 
-/* The mark is a picture file of its own, so it can be used anywhere on its own and the
-   header only decides how tall it is. */
-.brand-mark {
-  width: 72px;
+/* The plaque is the whole lockup - chest, name and the line under it - in one picture,
+   so the header only sets its width and the bar grows to the height that follows. */
+.brand-logo {
+  width: 180px;
   height: auto;
   flex: none;
   display: block;
-}
-
-.brand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 0;
-}
-
-/* The name is its own picture file too, so the two halves of the brand can be used
-   apart: the mark alone, the wordmark alone, or the two together. */
-.brand-wordmark {
-  width: 166px;
-  height: auto;
-  display: block;
-}
-
-.brand-subtitle {
-  font-size: 12px;
-  font-weight: 500;
-  color: rgba(203, 213, 225, 0.9);
 }
 
 .user-area {
@@ -454,12 +433,15 @@ code {
   color: #dbeafe;
 }
 
+/* The one place on the page the file goes, so it is tinted rather than drawn as another
+   dark panel: the account has one job here and this is where it starts. */
 .drop-zone {
   margin-top: 16px;
   padding: 26px 20px;
-  border: 1px dashed var(--panel-border-strong);
+  border: 2px dashed rgba(96, 165, 250, 0.62);
   border-radius: 14px;
-  background: rgba(7, 16, 38, 0.55);
+  background: rgba(37, 99, 235, 0.18);
+  box-shadow: inset 0 0 0 1px rgba(148, 197, 255, 0.08);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -471,14 +453,14 @@ code {
 
 .drop-zone:hover,
 .drop-zone.dragging {
-  border-color: rgba(96, 165, 250, 0.85);
-  background: rgba(37, 99, 235, 0.14);
+  border-color: rgba(147, 197, 253, 0.95);
+  background: rgba(59, 130, 246, 0.3);
 }
 
 .drop-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
-  color: #e5e7eb;
+  color: #f8fafc;
 }
 
 .drop-file {
@@ -631,10 +613,6 @@ code {
   font-size: 13px;
 }
 
-.filter-search input {
-  min-width: 200px;
-}
-
 .filter-button {
   height: 34px;
   padding: 0 18px;
@@ -711,6 +689,67 @@ code {
   text-transform: uppercase;
   letter-spacing: 0.6px;
   color: #cbd5e1;
+  /* The heading is a switch now, so the cell hands its padding to the button inside it:
+     the words stay where they were and the whole row is the target. */
+  padding: 0;
+}
+
+/* A press anywhere along the heading folds its type away, so there is no small caret to
+   aim at; the caret is only where the state is read from. */
+.type-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.type-toggle:hover,
+.type-toggle:focus-visible {
+  color: #f8fafc;
+}
+
+.type-toggle:focus-visible {
+  outline: 1px solid rgba(148, 163, 184, 0.6);
+  outline-offset: -2px;
+}
+
+/* Folded, the caret points at the heading; open, it points down at the rows. It is the one
+   thing on the row that says the type is shut rather than empty, so it is a drawn chevron
+   at the size of a capital letter rather than a small mark: at 10px a text arrow read as a
+   speck next to 11px capitals. */
+.type-caret {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: #cbd5e1;
+  transition: transform 120ms ease;
+}
+
+.type-row:not(.is-collapsed) .type-caret {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .type-caret {
+    transition: none;
+  }
+}
+
+.type-row.is-collapsed td {
+  background: rgba(37, 99, 235, 0.05);
+}
+
+.type-row.is-collapsed .type-count {
+  opacity: 0.7;
 }
 
 .type-count {
@@ -719,14 +758,24 @@ code {
   font-weight: 600;
 }
 
+/* The two item tables are cut to the same widths, so a column of standing offers sits
+   exactly under the inventory column of the same name rather than near it. The widths are
+   on the <colgroup> both are drawn with, which only means anything under fixed layout: an
+   auto-laid-out table sizes a column by whatever happens to be in it, and the two tables
+   never hold the same rows. */
+.list-table {
+  table-layout: fixed;
+  /* Ten columns carrying headings need the room; below this the shell scrolls sideways
+     again rather than squeezing words that no longer fit. */
+  min-width: 980px;
+}
+
 .table-shell {
-  /* Horizontal only. A table wider than the card still scrolls sideways, but these
-     tables have no height limit, so vertical overflow can only be momentary - a panel
-     being height-animated while the list is replaced - and `auto` turned that into a
-     scrollbar flashing beside the table until the animation settled. Clipping is
-     invisible, which is what a transient squeeze should be. */
-  overflow-x: auto;
-  overflow-y: clip;
+  /* Visible, not a scroll container: a sticky heading inside a scroll container pins to
+     that container, and this one never scrolls vertically, so the heading row would ride
+     away with the table instead of staying under the tabs. The wide-screen table fits at
+     its minimum width; the narrow-screen rule further down hands scrolling back. */
+  overflow: visible;
   border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 12px;
   background: rgba(8, 18, 42, 0.44);
@@ -764,6 +813,21 @@ th {
   text-transform: uppercase;
   letter-spacing: 0.4px;
   box-shadow: 0 1px 0 rgba(148, 163, 184, 0.18);
+}
+
+/* The item tables pin their heading row under the line of tabs, so the columns stay named
+   while the rows scroll: one block from the tabs down to OFFERED BY. It sits a step below
+   the tab bar in the stack, and both offsets are measured in app.js. */
+.list-table thead th {
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  z-index: 11;
+}
+
+/* A table with the search row above it pins its headings under that row as well, or the
+   first row of data rides up between the two bars. Only the tables that carry the row: the
+   closing offers table without a search of its own has no bar to clear. */
+.list-tools + .table-shell .list-table thead th {
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px));
 }
 
 tbody tr:hover {
@@ -893,23 +957,16 @@ th.num {
   gap: 10px;
 }
 
-.account-name {
-  max-width: 180px;
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
+/* The avatar is the whole control: one circle in a light ring, no name and no caret beside
+   it. Who you are is the first thing the menu says, so drawing it twice only narrowed the
+   picture. */
 .avatar-button {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 3px 10px 3px 3px;
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 999px;
+  justify-content: center;
+  padding: 3px;
+  border: 2px solid rgba(255, 255, 255, 0.22);
+  border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
   color: var(--text);
   cursor: pointer;
@@ -917,29 +974,50 @@ th.num {
 
 .avatar-button:hover,
 .avatar-button[aria-expanded='true'] {
+  border-color: rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.14);
 }
 
 .avatar {
-  width: 30px;
-  height: 30px;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.4px;
   color: #ffffff;
   background: linear-gradient(180deg, #7b86ff 0%, #4c56d8 100%);
 }
 
-.avatar-caret {
-  width: 0;
-  height: 0;
-  border-left: 4px solid transparent;
-  border-right: 4px solid transparent;
-  border-top: 5px solid var(--muted-strong);
+/* The avatar and its badge share one box, so the count can sit on the avatar's top right
+   corner and hang outside the circle instead of being clipped by it. The box is the same
+   size as the avatar, so nothing else in the header moves. */
+.avatar-slot {
+  position: relative;
+  display: inline-flex;
+}
+
+/* The ring is the colour of the header, which is what makes the circle read as sitting on
+   top of the avatar rather than floating beside it. */
+.avatar-badge {
+  position: absolute;
+  top: -5px;
+  right: -7px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: #e02d1b;
+  box-shadow: 0 0 0 2px rgba(7, 12, 24, 0.92);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 17px;
+  letter-spacing: 0;
+  text-align: center;
 }
 
 .account-menu-panel {
@@ -953,6 +1031,14 @@ th.num {
   background: #1b2136;
   box-shadow: 0 18px 40px rgba(0, 0, 0, 0.45);
   z-index: 20;
+  /* The menu is anchored under the avatar and hangs downwards, so anything past the bottom of
+     the window is simply gone - there was nothing to scroll. Log out is the last item, and the
+     view-as block above it made the menu about a hundred pixels taller, which was enough for a
+     short window to cut the way out off entirely. Bounded and scrollable, the last item is
+     always reachable whatever gets added next. */
+  max-height: min(72vh, calc(100vh - 130px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* The author rule above outranks the browser's [hidden] rule, so restate it. */
@@ -978,6 +1064,84 @@ th.num {
 .account-menu-note {
   font-size: 11px;
   color: var(--muted);
+}
+
+/* The test tool's picker in the avatar menu. A real <select>, because the list is every
+   person in the site and a menu item per person would be unusable. */
+.account-menu-viewas {
+  margin: 4px 0 6px;
+  padding: 10px 10px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-menu-viewas-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.account-menu-select {
+  width: 100%;
+  max-width: 260px;
+  padding: 7px 8px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  background: #0f1424;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.account-menu-viewas-go {
+  padding-left: 0;
+}
+
+.account-menu-return {
+  color: #fbbf24;
+}
+
+/* The banner every page carries while somebody else's site is on screen: warm rather than
+   red, because nothing is wrong, but loud enough that a screenshot is never mistaken for
+   that person's own screen. */
+.view-as-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border: 1px solid rgba(251, 191, 36, 0.45);
+  border-left: 4px solid #fbbf24;
+  border-radius: 12px;
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--text);
+  font-size: 13px;
+}
+
+.view-as-banner-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 62ch;
+}
+
+.view-as-banner-return {
+  padding: 8px 14px;
+  border: 1px solid rgba(251, 191, 36, 0.6);
+  border-radius: 999px;
+  background: transparent;
+  color: #fbbf24;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.view-as-banner-return:hover,
+.view-as-banner-return:focus-visible {
+  background: rgba(251, 191, 36, 0.16);
 }
 
 .account-menu-item {
@@ -1100,6 +1264,12 @@ a.primary-button {
   padding: 14px 18px;
 }
 
+/* One row per list, and only one of them belongs to the tab being read. The form is laid out
+   as a flex row, so it has to be told to go away when it is not the tab's own. */
+.filters[hidden] {
+  display: none;
+}
+
 .card-filters .filters {
   margin: 0;
 }
@@ -1132,15 +1302,24 @@ a.primary-button {
   font-weight: 700;
 }
 
-.browsing-picker select {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--panel-border);
-  border-radius: 8px;
-  background: rgba(6, 14, 32, 0.55);
-  color: inherit;
-  font: inherit;
-  font-size: 13px;
+/* The account picker is the filter menu, reused: the same `details` box and the same dark
+   card of choices, so the two cannot be styled apart. What is left here is only what the
+   picker adds - a wider box, because an account name is longer than a filter word, and a
+   name that shortens with an ellipsis instead of pushing the caret out of the row. */
+.browsing-dropdown {
+  position: relative;
+}
+
+.browsing-dropdown .filter-select {
+  min-width: 220px;
+  max-width: 100%;
+}
+
+.browsing-dropdown .filter-select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .browsing-go {
@@ -1166,13 +1345,27 @@ a.primary-button {
   color: var(--muted);
 }
 
+/* The tab bar pins under the site header while a long list scrolls beneath it, so an
+   account with hundreds of rows never loses the way to the other tab. --sticky-top is the
+   header's own height, measured in app.js: the header grows when a basket joins it, and a
+   number guessed here would either leave a gap under the bar or hide the bar behind it.
+   The blur is the header's own treatment, so rows passing underneath do not smear through
+   the line of tabs. */
 .list-head {
-  position: relative;
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 12;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 12px;
-  margin-bottom: 14px;
+  /* The space below the tabs is padding rather than margin: the heading row pins directly
+     under this bar, and a margin would leave a strip of scrolling rows between them. */
+  margin-bottom: 0;
+  padding: 10px 0 14px;
+  background: rgba(9, 20, 45, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .list-head .live-pill {
@@ -1183,7 +1376,78 @@ a.primary-button {
   margin-left: 0;
 }
 
-/* "12 different items shared by other members of your guilds": the answer to
+/* The search shares the line with the grouping switch: the box narrows the one table it is
+   drawn over, and the switch changes how that table is cut up, so the two belong together.
+   The box takes whatever room the switch leaves and keeps its blue, its white text and its
+   rounded corners. */
+.list-search {
+  position: relative;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  min-width: 0;
+  margin: 0;
+}
+
+
+.list-search-input {
+  width: 100%;
+  height: 38px;
+  padding: 0 36px 0 14px;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(7, 16, 38, 0.72);
+  color: #f8fafc;
+  font: inherit;
+  font-size: 13px;
+}
+
+.list-search-input::placeholder {
+  color: var(--muted);
+}
+
+.list-search-input:focus-visible {
+  outline: 2px solid rgba(148, 197, 255, 0.85);
+  outline-offset: 2px;
+}
+
+/* The browser's own cross goes: the button beside it can be named for a screen reader and
+   reached from the keyboard like every other control on the page. */
+.list-search-input::-webkit-search-cancel-button,
+.list-search-input::-webkit-search-decoration {
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.list-search-clear {
+  position: absolute;
+  right: 10px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.list-search-clear:hover,
+.list-search-clear:focus-visible {
+  color: #f8fafc;
+}
+
+.list-search-clear[hidden] {
+  display: none;
+}
+
+/* A row the search has ruled out takes no space, heading or not. */
+.table-shell tr[hidden] {
+  display: none;
+}
+
+
+/* "12 items shared by members of @evainefaye's guilds": the answer to
    "how much is there for me here?", above the tabs and below the basket clock. */
 .offer-summary {
   margin: 0 0 14px;
@@ -1234,6 +1498,16 @@ a.primary-button {
   color: #ffffff;
   background: linear-gradient(180deg, var(--accent-top) 0%, var(--accent-bottom) 100%);
   box-shadow: 0 8px 18px rgba(37, 99, 235, 0.28);
+}
+
+/* The mark before a tab's name: sized to the word beside it and spaced like one, so the
+   row still reads as a line of names rather than a line of pictures. */
+.tab-icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 6px;
+  vertical-align: -3px;
+  flex: none;
 }
 
 .tab-count {
@@ -1335,6 +1609,15 @@ a.primary-button {
   color: #6b7688;
 }
 
+/* A heading a link jumps to - the waiting list at the end of a request email - has to clear
+   the rows pinned above it: the top bar, the line of tabs and the search row. Without the room
+   the jump lands with the heading it aimed at hidden behind them. */
+.subhead[id] {
+  scroll-margin-top: calc(
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px)
+  );
+}
+
 .subhead {
   margin: 20px 0 6px;
   font-size: 12px;
@@ -1342,6 +1625,29 @@ a.primary-button {
   letter-spacing: 0.6px;
   text-transform: uppercase;
   color: var(--muted-strong);
+}
+
+/* The standing-offers heading takes the pinned row over from the tabs once it reaches them:
+   it comes later in the page and one step higher in the stack, so a bar of its own colour
+   covers the tab bar for as long as its own table is being read, and the tabs come back
+   when this section has passed. It bleeds out over the card's side padding, or the rows
+   still scrolling behind it would show beside the bar. */
+.subhead.list-sticky {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  z-index: 14;
+  /* As tall as the line of tabs it replaces, so the column headings below pin at the same
+     line either way and nothing shows between the two bars. The space under it is padding,
+     for the same reason the tab bar's is. */
+  display: flex;
+  align-items: center;
+  min-height: var(--list-head-h, 0px);
+  margin: 20px -24px 0;
+  padding: 0 24px;
+  background: rgba(9, 20, 45, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(148, 163, 184, 0.18);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .filter-clear {
@@ -1430,6 +1736,48 @@ th .sort-link.active {
   border-bottom-color: var(--muted-strong);
 }
 
+/* This table sorts by a queue of columns rather than one, so each active heading carries
+   its place in that queue: 2▼ reads as "second thing asked for, biggest first". Small and
+   muted, because it is a footnote to the heading rather than part of its name. */
+th .sort-queue {
+  margin-left: 4px;
+  font-size: 11px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--muted-strong);
+}
+
+/* The queue position, raised beside the arrow the way a footnote marker is: small enough
+   that the heading still reads as a word, big enough to count. /requests-sort.js rebuilds
+   it on every press, so a column whose predecessor is switched off is renumbered to 1
+   instead of sitting there labelled 2 with nothing in front of it. */
+th .sort-queue .sort-rank {
+  font-size: 9px;
+  line-height: 0;
+  vertical-align: super;
+  font-weight: 700;
+}
+
+th .sort-queue[hidden] {
+  display: none;
+}
+
+/* The sentence explaining the headings. Centred to match the note under the table, and
+   quieter than it: one is how the table works, the other is what it means. */
+/* A table with nothing in it says so across every column, rather than vanishing and leaving the
+   reader to wonder whether the section failed to load. Not a row of data: no hover, no lines
+   between cells, and it is skipped by the sort and the search. */
+.empty-row td {
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.empty-row:hover td {
+  background: none;
+}
+
 .seen-cell {
   white-space: nowrap;
   color: var(--muted);
@@ -1510,6 +1858,83 @@ th .sort-link.active {
 }
 
 /* ------------------------------------------------------- the request dialog */
+/* The notice for somebody arriving by the site's old name. It sits over everything for ten
+   seconds, so the backdrop is there to make it read as a message rather than as part of the
+   page - but it takes no pointer events, because reading the list should not have to wait for
+   a notice to go away, and the card itself stays clickable for its cross and its link. */
+.rebrand-notice {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 50;
+  pointer-events: none;
+}
+
+.rebrand-notice-card {
+  position: relative;
+  pointer-events: auto;
+  width: min(440px, 100%);
+  padding: 20px 46px 20px 22px;
+  border: 1px solid var(--panel-border-strong);
+  border-radius: 14px;
+  background: #0b1630;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55);
+  animation: rebrand-notice-in 180ms ease-out;
+}
+
+.rebrand-notice-card h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.rebrand-notice-card p {
+  margin: 0;
+  color: var(--muted-strong);
+  line-height: 1.45;
+}
+
+.rebrand-notice-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-strong);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.rebrand-notice-close:hover,
+.rebrand-notice-close:focus-visible {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--text);
+}
+
+@keyframes rebrand-notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rebrand-notice-card {
+    animation: none;
+  }
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1769,21 +2194,30 @@ tr.row-fading td {
 }
 
 /* A filter that holds several values: a menu of checkboxes, styled like the select
-   it replaced so the row still reads as one set of controls. */
+   it replaced so the row still reads as one set of controls.
+
+   The account picker above the tabs is the same control to a reader - one closed box with
+   a small caret in it - so its box is written here too rather than a second time further
+   down the file, where the two had drifted into different colours. */
+.filter-dropdown > summary,
+.browsing-picker select {
+  height: 34px;
+  border: 1px solid rgba(148, 163, 184, 0.32);
+  border-radius: 8px;
+  background-color: rgba(7, 16, 38, 0.72);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
 .filter-dropdown > summary {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
   min-width: 158px;
-  height: 34px;
   padding: 0 10px;
-  border: 1px solid rgba(148, 163, 184, 0.32);
-  border-radius: 8px;
-  background: rgba(7, 16, 38, 0.72);
-  color: var(--text);
-  font-size: 13px;
-  cursor: pointer;
 }
 
 .filter-dropdown > summary::-webkit-details-marker {
@@ -1797,6 +2231,13 @@ tr.row-fading td {
 }
 
 .filter-dropdown[open] > summary {
+  border-color: rgba(96, 165, 250, 0.6);
+}
+
+/* A pointer over either closed box brightens the same edge, so the picker and the filter
+   menus answer a hover the same way instead of each doing its own thing. */
+.filter-dropdown > summary:hover,
+.browsing-picker select:hover {
   border-color: rgba(96, 165, 250, 0.6);
 }
 
@@ -1826,6 +2267,7 @@ tr.row-fading td {
 }
 
 .filter-option {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -1838,6 +2280,41 @@ tr.row-fading td {
 
 .filter-option:hover {
   background: rgba(148, 163, 184, 0.14);
+}
+
+/* LAST CHANCE is the one option that asks for action rather than naming another window,
+   so it is the one row in a menu that carries a colour. */
+.filter-option-warn span {
+  color: #fca5a5;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+
+/* Added is one window at a time, so its menu is a list of words: a radio dot in front of
+   each one reads as "pick one of these", which is not what the other menus do. The input
+   is still a real radio - labels, arrow keys and the form post all keep working - it is
+   only the dot that is taken out of the picture. */
+.filter-option input[type='radio'] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* What replaces the dot: the chosen window is the one sitting in a filled row. */
+.filter-option:has(input[type='radio']:checked) {
+  background: rgba(96, 165, 250, 0.2);
+}
+
+/* Taking the dot away must not take the keyboard's place in the menu with it. */
+.filter-option:focus-within {
+  outline: 1px solid rgba(96, 165, 250, 0.6);
+  outline-offset: -1px;
 }
 
 /* One long row of chips: everything that is narrowing the list, each one a click
@@ -1940,22 +2417,16 @@ th .sort-link {
   white-space: nowrap;
 }
 
-/* The dropdown's list is drawn by the browser, not by this file: options took the select's
-   composited rgba() background and the inherited muted text, so an unselected option came
-   out grey on grey. The control gets an opaque colour and the options their own
-   light-on-dark pair; the checked one keeps the accent blue. */
-.browsing-picker select {
-  background-color: #0e1a33;
-  color: var(--text);
-}
-
-.browsing-picker select option,
+/* The sign-up form's own account picker is still a native select, whose list is drawn by
+   the browser rather than by this file: options took the select's composited rgba()
+   background and the inherited muted text, so an unselected option came out grey on grey.
+   The options therefore carry an opaque light-on-dark pair of their own; the checked one
+   keeps the accent blue. */
 .auth-field select option {
   background-color: #0e1a33;
   color: var(--text);
 }
 
-.browsing-picker select option:checked,
 .auth-field select option:checked {
   background-color: #2454bd;
   color: #ffffff;
@@ -2566,10 +3037,12 @@ th.action-cell {
 
 /* A sentence where a paragraph used to be: centred and bold, because it is a statement
    about what the bag means rather than instructions to read. */
+/* The one instruction on My Requests. A size up from the table text and given its own air
+   below, so it reads as the sentence to act on rather than as a caption to the heading. */
 .bag-note {
-  margin: 10px 0 0;
+  margin: 12px 0 14px;
   text-align: center;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--muted-strong);
 }
@@ -2718,10 +3191,27 @@ th.action-cell {
 /* ------------------------------------------------------------ grouping the list */
 /* Above the table: one small switch for how the whole list is read - under type
    headings, or flat in whatever order the columns were asked for. */
+/* The search and the grouping switch pin under the tab bar, the way the tab bar pins under
+   the site header: a list long enough to scroll should never cost you the box you narrow it
+   with, or the switch that decides whether it is cut into types. --list-tools-h is this
+   bar's own height, measured in app.js, because the column headings pin directly under it
+   and a number guessed here would leave a strip of scrolling rows between the two bars. */
 .list-tools {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  /* Above the column headings it pins over, below the subhead that takes the pinned row over
+     further down the page. */
+  z-index: 13;
   display: flex;
+  align-items: center;
   justify-content: flex-end;
-  margin: 0 0 10px;
+  gap: 10px;
+  /* The space below is padding rather than margin, for the same reason the tab bar's is. */
+  margin: 0;
+  padding: 0 0 10px;
+  background: rgba(9, 20, 45, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .group-toggle {
@@ -2762,6 +3252,53 @@ th.action-cell {
   display: block;
 }
 
+/* The whole list at once, one step quieter than the grouping switch it sits beside: it is a
+   convenience for a long list, not the way the list is read. The word is the action, so the
+   chevron turns with it - right when a press would open everything, down when it would shut. */
+.fold-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px 6px 9px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted-strong);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.fold-all:hover,
+.fold-all:focus-visible {
+  color: #f8fafc;
+  border-color: rgba(148, 197, 255, 0.45);
+  background: rgba(148, 197, 255, 0.06);
+}
+
+.fold-all:focus-visible {
+  outline: 2px solid rgba(148, 197, 255, 0.85);
+  outline-offset: 2px;
+}
+
+.fold-all-icon {
+  flex: none;
+  display: block;
+  transition: transform 120ms ease;
+}
+
+.fold-all[data-fold-all-shut='true'] .fold-all-icon {
+  transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fold-all-icon {
+    transition: none;
+  }
+}
+
 /* The platform and server are chosen, not typed: a name attached by hand has to say where
    it plays, or a request cannot tell NA from EU. Two choices side by side, one per line
    once there is no room for both. */
@@ -2793,7 +3330,7 @@ th.action-cell {
   box-shadow: 0 0 0 2px rgba(45, 108, 223, 0.35);
 }
 
-/* Paging through Already sent sits under the table, centred and with a little air above
+/* Paging through Submitted requests sits under the table, centred with a little air above
    it. The items are separated by commas in the markup rather than by flex gaps, so the
    numbers read as a list instead of a run of boxes. */
 .request-history-pages {
@@ -2835,6 +3372,28 @@ a.history-page:hover, .history-page.is-current {
 .guide-lead {
   margin: 0 0 18px;
   font-size: 14px;
+  line-height: 1.6;
+  color: var(--muted-strong);
+}
+
+/* A section is one way in: the code somebody was given, or the addon and its upload. The
+   rule between them says the two are alternatives rather than eight steps in a row. */
+.guide-section + .guide-section {
+  margin-top: 30px;
+  padding-top: 26px;
+  border-top: 1px solid var(--panel-border);
+}
+
+.guide-section-title {
+  margin: 0 0 6px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.guide-section-lead {
+  margin: 0 0 16px;
+  font-size: 13.5px;
   line-height: 1.6;
   color: var(--muted-strong);
 }
@@ -2963,6 +3522,21 @@ a.history-page:hover, .history-page.is-current {
   margin: 14px 0 0;
 }
 
+/* The picture itself. It is shown at the size it was captured at and centred, so a small
+   capture stays sharp instead of being stretched to the column, while a wide one is held to
+   the column rather than making the page scroll sideways. It keeps its own shape, so a 4:3
+   game window is not cropped into the 16:9 frame the placeholder uses. */
+.guide-shot-image {
+  display: block;
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  margin: 0 auto;
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  background: rgba(7, 16, 38, 0.5);
+}
+
 .guide-shot-frame {
   display: flex;
   align-items: center;
@@ -2984,6 +3558,20 @@ a.history-page:hover, .history-page.is-current {
 
 /* Below the width the nine columns want, the table gives up its padding and a little of
    its type size rather than making the reader scroll sideways for the last column. */
+/* Below the width the ten columns want, the shell scrolls sideways again. A sticky heading
+   inside a scroll container pins to that container rather than to the window, and this one
+   never scrolls vertically, so the heading row steps back into the table with it. */
+@media (max-width: 1120px) {
+  .table-shell {
+    overflow-x: auto;
+    overflow-y: clip;
+  }
+
+  .list-table thead th {
+    position: static;
+  }
+}
+
 @media (max-width: 1240px) {
   th,
   td {
@@ -3006,4 +3594,62 @@ a.history-page:hover, .history-page.is-current {
   z-index: 50;
   backdrop-filter: blur(10px);
   box-shadow: 0 10px 24px rgba(2, 6, 23, 0.35);
+}
+
+/* An item shared past its owner's expireDays: still fully claimable, so the row is not
+   dimmed and nothing else about it changes. This pill is the whole warning. */
+.last-chance-pill {
+  /* A flex item in the column beside the icon, so without this it stretches to the width
+     of the name and reads as a bar rather than a pill around two words. */
+  align-self: flex-start;
+  display: inline-block;
+  width: fit-content;
+  white-space: nowrap;
+  margin-left: 8px;
+  padding: 1px 7px 2px;
+  border: 1px solid rgba(248, 113, 113, 0.42);
+  border-radius: 999px;
+  background: rgba(248, 113, 113, 0.13);
+  color: #fca5a5;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  vertical-align: 1px;
+}
+
+/* A destructive control says so in colour, in the same red the reserved rows use. */
+.danger-button {
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid rgba(248, 113, 113, 0.55);
+  border-radius: 8px;
+  background: rgba(127, 29, 29, 0.35);
+  color: #fecaca;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.danger-button:hover,
+.danger-button:focus-visible {
+  border-color: rgba(248, 113, 113, 0.85);
+  background: rgba(153, 27, 27, 0.55);
+  color: #fff;
+}
+
+/* The slot a code opened is its own item, under the guilds the game reported. */
+.account-slot {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--panel-border);
+}
+
+.account-slot-label {
+  display: block;
+  margin-bottom: 2px;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }

@@ -49,10 +49,10 @@ await test('live region updates exclude the cancelled rows from both header coun
   };
   let summary;
   const template = {content:{querySelector:()=>next}};
-  new Function('document','captureAnchor','syncHeaderBar','listRegion','rememberAcrossReload','window','captureRowTops','reconcileLiveNode','restoreAnchor','animatePanelHeights','animateRowsInto','localiseTimeLabels','relativeTick','noteClosedRequests','syncRequestDialog',`${code}; applyRegion('');`)(
+  new Function('document','captureAnchor','syncHeaderBar','listRegion','rememberAcrossReload','window','captureRowTops','reconcileLiveNode','restoreAnchor','animatePanelHeights','animateRowsInto','localiseTimeLabels','relativeTick','noteClosedRequests','syncRequestDialog','applyListSearch','syncFilterCard',`${code}; applyRegion('');`)(
     {createElement:()=>template,getElementById:()=>null},()=>null,(_held,value)=>{summary=value;},
     {getAttribute:()=> 'old-signature',querySelectorAll:()=>[]},()=>{}, {location:{reload(){ throw new Error('Facet changes must not reload'); }}},
-    ()=>new Map(),()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{}
+    ()=>new Map(),()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{},()=>{}
   );
   assert.equal(summary.unique,1);
   assert.equal(summary.copies,4);
@@ -81,7 +81,7 @@ await test('browsing account changes bypass unload warnings but closing a held b
   handlers.beforeunload({preventDefault(){warned=true;}});
   assert.equal(warned,true,'closing a tab with drafts is still protected');
   assert.equal(typeof handlers.change,'function','account changes must mark their navigation as internal');
-  handlers.change({target:{matches:selector=>selector.includes('browsingAccount'),form:{getAttribute:()=>'/browsing-account'}}});
+  handlers.change({target:{matches:selector=>selector.includes('data-browsing-account'),form:{getAttribute:()=>'/browsing-account'}}});
   warned=false;
   handlers.beforeunload({preventDefault(){warned=true;}});
   assert.equal(warned,false,'the account switch preserves the basket');

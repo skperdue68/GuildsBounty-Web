@@ -27,7 +27,9 @@ if (accountMenuButton && accountMenuPanel) {
     accountMenuButton.setAttribute('aria-expanded', String(open));
 
     if (open) {
-      const firstItem = accountMenuPanel.querySelector('button, a');
+      // A picker first, when the menu has one: focusing the button after it would put the
+      // keyboard on a submit that acts on whatever the list happens to be showing.
+      const firstItem = accountMenuPanel.querySelector('select, button, a');
       if (firstItem) {
         firstItem.focus();
       }
@@ -52,6 +54,19 @@ if (accountMenuButton && accountMenuPanel) {
     }
   });
 }
+
+// Choosing somebody to look at the site as. The choice is the action, so the form is sent as
+// soon as the picker changes; app.js marks this navigation as internal so a basket held on the
+// page does not raise the browser's own "leave?" question over a switch that keeps it.
+document.addEventListener('change', (event) => {
+  const picker = event.target.closest?.('[data-view-as-picker]');
+
+  if (!picker || !picker.form) {
+    return;
+  }
+
+  picker.form.requestSubmit ? picker.form.requestSubmit() : picker.form.submit();
+});
 
 document.querySelectorAll('.avatar-photo').forEach((photo) => {
   photo.addEventListener('error', () => photo.remove());

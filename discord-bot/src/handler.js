@@ -31,20 +31,24 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
   const send=(content,components=[])=>i.editReply({content:String(content).slice(0,1950),components,allowedMentions:{parse:[]}});
   async function details(reference,quantity=1) {
    if(!referencePattern.test(reference)) return send('Use a reference such as inventory:123 or offer:123 from /items browse.');
-   const {item}=await call('item',{reference}); const identity=await call('identity');
+   const {item,maxQuantity=20}=await call('item',{reference}); const identity=await call('identity');
    // Each displayed confirmation owns an immutable snapshot; old buttons expire.
    sessions.delete(state.key);
    state={...state,key:randomBytes(8).toString('hex'),reference,quantity,itemName:item.name,submitting:false};
    sessions.set(state.key,state);
+   const offer=reference.startsWith('offer:');
+   if(offer && quantity!==1) return send('Always Share requests are for one copy at a time. Reopen this item with quantity 1.');
+   const limit=Math.min(offer?1:maxQuantity,Number(item.quantity)||0);
+   if(!Number.isSafeInteger(quantity)||quantity<1||quantity>limit) return send(limit<1?'This item has no available copies. Browse again for current stock.':`Choose a whole-number quantity from 1 to ${limit}, then reopen the request.`);
    if(!identity.selectedAccount) return send('Choose your ESO recipient with /items account eso:@Account, then run your request again. Provisional recipients are subject to officer review.');
    state.recipient=identity.selectedAccount;
-   return send(`Confirm request: ${quantity} × ${safe(item.name)}\nReference: ${safe(reference)} · Available: ${safe(item.quantity)}\nOwner: ${safe(item.owner)} · Category: ${safe(item.category)} · Quality: ${safe(item.quality)}\nLevel: ${safe(item.level)} · CP: ${safe(item.cp)} · Trait: ${safe(item.trait)}\nStyle: ${safe(item.style)} · Enchant: ${safe(item.enchant)}\nRecipient: ${safe(identity.selectedAccount)}\nSubmitting creates an immediate request. Provisional recipients are subject to officer review.`,[row([button(id('confirm'),'Confirm request',3),button(id('quantity'),'Change quantity'),button(id('cancel'),'Cancel',4)])]);
+   return send(`Confirm request: ${quantity} × ${safe(item.name)}\nReference: ${safe(reference)} · Available: ${safe(item.quantity)}\nOwner: ${safe(item.owner)} · Category: ${safe(item.category)} · Quality: ${safe(item.quality)}\nLevel: ${safe(item.level)} · CP: ${safe(item.cp)} · Trait: ${safe(item.trait)}\nStyle: ${safe(item.style)} · Enchant: ${safe(item.enchant)}\nRecipient: ${safe(identity.selectedAccount)}\n${offer?'Always Share: one copy per request. ':''}Submitting creates an immediate request. Provisional recipients are subject to officer review.`,[row([button(id('confirm'),'Confirm request',3),...(offer?[]:[button(id('quantity'),'Change quantity')]),button(id('cancel'),'Cancel',4)])]);
   }
   try {
-   if(action==='quantity') return await i.showModal({custom_id:id('quantitySubmit'),title:'Request quantity',components:[row([{type:4,custom_id:'quantity',label:'Quantity (positive whole number)',style:1,required:true,min_length:1,max_length:6,value:String(state.quantity)}])]});
+   if(action==='quantity') return await i.showModal({custom_id:id('quantitySubmit'),title:'Request quantity',components:[row([{type:4,custom_id:'quantity',label:'Quantity (positive whole number)',style:1,required:true,min_length:1,max_length:2,value:String(state.quantity)}])]});
    await i.deferReply({flags:64});
    if(action==='cancel') {sessions.delete(state.key);return send('Request cancelled.');}
-   if(action==='quantitySubmit') {const q=Number(i.fields.getTextInputValue('quantity'));if(!Number.isSafeInteger(q)||q<1||q>999999)return send('Quantity must be a whole number from 1 to 999999.');return await details(state.reference,q);}
+   if(action==='quantitySubmit') {const q=Number(i.fields.getTextInputValue('quantity'));if(!Number.isSafeInteger(q)||q<1||q>20)return send('Quantity must be a whole number from 1 to 20, within available stock and the server limit.');return await details(state.reference,q);}
    if(action==='confirm') {
     if(state.submitting) return send('This confirmation has already been used. Check /items requests.');
     state.submitting=true;
@@ -80,7 +84,7 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
    return send(`${content||'No results.'}\nPage ${data.page}/${data.totalPages} · ${data.total} results${data.scope?` · ${safe(data.scope.guildName)} / ${safe(data.scope.platform)} / ${safe(data.scope.worldName)}`:''}`,controls);
   } catch(error) {
    // Failed/uncertain submissions remain consumed: never retry writes automatically.
-   const message=error.publicMessage||'ItemShare could not complete this action. Check /items requests before retrying a request, or contact an officer.';
+   const message=error.publicMessage||'Guild\'s Bounty could not complete this action. Check /items requests before retrying a request, or contact an officer.';
    if(i.deferred||i.replied)return send(message);return privateReply(message);
   }
  };

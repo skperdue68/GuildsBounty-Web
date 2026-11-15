@@ -25,10 +25,12 @@ import {
 } from './lib/demo.js';
 import {
   DEMO_CAST,
+  castAccount,
   castCatalogue,
   castEmail,
   ensureDemoCast,
 } from './lib/demoCast.js';
+import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer } from './lib/demoItems.js';
 import {
   DEMO_ACTIVITY_SCENARIOS,
   demoActivityPause,
@@ -45,7 +47,13 @@ import { AGE_HOURS, planAges, untouchedRowsSql } from './lib/itemAges.js';
 import { stamp } from './lib/log.js';
 import { platformName, readAccountServer, serverChoices, serverLabel } from './lib/serverLabel.js';
 import { linkAccountToUser, listAccountServers } from './lib/store.js';
-import { emailLine, renderPage, renderSignInPage, renderUploadPage } from './lib/views.js';
+import {
+  emailLine,
+  inventoryTable,
+  renderPage,
+  renderSignInPage,
+  renderUploadPage,
+} from './lib/views.js';
 
 let passed = 0;
 let failed = 0;
@@ -135,6 +143,115 @@ check('the demo guild is the one that was asked for, on PC and NA', () => {
 
 check('the demo account is not the one seedDemo.js writes into real guilds', () => {
   assert(DEMO_ACCOUNT !== '@DemoTrader', 'the demo must use its own account');
+});
+
+// A shelf of names says nothing about whether a piece is any use: ESO gates gear by level or
+// by champion points, and the enchantment is often the reason somebody wants it. The
+// catalogue is the shape an upload writes, so those fields have to be filled the way a real
+// file fills them - without them every demo row read as a level 0 item with no glyph.
+check('the demo gear carries its level, its champion points and its enchantment', () => {
+  const gear = ITEMS.filter((spec) => spec.cp);
+
+  assert(gear.length >= 5, `expected the demo to share some gear, got ${gear.length}`);
+  assert(
+    gear.every((spec) => spec.level === 50 && spec.cp === 160),
+    'CP gear is level 50 with a champion point requirement'
+  );
+  assert(
+    gear.every((spec) => String(spec.enchant || '').startsWith('Glyph of')),
+    'every gear row names the glyph it carries'
+  );
+  assert(
+    ITEMS.find((spec) => spec.name === 'Dwemer Frame').cp === undefined,
+    'a material has no champion points to report'
+  );
+
+  const built = buildItem(gear[0], 0, [DEMO_GUILD.id]);
+
+  assert(built.requiredCp === 160 && built.requiredLevel === 50, 'both reach the row');
+  assert(built.enchantName === gear[0].enchant, 'and so does the glyph');
+
+  // The catalogue is camelCase, the way an upload hands a row to the store; the list reads
+  // the row the query returns, which is snake_case. Both ends are covered here: the fields
+  // the writer sets, then the line the reader gets out of them.
+  const staff = ITEMS.find((spec) => spec.name === "Mother's Sorrow Inferno Staff");
+  const staffRow = buildItem(staff, 0, [DEMO_GUILD.id]);
+  const html = inventoryTable(
+    [
+      {
+        ...staffRow,
+        item_key_hash: 'demo',
+        guild_names: DEMO_GUILD.name,
+        required_level: staffRow.requiredLevel,
+        required_cp: staffRow.requiredCp,
+        enchant_name: staffRow.enchantName,
+      },
+    ],
+    { mine: false, filters: {} }
+  );
+
+  assertMatch(html, /Level CP160/, 'the row says what it requires');
+  assertMatch(html, /Glyph of Increase Magical Harm/, 'and what it is enchanted with');
+});
+
+// Not everything on the shelf is gear, and the list reads as a list of items rather than a
+// list of gear: a material with no level printed at all looked half-finished beside the
+// sword above it. Everything the catalogue shares is level 1 unless it is gear and says
+// otherwise. What a material has not got is a champion point requirement, a glyph or a
+// style, and none of those is invented for it.
+check('what is not gear is level 1, and claims nothing else', () => {
+  const plain = ITEMS.filter((spec) => ![1, 2, 3].includes(spec.type));
+  const plainOffers = OFFERS.filter((spec) => ![1, 2, 3].includes(spec.type));
+
+  assert(plain.length >= 3, `expected some non-gear on the demo shelf, got ${plain.length}`);
+  assert(plainOffers.length >= 1, `expected non-gear on the always-shared list, got ${plainOffers.length}`);
+
+  for (const spec of plain) {
+    assert(spec.level === 1, `${spec.name} carries level 1`);
+    assert(spec.cp === undefined, `${spec.name} carries no champion points`);
+    assert(spec.enchant === undefined, `${spec.name} carries no glyph`);
+    assert(spec.style === undefined, `${spec.name} carries no style`);
+
+    const row = buildItem(spec, 0, [DEMO_GUILD.id]);
+
+    assert(row.requiredLevel === 1 && row.requiredCp === 0, `${spec.name} reaches the list as level 1`);
+    assert(row.enchantName === '' && row.styleName === '', `${spec.name} stays bare otherwise`);
+  }
+
+  for (const spec of plainOffers) {
+    assert(spec.level === 1, `${spec.name} carries level 1`);
+    assert(spec.cp === undefined && spec.enchant === undefined, `${spec.name} carries nothing else`);
+    assert(
+      buildOffer(spec, 0, [DEMO_GUILD.id]).requiredLevel === 1,
+      `${spec.name} reaches the offer list as level 1`
+    );
+  }
+
+  // And the line a reader gets out of it: a level, the name, and no glyph made up to fill
+  // the space beside it.
+  const frame = ITEMS.find((spec) => spec.name === 'Dwemer Frame');
+  const row = buildItem(frame, 0, [DEMO_GUILD.id]);
+  const html = inventoryTable(
+    [
+      {
+        ...row,
+        // The list reads the row a query hands it, which is snake_case.
+        item_name: row.itemName,
+        item_count: row.itemCount,
+        item_key_hash: 'demo-plain',
+        guild_names: DEMO_GUILD.name,
+        required_level: row.requiredLevel,
+        required_cp: row.requiredCp,
+        enchant_name: row.enchantName,
+        style_name: row.styleName,
+      },
+    ],
+    { mine: false, filters: {} }
+  );
+
+  assertMatch(html, /Level 1/, 'the row says it is level 1');
+  assertMatch(html, /Dwemer Frame/, 'and still names the item');
+  assert(!html.includes('Glyph'), 'with no glyph invented for it');
 });
 
 // ------------------------------------------------------------------ what is refused
@@ -373,16 +490,27 @@ check('the demo pair is boxed rather than another grey hint', () => {
   assertMatch(page, /<strong>demo<\/strong>/, 'the demo password must still be in it');
 });
 
-check('the brand draws the mark and the wordmark as two pictures of their own', () => {
+check('the brand is one picture of the whole lockup', () => {
   const page = renderSignInPage({ providers });
   const header = page.slice(page.indexOf('<header class="top-bar">'), page.indexOf('</header>'));
 
-  assert(header.includes('class="brand-mark"'), 'the header must draw the mark');
-  assert(header.includes('src="/brand/mark.png"'), 'the mark must be its own file, usable alone');
-  assert(header.includes('class="brand-wordmark"'), 'the name must be a picture of its own');
-  assert(header.includes('src="/brand/wordmark.png"'), 'the name must come from the wordmark file');
-  assert(header.includes('alt="ItemShare"'), 'the wordmark must carry the name for a reader who cannot see it');
-  assert(!header.includes('<svg'), 'the artwork must be the files, not a picture pasted into the page');
+  assert(header.includes('class="brand-logo"'), 'the header must draw the plaque');
+  assert(
+    header.includes('src="/brand/GuildsBounty-Both.png"'),
+    'the plaque is the one picture file, holding the chest, the name and the line'
+  );
+  assert(
+    header.includes('width="1752"') && header.includes('height="897"'),
+    'the picture must declare its size so the bar can grow to it'
+  );
+  assert(
+    header.includes('alt="Guild\'s Bounty - shared items across your guilds"'),
+    'the picture must carry the name and the line for a reader who cannot see it'
+  );
+  assert(!header.includes('class="brand-mark"'), 'the mark is no longer a picture of its own');
+  assert(!header.includes('class="brand-wordmark"'), 'the name is no longer a separate picture');
+  assert(!header.includes('class="brand-subtitle"'), 'the line is part of the picture now');
+  assert(!header.includes('<svg'), 'the artwork must be the file, not a picture pasted into the page');
 });
 
 check('the browsing-as label carries a real middle dot, not its escaped entity', () => {
@@ -499,6 +627,32 @@ check('a fresh shelf is dated across a spread rather than all today', () => {
   );
 });
 
+// LAST CHANCE only exists on a shelf whose owner carries expireDays, so a demo without one
+// can never show the pill however old its rows are. The window is also what decides how
+// many rows carry it: a window of nothing flags none, one shorter than every age flags all
+// of them, and neither shows the difference the pill is supposed to make.
+check('the demo shelf carries a window, so LAST CHANCE has something to flag', () => {
+  assert(DEMO_EXPIRE_DAYS > 0, 'a window of 0 would never flag a row');
+
+  const agesInDays = planAges(ITEMS.length).map((hours) => hours / 24);
+
+  assert(
+    agesInDays.some((days) => days >= DEMO_EXPIRE_DAYS),
+    'at least one demo row is past the window, or no pill is ever drawn'
+  );
+  assert(
+    agesInDays.some((days) => days < DEMO_EXPIRE_DAYS),
+    'and at least one is inside it, or the pill would be on every row'
+  );
+
+  const guilds = new Map([[DEMO_GUILD.id, DEMO_GUILD.name]]);
+
+  assert(
+    castAccount(DEMO_CAST[0], guilds).expireDays === DEMO_EXPIRE_DAYS,
+    'the guildmates share under the same window, so the pill is not only on the visitor\u2019s own rows'
+  );
+});
+
 check('only rows nobody has touched since they were inserted are dated', () => {
   const sql = untouchedRowsSql('itemshare_shared_items');
 
@@ -520,7 +674,16 @@ check('attaching an ESO account asks for its platform and server, both required'
   const page = renderPage({
     ...emptyData,
     user: { id: 5, username: 'someone', provider: 'password' },
-    accounts: [{ accountName: '@someone', itemCount: 1, guildCount: 1, guilds: [] }],
+    accounts: [
+      {
+        accountName: '@someone',
+        itemCount: 1,
+        guildCount: 1,
+        guilds: [],
+        // A file has arrived, so the dialog lets this person attach another name by hand.
+        lastUpload: { uploaded_at: '2026-11-01 10:00:00', source_file: 'ItemShareSavedVars.lua' },
+      },
+    ],
     accountServers: [
       { platform: 2, worldName: 'EU Megaserver' },
       { platform: 2, worldName: 'PTS' },
@@ -620,7 +783,7 @@ check('a signed-in person with no ESO account is asked to upload', () => {
   });
 
   assertMatch(page, /id="savedvars"/, 'the upload field is missing');
-  assertMatch(page, /Upload your ItemShareSavedVariables\.lua/, 'the upload card is missing');
+  assertMatch(page, /Upload your ItemShare\.lua File from your Saved Variables Folder Here/, 'the upload card is missing');
   assert(!page.includes('data-item-key'), 'no item may be listed before an upload');
 });
 
@@ -641,7 +804,7 @@ check('a demo session says so, and keeps every tool it can rehearse with', () =>
   assertMatch(page, /Demo mode/, 'the banner is missing');
   assertMatch(page, /email (?:is|are) disabled/i, 'the banner must say email is disabled');
   assertMatch(page, /Add or remove ESO accounts/, 'the demo must be able to try the account dialog');
-  assertMatch(page, /Process Requests/, 'the demo must be able to try the owner pages');
+  assertMatch(page, /Requests Received/, 'the demo must be able to try the owner pages');
 });
 
 check('an ordinary session shows no demo banner', () => {

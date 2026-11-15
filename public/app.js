@@ -1,4 +1,4 @@
-// ItemShare page behaviour: uploads, the account menu and the live item lists.
+// Guild's Bounty page behaviour: uploads, the account menu and the live item lists.
 //
 // Everything here is an enhancement. The logout form posts without scripts and the
 // filter form still submits on its own, so a failed script costs convenience only.
@@ -19,6 +19,56 @@ function refreshAfterChange() {
   }
 
   window.location.reload();
+}
+
+// ------------------------------------------------------------------ sticky bars
+// The line of tabs, the search row under it and the column headings under that pin to the
+// top of the window as one block, so a long list keeps which list it is, what is in it and
+// what each column is. None of the three offsets can live in the stylesheet: the site header
+// is as tall as the account line and the basket bar make it, the tab row is as tall as the
+// tabs in it, and the search row is as tall as the box in it (and is not there at all on a
+// table that carries no search). All three are measured here and published as custom
+// properties for the stylesheet to add up.
+function measureStickyBars() {
+  const root = document.documentElement;
+
+  const publishPixels = (name, pixels) => {
+    const value = `${Math.round(pixels)}px`;
+    if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value);
+  };
+
+  const publish = (name, element) => {
+    if (!element) return;
+    publishPixels(name, element.getBoundingClientRect().height);
+  };
+
+  publish('--sticky-top', document.querySelector('.top-bar'));
+  publish('--list-head-h', document.querySelector('.list-head'));
+
+  // The tallest search row on the page, because a card can hold two tables that each carry
+  // one and the headings have to clear whichever stands over them. Nothing on the page means
+  // 0px, which leaves the headings exactly where they were.
+  publishPixels(
+    '--list-tools-h',
+    [...document.querySelectorAll('.list-tools')].reduce(
+      (tallest, bar) => Math.max(tallest, bar.getBoundingClientRect().height),
+      0
+    )
+  );
+}
+
+measureStickyBars();
+
+if (typeof ResizeObserver === 'function') {
+  const observer = new ResizeObserver(measureStickyBars);
+  const stickyHeader = document.querySelector('.top-bar');
+  if (stickyHeader) observer.observe(stickyHeader);
+  // The list region is replaced when it refreshes, so the body is watched for it: the tab
+  // row can come back at a different height, and a stale offset would leave the headings a
+  // few pixels away from the tabs pinned above them.
+  observer.observe(document.body);
+} else {
+  window.addEventListener('resize', measureStickyBars);
 }
 
 // ----------------------------------------------------------------- demo presence
@@ -75,6 +125,30 @@ function showToast(message, kind = 'info', { sticky = false } = {}) {
   }, kind === 'err' ? 7000 : 4500);
 }
 
+// ------------------------------------------------- upload change summary
+/**
+ * How an upload moved one account's list, in the order somebody reads it: what went, what
+ * arrived, and what was only re-counted.
+ *
+ * A refresh is an item that was already there whose quantity the file reports differently -
+ * a stack that grew or shrank. It is deliberately not called added or removed, because the
+ * item itself stayed.
+ */
+function uploadChangeSummary(account) {
+  const say = (count, word) => {
+    const number = Math.max(0, Math.trunc(Number(count) || 0));
+
+    return `${number} item${number === 1 ? '' : 's'} ${word}`;
+  };
+
+  return [
+    say(account.removedItems, 'removed'),
+    say(account.addedItems, 'added'),
+    say(account.refreshedItems, 'refreshed'),
+  ].join(', ');
+}
+// ---------------------------------------------- end upload change summary
+
 // --------------------------------------------------------------------- upload
 // Dropping a file or picking one both upload straight away: there is no button to
 // press and nothing to confirm first.
@@ -129,14 +203,21 @@ async function uploadFile(file) {
       [
         `${file.name} has been received.`,
         ...accounts.map(
-          (account) =>
-            `${account.accountName}: ${account.itemCount} item${account.itemCount === 1 ? '' : 's'}, quantity ${account.totalQuantity}`
+          (account) => `${account.accountName}: ${account.itemCount} item${account.itemCount === 1 ? '' : 's'}, quantity ${account.totalQuantity}`
         ),
+        // What the file did to that list: an item nobody had before, an item only re-counted,
+        // an item gone. A refresh is a quantity that went up or down on an item that stayed.
+        ...accounts.map((account) => `  ${uploadChangeSummary(account)}`),
         // An item with requests still open was not refreshed from this file, so the
         // count on screen is the one the requests were made against.
         ...(result.heldBack || []).map(
           (item) =>
             `Pending requests for ${item.itemName} (${item.requests}), so its inventory was not refreshed.`
+        ),
+        // An account in the file that belongs to somebody else was left out, so say which
+        // ones were not touched rather than letting the upload look complete.
+        ...(result.skippedAccounts || []).map(
+          (account) => `${account.accountName}: not updated - ${account.reason}.`
         ),
         icons,
       ]
@@ -301,6 +382,10 @@ if (listRegion) {
   const ANCHOR_LINE_MAX = 280;
   const CHANGE_DELAY_MS = 120;
   const SEARCH_DELAY_MS = 250;
+  // The list's own search waits longer than the filter card's: it is typed into while
+  // reading, and a word is usually several keystrokes, so a second lets the word finish
+  // before the table redraws underneath it.
+  const LIST_SEARCH_DELAY_MS = 1000;
   const RELOAD_ANCHOR_KEY = 'itemshare:scroll-anchor';
   const TAB_KEY = 'itemshare:tab';
 
@@ -312,6 +397,11 @@ if (listRegion) {
   // Discard list responses that started before a successful bag mutation.
   let basketRevision = 0;
   let activeTab = 'request';
+  // Each list has its own search: a word typed while reading My Inventory says nothing
+  // about Browse Offers, and emptying one must leave the other as it was. My Requests and
+  // Requests Received carry one too, and each narrows both tables on its tab.
+  let listSearchByTab = { request: '', offer: '', mine: '', received: '' };
+  let listSearchTimer = null;
 
   // Which page of Already sent is on screen. It is kept here rather than in the address
   // bar: paging is a view of the same page, so it must not rewrite the URL, count as a
@@ -320,7 +410,7 @@ if (listRegion) {
 
   try {
     const stored = window.sessionStorage.getItem(TAB_KEY);
-    if (stored === 'request' || stored === 'offer' || stored === 'mine') {
+    if (stored === 'request' || stored === 'offer' || stored === 'mine' || stored === 'received') {
       activeTab = stored;
     }
   } catch (error) {
@@ -342,7 +432,7 @@ if (listRegion) {
   }
 
   // ---------------------------------------------------------------------- tabs
-  // Request and Offering are the same data cut two ways, so the tab is a display
+  // Others Inventory and My Inventory are the same data cut two ways, so the tab is a display
   // choice the server does not need to know about. It survives a live refresh (the
   // region is re-rendered from the Request tab) and a page rebuild.
   function setTab(name, { focus = false } = {}) {
@@ -375,6 +465,16 @@ if (listRegion) {
     } catch (error) {
       // Tab choice is a convenience; failing to remember it changes nothing.
     }
+
+    // Each tab carries its own box, already holding that tab's word, and its own table for
+    // the word to narrow: a tab switch is a switch of both, not a carry-over. A keystroke
+    // still inside the second-long wait belongs to the tab being left, so it is dropped
+    // rather than fired against the tab that replaced it.
+    window.clearTimeout(listSearchTimer);
+    applyListSearch();
+    // The filter card belongs to the list being drawn, so it moves with the tab - and leaves
+    // the page on the two tabs whose tables no type or owner filter speaks for.
+    syncFilterCard();
   }
 
   listRegion.addEventListener('click', (event) => {
@@ -401,20 +501,32 @@ if (listRegion) {
       return;
     }
 
-    // A column heading is the sort control and it cycles: ascending, descending, then
-    // back to the type groups. The order is remembered in a cookie instead of the
-    // address bar, so a shared link never carries somebody else's sorting.
+    // A column heading is one place in the sort queue and a press moves it: a column that
+    // is off joins the end ascending, one already there reverses where it stands, and a
+    // third press takes it out. The queue is remembered in a cookie instead of the address
+    // bar, so a shared link never carries somebody else's sorting.
     const sortButton = closest('[data-sort]');
 
     if (sortButton) {
       event.preventDefault();
-
-      const field = sortButton.dataset.sort;
-      const current = sortButton.dataset.dir;
-      const next = current === 'asc' ? 'desc' : current === 'desc' ? '' : 'asc';
-
-      writeSortCookie(next ? `${field}:${next}` : 'type:asc');
+      cycleSort(sortButton.dataset.sort);
       scheduleRefresh(0);
+      return;
+    }
+
+    // The little cross at the end of the search box empties it and puts the list back.
+    const clearSearch = closest('[data-list-search-clear]');
+
+    if (clearSearch) {
+      event.preventDefault();
+      const tab = clearSearch.getAttribute('data-list-search-clear') || activeTab;
+      listSearchByTab[tab] = '';
+      window.clearTimeout(listSearchTimer);
+      applyListSearch(tab);
+
+      const panel = listRegion.querySelector(`[data-panel="${tab}"]`);
+      const input = (panel || listRegion).querySelector('[data-list-search]');
+      if (input) input.focus();
       return;
     }
 
@@ -425,8 +537,53 @@ if (listRegion) {
 
     if (groupButton) {
       event.preventDefault();
-      writeGroupCookie(groupButton.getAttribute('aria-pressed') === 'true' ? '0' : '1');
+      // The switch says which list it belongs to, so pressing it changes that list alone.
+      writeGroupCookie(
+        groupButton.getAttribute('data-group-list') || 'request',
+        groupButton.getAttribute('aria-pressed') === 'true' ? '0' : '1'
+      );
       scheduleRefresh(0);
+      return;
+    }
+
+    // The same fold, for every type at once. The button says which list it sits on, so the
+    // press moves that list only - Browse Offers and My Inventory are read separately.
+    const foldAll = closest('[data-fold-all]');
+
+    if (foldAll) {
+      event.preventDefault();
+      foldEveryType(foldAll);
+      return;
+    }
+
+    // A type heading folds the rows beneath it away. They are already on the page, so this
+    // opens and closes them without asking the server; which types are folded is a reading
+    // choice about one list, so it goes in that list's own cookie and survives a refresh.
+    const typeToggle = closest('[data-type-toggle]');
+
+    if (typeToggle) {
+      event.preventDefault();
+      const list = typeToggle.getAttribute('data-group-list') || 'request';
+      const type = typeToggle.getAttribute('data-type-toggle');
+      const heading = typeToggle.closest('.type-row');
+
+      if (heading) {
+        const shut = !heading.classList.contains('is-collapsed');
+
+        setTypeFolded(list, type, shut);
+        heading.classList.toggle('is-collapsed', shut);
+        typeToggle.setAttribute('aria-expanded', String(!shut));
+
+        if (shut) {
+          for (const row of groupMembers(heading)) row.hidden = true;
+        } else {
+          // The rows come back first, so opening a type never depends on anything else
+          // succeeding; the search box then narrows them again if it holds a word.
+          for (const row of groupMembers(heading)) row.hidden = false;
+          applyListSearch(list);
+        }
+      }
+
       return;
     }
 
@@ -484,28 +641,302 @@ if (listRegion) {
     setTab(tabs[(index + step) % tabs.length].dataset.tab, { focus: true });
   });
 
+  // A link can name the tab it wants - the request email's "open Requests Received" does - and
+  // that beats the remembered one: somebody who followed a link asked for that tab, while the
+  // remembered one is only what they happened to look at last.
+  const asked = new URLSearchParams(window.location.search).get('tab');
+
+  if (asked === 'request' || asked === 'offer' || asked === 'mine' || asked === 'received') {
+    activeTab = asked;
+  }
+
   if (new URLSearchParams(window.location.search).has('historyPage')) activeTab = 'mine';
+  // An answer given on the Requests Received tab comes back to the list carrying what it
+  // recorded, and that confirmation is drawn on the tab: opening it is the point of the
+  // redirect. Read from the address rather than from storage, so it works on a first visit,
+  // in a private window and on whatever device the email was opened on.
+  if (new URLSearchParams(window.location.search).has('answered')) activeTab = 'received';
   setTab(activeTab);
+
+  // A request email lands here to be answered, so its link also says which table to bring up:
+  // the waiting list, rather than the tab strip with the completed history below the fold.
+  if (new URLSearchParams(window.location.search).get('waiting') === '1') {
+    const waiting = document.getElementById('receivedWaiting');
+
+    if (waiting) waiting.scrollIntoView({ block: 'start' });
+  }
   window.addEventListener('popstate', () => {
     liveHistoryPage = Number(new URLSearchParams(window.location.search).get('historyPage')) || null;
     setTab('mine');
     scheduleRefresh(0);
   });
 
+  // -------------------------------------------------------------------- the search
+  // The box under the tabs narrows the rows already on the page - no request, so it
+  // answers before a round trip could. Each tab carries its own word, and a word only ever
+  // narrows the list it was typed over. Group headings take no part in the matching: a
+  // heading is a label for the rows under it, so it stays while any of them match and goes
+  // when none do, rather than disappearing because the word typed is not the type's own
+  // name. The filter card above keeps its search, which is a name filter the server applies
+  // and the address bar carries.
+  function applyListSearch(tab = activeTab) {
+    // Each tab draws its own box and its own table, so the narrowing stops at that panel.
+    // The other tab keeps every row it had, and its own word, for when it comes back. A tab
+    // with two tables - My Requests and Requests Received - narrows both of them: the word is
+    // about the item, and which half of the tab a row is in does not make it a different item.
+    const panel = listRegion.querySelector(`[data-panel="${tab}"]`);
+    const scope = panel || listRegion;
+    const typed = listSearchByTab[tab];
+    const term = typed.trim().toLowerCase();
+    const input = scope.querySelector('[data-list-search]');
+    const clear = scope.querySelector('[data-list-search-clear]');
+
+    // A refresh can put a fresh box in place. It is given the text that is filtering the
+    // list rather than left empty while the rows below stay narrowed for no visible reason.
+    if (input && input.value !== typed) input.value = typed;
+    if (clear) clear.hidden = typed === '';
+
+    for (const body of scope.querySelectorAll('table tbody')) {
+      const groups = [];
+      let group = null;
+
+      for (const row of Array.from(body.rows)) {
+        if (row.classList.contains('type-row')) {
+          // A folded heading stays shut while a word is typed: its rows are not on screen
+          // to narrow, and the count beside it still says how many are waiting there.
+          group = { row, total: 0, shown: 0, shut: row.classList.contains('is-collapsed') };
+          groups.push(group);
+          continue;
+        }
+
+        if (!row.hasAttribute('data-search')) continue;
+
+        const matches =
+          term === '' || row.getAttribute('data-search').toLowerCase().includes(term);
+
+        row.hidden = !matches || Boolean(group && group.shut);
+
+        if (!group) continue;
+
+        group.total += 1;
+        if (matches) group.shown += 1;
+      }
+
+      // Decided after the rows are counted, because a heading is drawn before them. A
+      // folded one stays whatever the word: it is the way back to its rows.
+      for (const entry of groups) {
+        entry.row.hidden = !entry.shut && entry.shown === 0;
+
+        // The number beside a type is the server's count of the whole group, and while a
+        // search is narrowing the rows under it that number is a lie. It becomes the two
+        // numbers that are true instead - how many matched, and how many there are - and
+        // goes back to the plain total once the search is cleared.
+        const count = entry.row.querySelector('.type-count');
+
+        if (count) {
+          count.textContent =
+            term === '' ? `(${entry.total})` : `(${entry.shown} of ${entry.total})`;
+        }
+      }
+    }
+  }
+
+  function updateSearchClear(tab) {
+    const panel = listRegion.querySelector(`[data-panel="${tab}"]`);
+    const clear = (panel || listRegion).querySelector('[data-list-search-clear]');
+
+    if (clear) clear.hidden = (listSearchByTab[tab] || '') === '';
+  }
+
+  listRegion.addEventListener('input', (event) => {
+    const field = event.target.closest ? event.target.closest('[data-list-search]') : null;
+
+    if (!field) return;
+
+    // The box says which list it belongs to, so the word lands on that list even if the
+    // tab has moved on between the keystroke and this handler.
+    const tab = field.getAttribute('data-list-search');
+
+    if (!(tab in listSearchByTab)) return;
+
+    // The field keeps up with every keystroke; the list waits for the word. Narrowing on
+    // the first letter would hide rows and move the table on the way to the right four.
+    listSearchByTab[tab] = field.value;
+    updateSearchClear(tab);
+
+    window.clearTimeout(listSearchTimer);
+    listSearchTimer = window.setTimeout(() => applyListSearch(tab), LIST_SEARCH_DELAY_MS);
+  });
+
   // ------------------------------------------------------------------- filters
   // Filters apply as soon as they change - there is no button to forget - and the
   // address bar keeps up, so a reload or a live refresh uses the same filters.
-  const filterForm = document.querySelector('[data-filters]');
+  //
+  // One row per list. Browse Offers and My Inventory each keep their own choices under their
+  // own names, so a type narrowed on what other people share never hides rows inside your own
+  // bag, and switching tabs shows the tab's own filters. My Requests and Requests Received
+  // have no row at all: a type or an owner says nothing about a request.
+  const FILTER_PARAMS = {
+    request: { type: 'type', owner: 'owner', added: 'added' },
+    offer: { type: 'mtype', owner: 'mowner', added: 'madded' },
+  };
+  let filterSearchTimer = null;
+
+  function filterForms() {
+    return Array.from(document.querySelectorAll('[data-filters]'));
+  }
+
+  function filterListOf(form) {
+    return form && form.dataset.filterList === 'offer' ? 'offer' : 'request';
+  }
+
+  /** The row belonging to the tab in front of the reader, or null on a tab with no filters. */
+  function activeFilterForm() {
+    if (activeTab !== 'request' && activeTab !== 'offer') {
+      return null;
+    }
+
+    const list = activeTab === 'offer' ? 'offer' : 'request';
+
+    return filterForms().find((form) => filterListOf(form) === list) || null;
+  }
+
+  /**
+   * Which row is on screen, and whether the card is drawn at all.
+   *
+   * The card is rendered once by the server, so this runs on every tab change and after every
+   * live refresh: a push can replace the rows without knowing which tab is open. A list with
+   * nothing to choose - an account with no rows yet - takes the whole card away rather than
+   * showing three menus with one option each.
+   */
+  function syncFilterCard() {
+    const card = document.getElementById('itemFilters');
+    const shown = activeFilterForm();
+
+    filterForms().forEach((form) => {
+      const on = form === shown;
+      if (form.hidden !== !on) form.hidden = !on;
+    });
+
+    if (card) {
+      const empty = !shown || shown.dataset.filterEmpty === '1';
+      if (card.hidden !== empty) card.hidden = empty;
+    }
+  }
 
   // The sort order is a reading preference, so it is remembered in a cookie and never
-  // written into the address bar. `type:asc` means "no choice": the plain type grouping
-  // the server sends anyway, which also clears a choice made on an earlier visit.
+  // written into the address bar. An empty queue means "no choice": the plain type
+  // grouping the server sends anyway, which also clears a choice made on an earlier visit.
   // Its own cookie, for the same reason: a display choice should not be in the URL, and
   // the two choices are independent, so one must not overwrite the other.
-  function writeGroupCookie(value) {
-    document.cookie = `itemshare_group=${encodeURIComponent(
+  // One cookie per list. Browse Offers keeps the name it has always used; My Inventory has its
+  // own, so the two can be grouped differently and each switch reports the list it sits on.
+  // Keyed by the tab's own name: `request` is Browse Offers, `offer` is My Inventory. Not
+  // `mine`, which is the My Requests tab, draws no type headings, and answers to a different
+  // panel - the mistake that made opening a folded type leave its rows hidden.
+  const GROUP_COOKIES = { request: 'itemshare_group', offer: 'itemshare_group_mine' };
+
+  function writeGroupCookie(list, value) {
+    const name = GROUP_COOKIES[list] || GROUP_COOKIES.request;
+
+    document.cookie = `${name}=${encodeURIComponent(
       value
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }
+
+  // Which types are folded away, one cookie per list, for the same reason the grouping has
+  // two: Browse Offers and My Inventory are read separately and must not move each other.
+  const FOLDED_COOKIES = { request: 'itemshare_collapsed', offer: 'itemshare_collapsed_mine' };
+
+  // The names are written escaped and split on the commas between them, so a blank cookie
+  // means nothing is folded - which is how every list starts.
+  function readFoldedTypes(list) {
+    const name = FOLDED_COOKIES[list] || FOLDED_COOKIES.request;
+
+    return readCookieValue(name)
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+  }
+
+  function setTypeFolded(list, type, shut) {
+    const name = FOLDED_COOKIES[list] || FOLDED_COOKIES.request;
+    const types = readFoldedTypes(list).filter((entry) => entry !== type);
+
+    if (shut) types.push(type);
+
+    document.cookie = `${name}=${types
+      .map((entry) => encodeURIComponent(entry))
+      .join(',')}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }
+
+  // Every type in one list opens or shuts in one press. Named rather than written inline in
+  // the click handler so the test can hand it a real document: it is the only place that has
+  // to keep five things in step - the headings, their rows, their carets, the cookie, and the
+  // words on the button that started it.
+  function foldEveryType(button) {
+    const list = button.getAttribute('data-group-list') || 'request';
+    // What the press does, not what the list is: shut means "fold them all away".
+    const shut = button.getAttribute('data-fold-all-shut') === 'true';
+    // Only this list's headings, and only inside the panel it lives in, so one tab's press
+    // cannot reach into another tab's table.
+    const scope = button.closest('[data-panel]') || document;
+    const headings = [...scope.querySelectorAll(`[data-type-toggle][data-group-list="${list}"]`)]
+      .map((toggle) => toggle.closest('.type-row'))
+      .filter(Boolean);
+
+    setAllTypesFolded(
+      list,
+      headings.map((heading) => heading.querySelector('[data-type-toggle]').getAttribute('data-type-toggle')),
+      shut
+    );
+
+    for (const heading of headings) {
+      const toggle = heading.querySelector('[data-type-toggle]');
+
+      heading.classList.toggle('is-collapsed', shut);
+      toggle.setAttribute('aria-expanded', String(!shut));
+
+      for (const row of groupMembers(heading)) row.hidden = shut;
+    }
+
+    // The words say what the next press would do, so they turn over with the list.
+    button.setAttribute('data-fold-all-shut', String(!shut));
+    button.title = shut ? 'Open every type at once' : 'Fold every type away at once';
+
+    const word = button.querySelector('.fold-all-word');
+
+    if (word) word.textContent = shut ? 'Expand all' : 'Collapse all';
+
+    // Opened rows then meet whatever is in the search box, so an unfold cannot leave rows on
+    // screen that the word typed in the box had hidden.
+    if (!shut) applyListSearch(list);
+  }
+
+  // One write for the whole list: shut writes every type it drew, open clears the cookie
+  // rather than leaving a set behind that the headings no longer agree with.
+  function setAllTypesFolded(list, types, shut) {
+    const name = FOLDED_COOKIES[list] || FOLDED_COOKIES.request;
+    const written = shut ? types : [];
+
+    document.cookie = `${name}=${written
+      .map((entry) => encodeURIComponent(entry))
+      .join(',')}; Path=/; Max-Age=31536000; SameSite=Lax`;
+  }
+
+  // The rows a type heading covers: everything between it and the heading after it.
+  function groupMembers(heading) {
+    const rows = [];
+
+    for (
+      let next = heading.nextElementSibling;
+      next && !next.classList.contains('type-row');
+      next = next.nextElementSibling
+    ) {
+      if (next.tagName === 'TR') rows.push(next);
+    }
+
+    return rows;
   }
 
   function writeSortCookie(value) {
@@ -514,13 +945,64 @@ if (listRegion) {
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }
 
+  // The order is a queue of columns, written as `name:asc,type:desc`: the first decides,
+  // the next only breaks its ties, and so on in the order they were pressed. Only the
+  // cycling happens here - the server reads the queue back (lib/sortQueue.js) and draws
+  // the rows already sorted, so a refresh never leaves the table half ordered.
+  const SORT_FIELDS = ['name', 'added', 'type', 'trait', 'location', 'owner'];
+
+  function readCookieValue(name) {
+    const match = document.cookie.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+    return match ? decodeURIComponent(match[1]) : '';
+  }
+
+  function readSortQueue() {
+    const order = [];
+
+    for (const part of readCookieValue('itemshare_sort').split(',')) {
+      const [field, dir] = part.split(':').map((piece) => piece.trim());
+
+      if (!SORT_FIELDS.includes(field) || (dir !== 'asc' && dir !== 'desc')) continue;
+      if (order.some((entry) => entry.field === field)) continue;
+
+      order.push({ field, dir });
+    }
+
+    return order;
+  }
+
+  // One press: off joins the end ascending, ascending reverses in place, descending takes
+  // the column out and everything behind it moves up a place.
+  function cycleSort(field) {
+    if (!SORT_FIELDS.includes(field)) return;
+
+    const order = readSortQueue();
+    const at = order.findIndex((entry) => entry.field === field);
+    let next;
+
+    if (at === -1) {
+      next = [...order, { field, dir: 'asc' }];
+    } else if (order[at].dir === 'asc') {
+      next = order.map((entry, index) => (index === at ? { field, dir: 'desc' } : entry));
+    } else {
+      next = order.filter((entry, index) => index !== at);
+    }
+
+    writeSortCookie(next.map((entry) => `${entry.field}:${entry.dir}`).join(','));
+  }
+
   // A filter can hold several values, and what is switched on is shown as chips
   // under the row, so the controls and the chips are built from one place.
-  function chosenValues(name) {
+  function chosenValues(form, name) {
     const values = [];
 
-    filterForm.querySelectorAll(`[data-filter][name="${name}"]`).forEach((field) => {
-      if (field.type === 'checkbox') {
+    if (!form) {
+      return values;
+    }
+
+    form.querySelectorAll(`[data-filter][name="${name}"]`).forEach((field) => {
+      // Radios carry Added's single window; an unchecked one is simply not part of it.
+      if (field.type === 'checkbox' || field.type === 'radio') {
         if (field.checked && field.value) {
           values.push(field.value);
         }
@@ -537,17 +1019,18 @@ if (listRegion) {
     return values;
   }
 
-  function renderFilterChips() {
-    const row = filterForm.querySelector('[data-filter-chips]');
+  function renderFilterChips(form) {
+    const row = form ? form.querySelector('[data-filter-chips]') : null;
 
     if (!row) {
       return;
     }
 
     row.textContent = '';
+    const names = FILTER_PARAMS[filterListOf(form)];
 
-    ['type', 'owner'].forEach((name) => {
-      chosenValues(name).forEach((value) => {
+    [names.type, names.owner].forEach((name) => {
+      chosenValues(form, name).forEach((value) => {
         const chip = document.createElement('button');
         chip.type = 'button';
         chip.className = 'filter-chip';
@@ -568,21 +1051,28 @@ if (listRegion) {
 
   // Each menu says how many of its values are on, so a closed menu still answers
   // whether it is doing anything.
-  function renderFilterMenus() {
-    filterForm.querySelectorAll('[data-filter-menu]').forEach((menu) => {
-      const checked = Array.from(
-        menu.querySelectorAll('input[type="checkbox"][data-filter]')
-      ).filter((box) => box.checked);
+  function renderFilterMenus(form) {
+    if (!form) {
+      return;
+    }
+
+    form.querySelectorAll('[data-filter-menu]').forEach((menu) => {
+      const checked = Array.from(menu.querySelectorAll('input[data-filter]')).filter(
+        (box) => box.checked
+      );
       const label = menu.querySelector('.filter-select-label');
       const badge = menu.querySelector('.filter-count');
       const allLabel = menu.dataset.allLabel || 'All';
 
       if (label) {
+        // The word on the summary is the option's own label, not its value: LAST CHANCE
+        // is stored as `last-chance` and would otherwise be read back in lower case.
         label.textContent =
           checked.length === 0
             ? allLabel
             : checked.length === 1
-              ? checked[0].value
+              ? checked[0].closest('.filter-option')?.querySelector('span')?.textContent ||
+                checked[0].value
               : `${checked.length} chosen`;
       }
       if (badge) {
@@ -592,25 +1082,33 @@ if (listRegion) {
     });
   }
 
-  function applyFilters() {
-    if (!filterForm) {
+  function applyFilters(form = activeFilterForm()) {
+    if (!form) {
       return;
     }
 
-    const params = new URLSearchParams();
+    const names = FILTER_PARAMS[filterListOf(form)];
+    const params = new URLSearchParams(window.location.search);
 
-    ['type', 'owner', 'added', 'q'].forEach((name) => {
-      chosenValues(name).forEach((value) => params.append(name, value));
+    // The item name is not here any more: the list's own search box narrows the rows on
+    // the page, so nothing about it belongs in the address bar.
+    //
+    // Only this list's names are rewritten. The other list keeps what it was left with, which
+    // is the whole point of the two rows: its filters are its own business.
+    Object.values(names).forEach((name) => params.delete(name));
+    Object.values(names).forEach((name) => {
+      chosenValues(form, name).forEach((value) => params.append(name, value));
     });
 
-    renderFilterChips();
-    renderFilterMenus();
-
-    const query = params.toString();
+    renderFilterChips(form);
+    renderFilterMenus(form);
 
     // A new filter is a new list, so it starts at the first page rather than at whichever
     // page of the previous list happened to be open.
     liveHistoryPage = null;
+    params.delete('historyPage');
+
+    const query = params.toString();
 
     if (window.history && window.history.replaceState) {
       window.history.replaceState(null, '', query ? `/?${query}` : '/');
@@ -619,90 +1117,101 @@ if (listRegion) {
     scheduleRefresh(0);
   }
 
-  if (filterForm) {
-    let searchTimer = null;
+  // Every row is handled from the document rather than from each form, because a live refresh
+  // can replace a form's markup while the reader is using it.
+  document.addEventListener('change', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
 
-    filterForm.addEventListener('change', (event) => {
-      if (!event.target.matches('[data-filter]')) {
-        return;
-      }
+    if (!form || !event.target.matches('[data-filter]')) {
+      return;
+    }
 
-      // Picking something in a menu closes it; the chip below shows the result.
-      const menu = event.target.closest('details');
+    // Picking something in a menu closes it; the chip below shows the result.
+    const menu = event.target.closest('details');
 
-      if (menu && event.target.type === 'checkbox') {
-        menu.open = false;
-      }
+    if (menu && (event.target.type === 'checkbox' || event.target.type === 'radio')) {
+      menu.open = false;
+    }
 
-      applyFilters();
-    });
+    applyFilters(form);
+  });
 
-    // Typing filters as it is typed, just slowly enough not to fetch on every key.
-    filterForm.addEventListener('input', (event) => {
-      if (!event.target.matches('input[type="search"][data-filter]')) {
-        return;
-      }
+  // Typing filters as it is typed, just slowly enough not to fetch on every key.
+  document.addEventListener('input', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
 
-      window.clearTimeout(searchTimer);
-      searchTimer = window.setTimeout(applyFilters, SEARCH_DELAY_MS);
-    });
+    if (!form || !event.target.matches('input[type="search"][data-filter]')) {
+      return;
+    }
 
-    filterForm.addEventListener('submit', (event) => {
-      event.preventDefault();
-      applyFilters();
-    });
+    window.clearTimeout(filterSearchTimer);
+    filterSearchTimer = window.setTimeout(() => applyFilters(form), SEARCH_DELAY_MS);
+  });
+
+  // Filters apply as they change, so the button is only there for a browser without scripts.
+  document.addEventListener('submit', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
+
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    applyFilters(form);
+  });
+
+  document.addEventListener('click', (event) => {
+    const form = event.target.closest ? event.target.closest('[data-filters]') : null;
 
     // A chip removes its own value and leaves the rest of the filters alone.
-    filterForm.addEventListener('click', (event) => {
-      const chip = event.target.closest ? event.target.closest('[data-chip-filter]') : null;
+    const chip = event.target.closest ? event.target.closest('[data-chip-filter]') : null;
 
-      if (!chip) {
-        return;
-      }
-
+    if (chip && form) {
       event.preventDefault();
-      const name = chip.dataset.chipFilter;
-      const value = chip.dataset.chipValue;
 
-      filterForm.querySelectorAll(`[data-filter][name="${name}"]`).forEach((field) => {
-        if (field.type === 'checkbox' && field.value === value) {
+      form.querySelectorAll(`[data-filter][name="${chip.dataset.chipFilter}"]`).forEach((field) => {
+        if (field.type === 'checkbox' && field.value === chip.dataset.chipValue) {
           field.checked = false;
-        } else if (field.tagName === 'SELECT' && field.value === value) {
+        } else if (field.tagName === 'SELECT' && field.value === chip.dataset.chipValue) {
           field.value = '';
         }
       });
 
-      applyFilters();
-    });
-
-    const clearButton = filterForm.querySelector('[data-clear-filters]');
-
-    if (clearButton) {
-      clearButton.addEventListener('click', () => {
-        filterForm.querySelectorAll('[data-filter]').forEach((field) => {
-          if (field.type === 'checkbox') {
-            field.checked = false;
-          } else {
-            field.value = '';
-          }
-        });
-        applyFilters();
-      });
+      applyFilters(form);
+      return;
     }
 
-    // A click outside a menu closes it, so two open menus never sit over each other
-    // while the reader is trying to use the one underneath.
-    document.addEventListener('click', (event) => {
-      filterForm.querySelectorAll('details[open]').forEach((menu) => {
-        if (!menu.contains(event.target)) {
-          menu.open = false;
+    const clearButton = event.target.closest ? event.target.closest('[data-clear-filters]') : null;
+
+    if (clearButton && form) {
+      event.preventDefault();
+
+      form.querySelectorAll('[data-filter]').forEach((field) => {
+        if (field.type === 'checkbox' || field.type === 'radio') {
+          field.checked = false;
+        } else {
+          field.value = '';
         }
       });
-    });
 
-    renderFilterChips();
-    renderFilterMenus();
-  }
+      applyFilters(form);
+      return;
+    }
+
+    // A click outside a menu closes it, so two open menus never sit over each other while
+    // the reader is trying to use the one underneath.
+    document.querySelectorAll('[data-filters] details[open]').forEach((menu) => {
+      if (!menu.contains(event.target)) {
+        menu.open = false;
+      }
+    });
+  });
+
+  filterForms().forEach((form) => {
+    renderFilterChips(form);
+    renderFilterMenus(form);
+  });
+  syncFilterCard();
 
   // -------------------------------------------------------- keeping the place
   // The row the reader is looking at: the first one crossing the anchor line. Null
@@ -888,16 +1397,13 @@ if (listRegion) {
     });
 
     const filterTemplate = next.querySelector('template[data-live-filters]');
-    const filters = document.getElementById('itemFilters');
-    if (filters && filterTemplate) {
-      // Preserve the form itself and its delegated listeners as facets come and go.
-      if (filterTemplate.content.childElementCount) {
-        reconcileLiveChildren(filters, filterTemplate.content);
-        const hidden = filterTemplate.dataset.empty === '1';
-        if (filters.hidden !== hidden) filters.hidden = hidden;
-      } else if (!filters.hidden) {
-        filters.hidden = true;
-      }
+    const filterCard = document.getElementById('itemFilters');
+
+    if (filterCard && filterTemplate && filterTemplate.content.childElementCount) {
+      // Preserve the rows themselves, and the menus and chips inside them, as the facets come
+      // and go. Which row is on screen - and whether the card is drawn at all - is decided by
+      // syncFilterCard() once the new markup is in place.
+      reconcileLiveChildren(filterCard, filterTemplate.content);
     }
 
     const rowTops = captureRowTops(listRegion);
@@ -914,6 +1420,8 @@ if (listRegion) {
     relativeTick(listRegion);
     noteClosedRequests();
     syncRequestDialog();
+    applyListSearch();
+    syncFilterCard();
   }
 
   /**
@@ -1683,6 +2191,74 @@ if (listRegion) {
 
   noteClosedRequests();
 
+  // ------------------------------------------------------------ pending requests badge
+  // The number on the avatar is drawn by the server along with the page, and a live refresh
+  // of the list under it is a fragment, so nothing ever redrew the circle. This is the other
+  // half: when an ask lands on something the signed-in person owns, the server tells their
+  // own pages the new total and the circle is brought up to date in place.
+  const PENDING_BADGE_CAP = 99;
+
+  /**
+   * What the badge should say for a count, and the two sentences that carry it to somebody
+   * who cannot see the circle.
+   *
+   * Kept as one pure function because the wording has to match the page the server draws:
+   * if the two drift, the count would appear to change when the page is reloaded.
+   */
+  function pendingBadgeState(count, name) {
+    const waiting = Math.max(0, Math.trunc(Number(count) || 0));
+    const said = `${waiting} request${waiting === 1 ? '' : 's'} to process`;
+
+    return {
+      waiting,
+      badge:
+        waiting === 0
+          ? ''
+          : waiting > PENDING_BADGE_CAP
+            ? `${PENDING_BADGE_CAP}+`
+            : String(waiting),
+      title: waiting > 0 ? `${name} - ${said}` : name,
+      label: `Account menu for ${name}${waiting > 0 ? `, ${said}` : ''}`,
+    };
+  }
+
+  /** Draw the count where the server would have drawn it, without reloading anything. */
+  function applyPendingBadge(count) {
+    const button = document.getElementById('accountMenuButton');
+
+    if (!button) {
+      return;
+    }
+
+    const slot = button.querySelector('.avatar-slot');
+    // The header draws no name of its own any more, so the button carries it as data - the
+    // label it says out loud is built from the same word the page was drawn with.
+    const state = pendingBadgeState(count, button.dataset.accountName || '');
+    let badge = slot ? slot.querySelector('.avatar-badge') : null;
+
+    if (!state.badge) {
+      // Nothing waiting is no circle at all, the same as a page drawn with nothing waiting.
+      if (badge) badge.remove();
+    } else if (slot) {
+      if (!badge) {
+        badge = document.createElement('span');
+        badge.className = 'avatar-badge';
+        badge.setAttribute('aria-hidden', 'true');
+        slot.append(badge);
+      }
+      badge.textContent = state.badge;
+    }
+
+    button.title = state.title;
+
+    const said = button.querySelector('.visually-hidden');
+
+    if (said) {
+      said.textContent = state.label;
+    }
+  }
+  // ------------------------------------------------------ end pending requests badge
+
   // ------------------------------------------------------------------- socket
   const socket = typeof window.io === 'function' ? window.io({ withCredentials: true }) : null;
 
@@ -1701,6 +2277,13 @@ if (listRegion) {
     socket.on('disconnect', () => setLiveState('wait'));
     socket.on('connect_error', () => setLiveState('wait'));
     socket.on('items:changed', () => scheduleRefresh());
+    // Addressed to this person only, and carrying the total rather than a change: two tabs
+    // and a phone all end up showing the same number.
+    socket.on('requests:pending', (payload) => {
+      if (payload && typeof payload.count !== 'undefined') {
+        applyPendingBadge(payload.count);
+      }
+    });
   } else {
     setLiveState('off');
   }
@@ -1889,7 +2472,7 @@ async function fetchOwnerRequests(url, options = {}) {
   });
 
   if (!response.ok) {
-    throw new Error('Your requests could not be loaded. Nothing was changed.');
+    throw new Error('My Requests could not be loaded. Nothing was changed.');
   }
 
   return response.text();
@@ -1965,6 +2548,14 @@ async function answerOwnerRequest(form, submitter = null) {
       showToast(recorded.textContent.trim(), 'ok');
     }
 
+    // The card names the house when the item just answered stands in one, where no bag can
+    // recount it; the first such answer in a session says what to do about it.
+    const placed = card ? card.querySelector('[data-house-rescan]') : null;
+
+    if (placed) {
+      noteHouseRescan(placed.getAttribute('data-house-rescan'));
+    }
+
     refreshAfterChange();
   } catch (error) {
     buttons.forEach((button) => {
@@ -2013,6 +2604,103 @@ document.addEventListener('submit', (event) => {
   answerOwnerRequest(form, event.submitter || null);
 });
 
+// ------------------------------------------- placed furnishings, once a session
+// A placed furnishing is not in any bag, so nothing on this site can count it: the row
+// reads "Placed (Mournoth Keep)" and its number stays what the last scan found, however
+// many copies have been picked up since. Answering one is therefore a handover whose
+// other half happens in the game, and the count of what is left has to come from a new
+// scan. The first answer of a session for a placed item says so, once, not once per row.
+const HOUSE_RESCAN_KEY = 'itemshare:house-rescan-notice';
+let houseRescanNotice = null;
+
+function closeHouseRescanNotice() {
+  if (houseRescanNotice) {
+    houseRescanNotice.remove();
+    houseRescanNotice = null;
+  }
+
+  document.removeEventListener('keydown', onHouseRescanKey);
+}
+
+function onHouseRescanKey(event) {
+  if (event.key === 'Escape') {
+    closeHouseRescanNotice();
+  }
+}
+
+function showHouseRescanNotice(where) {
+  closeHouseRescanNotice();
+
+  const backdrop = document.createElement('div');
+  backdrop.className = 'modal-backdrop';
+  backdrop.innerHTML = `
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="houseRescanTitle">
+      <h2 id="houseRescanTitle">Scan that house again</h2>
+      <p class="muted">
+        <strong data-house-where></strong> stands in a house rather than in a bag, so this
+        site cannot count it: the number here is still the one your last scan found.
+      </p>
+      <p class="muted">
+        Walk into that house and run <strong>/ishare scan</strong>, then save and upload your
+        saved variables file. That upload is what puts the new count on the site - until it
+        arrives, copies that are already gone are still being offered.
+      </p>
+      <div class="modal-actions">
+        <button class="primary-button" type="button" data-close-house-rescan>Got it</button>
+      </div>
+    </div>`;
+  document.body.appendChild(backdrop);
+  houseRescanNotice = backdrop;
+  document.addEventListener('keydown', onHouseRescanKey);
+
+  // Written as text after the dialog is on the page: the name comes from a saved-variables
+  // file, so it is data, not markup.
+  const named = backdrop.querySelector('[data-house-where]');
+
+  if (named) {
+    named.textContent = String(where || '');
+  }
+
+  backdrop.addEventListener('click', (event) => {
+    if (
+      event.target === backdrop ||
+      (event.target.closest && event.target.closest('[data-close-house-rescan]'))
+    ) {
+      closeHouseRescanNotice();
+    }
+  });
+
+  const button = backdrop.querySelector('[data-close-house-rescan]');
+
+  if (button) {
+    button.focus();
+  }
+}
+
+/**
+ * Says it once per session. The session is the tab's: a second placed answer in the same
+ * tab is the same person already told, while a new tab is somebody starting again.
+ * Storage that refuses to be written - a private window - still gets the notice, because
+ * being told twice is better than never being told at all.
+ */
+function noteHouseRescan(where) {
+  if (!where) {
+    return;
+  }
+
+  try {
+    if (window.sessionStorage.getItem(HOUSE_RESCAN_KEY) === '1') {
+      return;
+    }
+
+    window.sessionStorage.setItem(HOUSE_RESCAN_KEY, '1');
+  } catch (error) {
+    // Nothing to remember it with, so say it and move on.
+  }
+
+  showHouseRescanNotice(where);
+}
+
 // ------------------------------------------------------------ leaving the page
 // The browser's own beforeunload dialog cannot be styled, so the prompt here is a
 // real one and beforeunload is only the last resort for a closed tab or a form post.
@@ -2022,20 +2710,47 @@ let leavePrompt = null;
 let leaveConfirmed = false;
 let internalNavigation = false;
 
-// The inline onchange submits directly, which does not fire a submit event.
-// Capture the change before it runs: this switch keeps the same server-side bag.
+// Choosing an account posts the form from script, which does not fire a submit event, so
+// both things happen here: the navigation is marked as internal - the switch keeps the
+// same server-side bag - and the form is sent, taking the page back scoped to the account
+// that was picked.
 document.addEventListener('change', (event) => {
-  if (event.target.matches?.('#browsingAccount') &&
-      event.target.form?.getAttribute('action') === '/browsing-account') {
-    internalNavigation = true;
+  if (
+    !event.target.matches?.('[data-browsing-account]') ||
+    event.target.form?.getAttribute('action') !== '/browsing-account'
+  ) {
+    return;
+  }
+
+  internalNavigation = true;
+
+  const picked = event.target.closest?.('[data-browsing-account]');
+
+  if (picked && picked.form) {
+    picked.form.submit();
   }
 }, true);
 
 document.addEventListener('submit', (event) => {
-  if (event.target.getAttribute('action') === '/browsing-account') {
+  const action = event.target.getAttribute('action');
+
+  // Looking at the site as somebody else keeps the basket too: it is held against the
+  // person, and the person is coming back. Switching to it should not raise a question
+  // about leaving.
+  if (action === '/browsing-account' || action === '/view-as') {
     internalNavigation = true;
   }
 }, true);
+
+// A <details> only closes from its own summary, so the picker's menu is closed by a click
+// anywhere else - the way the filter menus above the list behave.
+document.addEventListener('click', (event) => {
+  const open = document.querySelector('details[data-browsing-menu][open]');
+
+  if (open && !open.contains(event.target)) {
+    open.open = false;
+  }
+});
 
 function closeLeavePrompt() {
   if (leavePrompt) {
@@ -2298,11 +3013,16 @@ function animatePanelHeights(root, heights) {
 //
 // Units are counted the way a person counts: years and months first, anchored on the
 // original date so a month-end does not skip a month, then days, hours, minutes, seconds.
-// A unit that is zero is left out, because zero is not news: "12s", "08m 41s",
-// "01y 04mo 19d 07h 33m 05s". Every unit that is shown keeps two digits, so a column
-// right-aligns and the older rows never shift sideways as a count goes from one digit to
-// two. One timer drives every cell on the page, and a cell whose text has not changed is
-// not written to, so a long list costs only the arithmetic per tick.
+// The count begins at the largest unit that holds anything and then writes every unit to its
+// right, zeroes and all: "02s", "01m 00s", "04d 00h 00m 00s", "01mo 00d 00h 00m 00s".
+// A zero therefore only appears where a bigger unit has already been written - "00d" means a
+// month or more, "00h" means a day or more - so a young row is never padded out with units it
+// has not reached. Once a unit is written, nothing to its right is dropped for being zero,
+// which is what keeps the cell from losing a field and gaining it back a second later as the
+// count rolls over. Every unit keeps two digits, so a column right-aligns and the older rows
+// never shift sideways as a count goes from one digit to two. One timer drives every cell on
+// the page, and a cell whose text has not changed is not written to, so a long list costs only
+// the arithmetic per tick.
 const RELATIVE_TICK_MS = 1000;
 const MINUTE_MS = 60 * 1000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -2363,24 +3083,45 @@ function relativeUnits(from, to) {
 }
 
 /**
- * "01y 04mo 19d 07h 33m 05s", skipping the units that are zero, and "just now" at zero.
+ * "02s" for something just offered, "18m 04s", "04d 00h 00m 00s", "01mo 00d 00h 00m 00s"
+ * for an old row, and "just now" at zero.
+ *
+ * The count begins at the largest unit that holds anything - two seconds starts at seconds,
+ * four days starts at days - and from there every unit to its right is written, zero or not.
+ * So a zero only ever appears after a bigger unit has been written: "00h" on a row is a day
+ * or more old, never a young row padded out to a fixed width. Once a unit is written it is
+ * never dropped for being zero, so the count does not lose a field and gain it back as it
+ * rolls over.
  *
  * Each unit is two digits wide for the same reason a clock is: the countdown is read as a
  * column, and "1m" growing to "10m" must not push the rest of the row along with it.
  */
 function relativeText(from, to) {
   const units = relativeUnits(from, to);
-  const parts = [];
   const pad = (value) => String(value).padStart(2, '0');
 
-  if (units.years) parts.push(`${pad(units.years)}y`);
-  if (units.months) parts.push(`${pad(units.months)}mo`);
-  if (units.days) parts.push(`${pad(units.days)}d`);
-  if (units.hours) parts.push(`${pad(units.hours)}h`);
-  if (units.minutes) parts.push(`${pad(units.minutes)}m`);
-  if (units.seconds) parts.push(`${pad(units.seconds)}s`);
+  // Biggest first, which is also the order they are read in.
+  const fields = [
+    ['y', units.years],
+    ['mo', units.months],
+    ['d', units.days],
+    ['h', units.hours],
+    ['m', units.minutes],
+    ['s', units.seconds],
+  ];
 
-  return parts.length > 0 ? parts.join(' ') : 'just now';
+  // The field the count starts at: the first one holding anything. Nothing at all is a moment
+  // that has only just been stamped, and it reads as words rather than as a row of zeroes.
+  const start = fields.findIndex(([, value]) => value > 0);
+
+  if (start === -1) {
+    return 'just now';
+  }
+
+  return fields
+    .slice(start)
+    .map(([unit, value]) => `${pad(value)}${unit}`)
+    .join(' ');
 }
 
 /** Rewrites every countdown under `root`, and puts the exact local time in its tooltip. */

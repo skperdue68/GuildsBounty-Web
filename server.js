@@ -1,8 +1,14 @@
 #!/usr/bin/env node
-import { readCookie, readGrouping } from './lib/preferences.js';
+import { readCollapsedTypes, readCookie, readGrouping } from './lib/preferences.js';
+import {
+  SORT_FIELDS,
+  SHARED_SORT_FIELDS,
+  drawnQueue,
+  parseSortOrder,
+} from './lib/sortQueue.js';
 import { keepDemoShelfFull } from './lib/demoShelf.js';
 import { errorLine, logLine, warnLine } from './lib/log.js';
-// ItemShare upload site: signs in with Discord or Google (both optional),
+// Guild's Bounty upload site: signs in with Discord or Google (both optional),
 // accepts ItemShareSavedVars.lua and replaces every shared item for every ESO
 // account in the file. Styling follows the GuildSync palette.
 //
@@ -20,6 +26,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import { readDiscordBotConfig, createDiscordBotRouter } from './lib/discord-bot-api.js';
 import { createDiscordBotStore } from './lib/discord-bot-store.js';
+import { createDiscordSubmissionNotifier } from './lib/discord-bot-notifications.js';
 import { createGuildSyncReader } from './lib/discord-bot-guildsync.js';
 
 import { extractShareData } from './lib/savedVars.js';
@@ -32,6 +39,7 @@ import {
   createPasswordReset,
   consumePasswordReset,
   createRequest,
+  pendingRequestBadges,
   expireDueDrafts,
   fillKnownIcons,
   getAccountSummary,
@@ -39,7 +47,11 @@ import {
   getBasketRows,
   getDraftBasket,
   getFulfillForm,
+  getFulfillTokenOwner,
+  getOwnItemFacets,
   getOwnerContacts,
+  countOwnerRequests,
+  getOwnerRequestHistory,
   getOwnerRequests,
   getRequesterNotifications,
   getRequesterHistory,
@@ -49,11 +61,13 @@ import {
   listAccountServers,
   getViewerFacets,
   getViewerGuilds,
+  getViewAsUser,
   createGuildCode,
   findGuildCode,
   findOwnGuild,
   revokeGuildCode,
   listGuildCodes,
+  listViewAsUsers,
   redeemGuildCode,
   getBrowsingAccount,
   issueRequestEmailToken,
@@ -98,6 +112,7 @@ import { emailConfig, renderRequestEmail, renderStatusEmail, sendEmail } from '.
 import { renderPasswordResetEmail } from './lib/passwordResetEmail.js';
 import { getItemTip } from './lib/uesp.js';
 import { buildProviders } from './lib/providers.js';
+import { isViewAsOperator } from './lib/viewAs.js';
 import { isGuildCode, normalizeGuildCode } from './lib/guildCodes.js';
 import { normalizeEsoAccountName } from './lib/accountNames.js';
 import {
@@ -145,6 +160,56 @@ const STARTED_LABEL = new Date().toISOString().replace('T', ' ').replace(/\.\d+Z
 
 const PORT = Number(process.env.PORT || 3000);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+
+// The site answers on more than one name while the rebrand settles. `itemshare.perdues.me` is
+// the old one: it still serves everything, and somebody arriving by it is told once where the
+// site has moved. Any other name is simply the site, so the notice never appears for people
+// who came in the new way. Set LEGACY_HOSTS to a comma separated list to change which names
+// count as the old address, or to '' to serve the notice on none of them.
+const LEGACY_HOSTS = new Set(
+  String(process.env.LEGACY_HOSTS === undefined ? 'itemshare.perdues.me' : process.env.LEGACY_HOSTS)
+    .split(',')
+    .map((host) => host.trim().toLowerCase())
+    .filter(Boolean)
+);
+
+// The address the notice points at; the one the site is being renamed to.
+const NEW_SITE_URL = String(process.env.NEW_SITE_URL || 'https://guildsbounty.perdues.me').trim();
+
+/**
+ * The name the browser asked for, without the port.
+ *
+ * A proxy in front of the site keeps the original name in X-Forwarded-Host, so that is read
+ * first: the Host the app itself sees would otherwise be the proxy's own, and the notice would
+ * appear for everybody or for nobody depending on the setup.
+ */
+function requestHost(req) {
+  const headers = (req && req.headers) || {};
+  // In order of how much the header is to be trusted. RFC 7239 `Forwarded:
+  // for=1.2.3.4;host=itemshare.perdues.me;proto=https` is the standard one, and only its first
+  // entry counts: that is the name the browser asked for, the rest are hops behind it.
+  //
+  // `X-Served-By` is not standard at all - proxies invented it, and some of them (the one in
+  // front of this site among them) put the name they were asked for in it while rewriting
+  // `Host` to the upstream. It is read before `Host` for that reason: on such a proxy `Host`
+  // is a container name, and believing it means the rebrand card can never draw.
+  const forwarded = String(headers.forwarded || '').split(',')[0];
+  const named = /(?:^|;)\s*host=("?)([^";]+)\1/i.exec(forwarded);
+  const raw = String(
+    (named && named[2]) ||
+      headers['x-forwarded-host'] ||
+      headers['x-served-by'] ||
+      headers.host ||
+      ''
+  );
+
+  return raw.split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
+}
+
+/** Whether this request came in by one of the site's old names. */
+function arrivedFromLegacyHost(req) {
+  return LEGACY_HOSTS.has(requestHost(req));
+}
 
 // Both providers speak OAuth2 authorization code, so one flow serves both. Only
 // the endpoints, scopes and profile fields differ.
@@ -203,11 +268,9 @@ if (discordBotConfig.enabled) {
   });
   app.use('/api/discord/v1',createDiscordBotRouter({
     config:discordBotConfig,store,logger:warnLine,
-    onSubmitted:async({user,submitted,contacts})=>{
-      // The request is committed before mail. Always update browsers, even if mail fails.
-      notifyItemsChanged('request',`Discord member submitted an ItemShare request`);
-      await emailOwners({user,submitted,contacts:new Map(contacts)});
-    },
+    onSubmitted:createDiscordSubmissionNotifier({
+      announcePendingRequests, notifyItemsChanged, emailOwners,
+    }),
   }));
 }
 app.use(express.urlencoded({ extended: false }));
@@ -223,6 +286,16 @@ const sessionMiddleware = session({
   cookie: { httpOnly: true, sameSite: 'lax', secure: false, maxAge: SESSION_TTL_MS },
 });
 app.use(sessionMiddleware);
+
+// The name the app believes it was asked for, said back in a header. The rebrand card turns on
+// that name, and behind a proxy that rewrites Host - or sends neither X-Forwarded-Host nor
+// Forwarded - the app sees the proxy's own name instead and the card can never appear.
+// `curl -sI https://the-old-name/` then says whether the name arrived (it echoes it) or
+// something else did (a container name, `localhost`, an IP), which is the whole question.
+app.use((req, res, next) => {
+  res.set('X-Site-Host', requestHost(req) || 'unknown');
+  next();
+});
 
 // Every request after this runs in the database its person belongs to, so a demo
 // session cannot reach the real guilds even through a route that forgot the rule.
@@ -247,7 +320,13 @@ app.use(express.static(path.join(__dirname, 'public')));
 app.use((req, res, next) => {
   const user = req.session ? req.session.user : null;
 
-  if (user || req.method !== 'POST' || !req.path.startsWith('/requests')) {
+  // The email form's own link is the exception: its token is the whole credential, it answers
+  // only that email's rows, and refusing it for want of a session is what left owners looking
+  // at "sign in" after pressing Save in the message. Every other write under /requests is
+  // somebody asking for an item, and that needs a person behind it.
+  const byEmailToken = req.path.startsWith('/requests/fulfill/');
+
+  if (user || req.method !== 'POST' || !req.path.startsWith('/requests') || byEmailToken) {
     next();
     return;
   }
@@ -307,15 +386,175 @@ app.use((req, res, next) => {
   });
 });
 
+// The number on the avatar: how many asks are waiting on this person's own items.
+//
+// It is worked out here, once, for the full page loads that draw a header, and hung on the
+// session user for this request only. A nested write is not a session change, so nothing
+// is written back to the session store - and because every render already receives the
+// user, each page shows the count without a query of its own.
+app.use((req, res, next) => {
+  const user = req.session ? req.session.user : null;
+  const accept = req.get('accept') || '';
+
+  // A fragment or a JSON body is fetched by script on a page that already counted, so
+  // those are left alone: the badge belongs to a page, not to a live refresh of it.
+  if (!user || req.method !== 'GET' || !accept.includes('text/html')) {
+    next();
+    return;
+  }
+
+  withDatabase(async (connection) => {
+    const accounts = await getViewerAccounts(connection, user.id);
+
+    return countOwnerRequests(
+      connection,
+      accounts.map((row) => row.eso_account_name)
+    );
+  })
+    .then((waiting) => {
+      req.session.user.pendingRequests = waiting;
+      next();
+    })
+    // A count that could not be read must not cost somebody the page they asked for: the
+    // header is drawn without it and the next page tries again.
+    .catch(() => next());
+});
+
+// --------------------------------------------------- looking at the site as somebody else
+//
+// A test tool, hidden behind one Discord handle (see lib/viewAs.js). It swaps the person the
+// session acts as, so every page, count, query and write sees the site the way that person
+// does - their guilds, their shelf, their requests, their empty states - without anybody
+// being handed a password. The person who really signed in is kept beside it in the session,
+// which is what makes the way back possible and what every gate below is checked against.
+//
+// It is deliberately not a role: nothing in the database grants it, and no page, option or
+// error message mentions it to anybody who does not already have it. Both routes answer
+// everybody else with the 404 the site gives for a page that is not there.
+function viewAsOriginal(req) {
+  const view = req.session ? req.session.viewAs : null;
+
+  return view && view.original ? view.original : null;
+}
+
+/** Who really signed in - the person who picked somebody else, not the person picked. */
+function viewAsSignedIn(req) {
+  if (!req.session || !req.session.user) {
+    return null;
+  }
+
+  return viewAsOriginal(req) || req.session.user;
+}
+
+/** Back to being yourself, whatever the session was looking at. */
+function restoreOwnLogin(req) {
+  const original = viewAsOriginal(req);
+
+  if (!original) {
+    return;
+  }
+
+  req.session.user = original;
+  delete req.session.viewAs;
+  // Which ESO accounts are "mine" was read for the person being looked at.
+  req.session.accountNames = null;
+}
+
+// The menu's own data, worked out per page and hung on the user that page is drawn for.
+// Defined as a non-enumerable property on purpose: the session store writes the session with
+// JSON.stringify, so a list of everybody in the site never reaches itemshare_sessions and is
+// rebuilt fresh on the next page instead of going stale in a row.
+app.use((req, res, next) => {
+  const real = viewAsSignedIn(req);
+  const accept = req.get('accept') || '';
+
+  if (!isViewAsOperator(real) || req.method !== 'GET' || !accept.includes('text/html')) {
+    next();
+    return;
+  }
+
+  const acting = viewAsOriginal(req)
+    ? { id: Number(req.session.user.id), name: String(req.session.user.username || '') }
+    : null;
+
+  // Never offered in its own list: your own name is not a place to go, it is the place the
+  // way back leads.
+  const skip = [Number(real.id)].filter((id) => id > 0);
+
+  // While looking at somebody, the menu draws no picker at all - the way back is the whole of
+  // it - so the list is not asked for either. One fewer query on every page of an acting
+  // session, and nothing to go stale between pages.
+  const listPeople = acting
+    ? Promise.resolve([])
+    : withDatabase((connection) =>
+        listViewAsUsers(connection, { isDemo: Boolean(real.isDemo), exclude: skip })
+      );
+
+  listPeople
+    .then((people) => {
+      Object.defineProperty(req.session.user, 'viewAs', {
+        value: { people, acting },
+        enumerable: false,
+        configurable: true,
+        writable: true,
+      });
+
+      next();
+    })
+    // A menu that could not be built must not cost somebody their page: the rest of the
+    // menu is drawn as usual and the next page tries again.
+    .catch(() => next());
+});
+
 // Socket.IO rides on the same HTTP server as Express, under /socket.io, so live
 // updates need no second port, no extra proxy rule and no separate auth.
 const httpServer = createServer(app);
-const realtime = attachRealtime({ httpServer, sessionMiddleware });
+const realtime = attachRealtime({
+  httpServer,
+  sessionMiddleware,
+  // The count a socket is greeted with, worked out exactly as the header's own query does.
+  resolvePending: (userId) =>
+    withDatabase(async (connection) => {
+      const accounts = await getViewerAccounts(connection, userId);
+
+      return countOwnerRequests(
+        connection,
+        accounts.map((row) => row.eso_account_name)
+      );
+    }),
+});
 
 // A demo reservation is real only inside the demo copy, so it is never announced to
 // everybody else's open page. The scope is already known: it is the database this
 // request is reading.
 const pushChange = realtime.notifyChange;
+
+/**
+ * Tells the owners of these accounts their new badge number, each on every page they have
+ * open. Called after anything that changes how many asks are waiting on their shelf.
+ *
+ * The number is read back from the database rather than adjusted by one, so a person with
+ * several accounts, or two requests landing at once, cannot end up with a count that the
+ * requests list disagrees with. A failure here costs a stale circle on somebody's avatar and
+ * nothing else, so it never fails the action that caused it.
+ */
+async function announcePendingRequests(accountNames) {
+  const names = (accountNames || []).map((name) => String(name || '').trim()).filter(Boolean);
+
+  if (names.length === 0) {
+    return;
+  }
+
+  try {
+    const badges = await withDatabase((connection) => pendingRequestBadges(connection, names));
+
+    for (const badge of badges) {
+      realtime.notifyPendingRequests(badge.userId, badge.count);
+    }
+  } catch (error) {
+    console.error(`Badge update failed for ${names.join(', ')}: ${error.message}`);
+  }
+}
 
 function notifyItemsChanged(kind, message) {
   // A demo change is real, but only inside the copy. It goes to the demo pages rather
@@ -599,7 +838,7 @@ async function emailAnswered(rows, { demo = false } = {}) {
 }
 
 // Every page the site can end up on uses the same shell, so a cancelled sign-in or
-// a wrong address looks like ItemShare rather than a line of unstyled text.
+// a wrong address looks like Guild's Bounty rather than a line of unstyled text.
 function sendPage(req, res, status, options) {
   res
     .status(status)
@@ -719,27 +958,43 @@ async function withDatabase(handler) {
   return withDatabaseOn(requestDatabase.getStore() || readConfig().database, handler);
 }
 
-const SORT_FIELDS = new Set(['type', 'name', 'added']);
-const ADDED_WINDOWS = new Set(['1', '7', '30']);
+const ADDED_WINDOWS = new Set(['1', '3', '7', '14', '30', 'last-chance']);
 
 // The sort order is a reading preference, not a filter: it is kept in a small cookie so
-// the address bar stays a plain link to the filters, safe to share or bookmark. A
-// ?sort= still wins when it is present, so an older bookmark keeps behaving.
+// the address bar stays a plain link to the filters, safe to share or bookmark. The
+// cookie holds a queue of columns - `name:asc,type:desc` - read back by lib/sortQueue.js,
+// so several headings can be on at once. A ?sort= still wins when it is present, so an
+// older bookmark, which only knows one column, keeps behaving.
 const SORT_COOKIE = 'itemshare_sort';
 
 // Grouping is its own preference, for the same reason: turning the type headings off
 // should not disturb the order somebody chose from the column headings.
 const GROUP_COOKIE = 'itemshare_group';
+// My Inventory keeps its own: whether one list is cut up by type is a reading choice about
+// that list, so turning the headings off there must not turn them off on Browse Offers too.
+const GROUP_COOKIE_MINE = 'itemshare_group_mine';
+
+// Which type headings are folded shut, again one list each. It is a reading choice about a
+// table, not something a link should carry, so it lives beside the grouping rather than in
+// the address bar.
+const FOLDED_COOKIE = 'itemshare_collapsed';
+const FOLDED_COOKIE_MINE = 'itemshare_collapsed_mine';
 
 
-function readFilters(query, sortCookie = '', groupCookie = '') {
-  const sort = readParam(query.sort);
-  const dir = readParam(query.dir);
+function readFilters(query, cookieHeader = '') {
   const added = readParam(query.added);
-  // "name:desc" - the field and the direction in one small value.
-  const remembered = String(sortCookie || '').split(':');
-  const chosenSort = sort || remembered[0];
-  const chosenDir = dir || remembered[1];
+  // My Inventory's own three, so one list's filters never narrow the other: a type chosen on
+  // the offers other people share says nothing about the types inside the viewer's own bag.
+  const addedMine = readParam(query.madded);
+  const asked = readParam(query.sort);
+  const askedDir = readParam(query.dir) === 'desc' ? 'desc' : 'asc';
+
+  // The order is a queue of columns, so a second heading can break the ties the first
+  // leaves. The address bar still wins when it names a column - an older bookmark knows
+  // only one, which is a queue of one - and the cookie answers otherwise.
+  const order = SORT_FIELDS.includes(asked)
+    ? [{ field: asked, dir: askedDir }]
+    : parseSortOrder(readCookie(cookieHeader, SORT_COOKIE));
 
   return {
     // Several types or owners at once arrive as repeated parameters, so they stay
@@ -750,10 +1005,18 @@ function readFilters(query, sortCookie = '', groupCookie = '') {
     // Only the values the list actually offers get through, so a hand-typed ?sort=
     // or ?added= falls back to the default instead of reaching the query.
     added: ADDED_WINDOWS.has(added) ? added : '',
-    sort: SORT_FIELDS.has(chosenSort) && chosenSort !== 'type' ? chosenSort : 'type',
-    dir: chosenDir === 'desc' ? 'desc' : 'asc',
-    // Headings are drawn while this is true, whatever the order is.
-    group: readGrouping(groupCookie),
+    // The same three for My Inventory, under their own names, kept apart the same way.
+    typeMine: filterList(query.mtype),
+    ownerMine: filterList(query.mowner),
+    addedMine: ADDED_WINDOWS.has(addedMine) ? addedMine : '',
+    order,
+    // Headings are drawn while this is true, whatever the order is. One flag per list: Browse
+    // Offers reads `group`, My Inventory reads `groupMine`, and neither moves the other.
+    group: readGrouping(readCookie(cookieHeader, GROUP_COOKIE)),
+    groupMine: readGrouping(readCookie(cookieHeader, GROUP_COOKIE_MINE)),
+    // And the types folded away inside each of those lists, kept the same way.
+    collapsed: readCollapsedTypes(readCookie(cookieHeader, FOLDED_COOKIE)),
+    collapsedMine: readCollapsedTypes(readCookie(cookieHeader, FOLDED_COOKIE_MINE)),
   };
 }
 
@@ -799,9 +1062,15 @@ async function viewerAccountNames(req, connection, user) {
       alwaysShare: [],
       requestOffers: [],
     requests: [],
+    // What was asked of this person, and what became of the asks already answered: the
+    // Requests Received tab draws both.
+    received: [],
+    receivedHistory: [],
+    answered: null,
     basket: { count: 0, quantity: 0, secondsLeft: 0, holdMinutes: HOLD_MINUTES },
     basketRows: [],
     facets: { types: [], owners: [] },
+    facetsMine: { types: [], owners: [] },
     filters,
     dbError: null,
     accountServers: [],
@@ -831,24 +1100,53 @@ async function viewerAccountNames(req, connection, user) {
 
         // Request is fetched twice on purpose: once for the chosen account, whose
         // guilds are the only ones its list may show, and once across every account
-        // for Offering, where nothing a second account shares should disappear.
+        // for My Inventory, where nothing a second account shares should disappear.
         const requestScope = data.browsingAccount ? [data.browsingAccount] : accountNames;
 
         // The basket note on a row is read by person, not by the account the row belongs
         // to, so the signed-in person's id is what has to go down to the list.
         const viewerUserId = user ? user.id : 0;
 
+        // The Request list draws no LOCATION column, so a sort left on LOCATION from My
+        // Inventory is dropped from its queue rather than ordering rows by a column the page
+        // cannot show or switch off. The view cuts the queue the same way when it draws the
+        // headings (see `tableFilters` in lib/views.js), so the numbers and the rows agree.
+        const sharedOrder = drawnQueue(filters.order, SHARED_SORT_FIELDS);
+
         data.facets = await getViewerFacets(connection, requestScope);
-        data.sharedItems = await getSharedItemsForViewer(connection, accountNames, {
+        data.facetsMine = await getOwnItemFacets(connection, accountNames);
+        // My Inventory reads its own three filters: the six names never meet, so narrowing the
+        // offers somebody else shares cannot hide a row inside the viewer's own bag.
+        const mineFilters = {
           ...filters,
+          type: filters.typeMine,
+          owner: filters.ownerMine,
+          added: filters.addedMine,
+        };
+
+        data.sharedItems = await getSharedItemsForViewer(connection, accountNames, {
+          ...mineFilters,
           viewerUserId,
         });
         data.requestItems = await getSharedItemsForViewer(connection, requestScope, {
           ...filters,
+          order: sharedOrder,
           viewerUserId,
         });
-        data.alwaysShare = await getAlwaysShareForViewer(connection, accountNames, filters);
-        data.requestOffers = await getAlwaysShareForViewer(connection, requestScope, filters);
+        data.alwaysShare = await getAlwaysShareForViewer(connection, accountNames, mineFilters);
+
+        // The owner's side of the same table, in the page rather than a page of its own: what
+        // is waiting on their items, and what they have already answered. A visitor has no
+        // accounts, so both stay empty and the tab is not drawn for them.
+        if (user) {
+          data.received = await getOwnerRequests(connection, accountNames);
+          data.receivedHistory = await getOwnerRequestHistory(connection, accountNames);
+          data.answered = readAnsweredCounts(req.query.answered);
+        }
+        data.requestOffers = await getAlwaysShareForViewer(connection, requestScope, {
+          ...filters,
+          order: sharedOrder,
+        });
       // A hold follows the account it was asked from. Reading the basket without this
       // leaves the state the item list already complains about: a copy held by a person
       // this sign-in is not, with nothing to send and nothing to cancel. It runs on a
@@ -885,13 +1183,13 @@ async function viewerAccountNames(req, connection, user) {
 
   return data;
 }  app.get('/', async (req, res) => {
-    res
-      .type('html')
-      .send(renderPage(await collectViewerData(req, readFilters(
-      req.query,
-      readCookie(req.headers.cookie, SORT_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE)
-    ))));
+    const data = await collectViewerData(req, readFilters(req.query, req.headers.cookie));
+
+    // Only the page somebody lands on says this: the notice is about the address they used,
+    // not about the site, and repeating it on every live refresh would be a nag.
+    data.rebrandNotice = arrivedFromLegacyHost(req) ? { newUrl: NEW_SITE_URL } : null;
+
+    res.type('html').send(renderPage(data));
   });
 
   // Choosing the account to browse as. A plain form POST, so it still works with the
@@ -931,7 +1229,7 @@ async function viewerAccountNames(req, connection, user) {
         .type('html')
         .send(
           renderMessagePage({
-            title: 'Browsing account \u00b7 ItemShare',
+            title: 'Browsing account \u00b7 Guild\'s Bounty',
             heading: 'That account is not yours',
             message: error.message,
             tone: 'error',
@@ -949,11 +1247,7 @@ async function viewerAccountNames(req, connection, user) {
 // The live update: the same list the page was built from, as a fragment, using the
 // filters this browser already has. A non-200 means "leave the screen alone" - a
 // database hiccup must not replace a good list with an error card.
-app.get('/items', async (req, res) => {    const data = await collectViewerData(req, readFilters(
-      req.query,
-      readCookie(req.headers.cookie, SORT_COOKIE),
-      readCookie(req.headers.cookie, GROUP_COOKIE)
-    ));
+app.get('/items', async (req, res) => {    const data = await collectViewerData(req, readFilters(req.query, req.headers.cookie));
 
   if (data.dbError) {
     res.status(503).json({ error: data.dbError });
@@ -1168,6 +1462,10 @@ app.post('/requests', async (req, res) => {
         }
     });
 
+    // The owner's own pages, and only theirs: the number on their avatar is about their
+    // shelf. Everyone else who is looking at that stack is told to refresh as before.
+    await announcePendingRequests([outcome.ownerAccountName]);
+
     // Everyone looking at that stack needs the new count straight away.
     notifyItemsChanged(
       'request',
@@ -1206,6 +1504,10 @@ app.post('/requests/:id/cancel', async (req, res) => {
       });
       return;
     }
+
+    // Taking a request back lowers the owner's count, so their badge has to hear about it
+    // as well - a circle that only ever goes up is worse than none.
+    await announcePendingRequests([outcome.ownerAccountName]);
 
     notifyItemsChanged(
       'request',
@@ -1277,6 +1579,11 @@ app.post('/requests/submit', async (req, res) => {
       submitted: outcome.submitted,
       contacts: new Map(outcome.contacts),
     });
+
+    // A basket can hold asks for several owners, so each of them hears their own total.
+    await announcePendingRequests(
+      (outcome.submitted || []).map((row) => row.owner_account_name)
+    );
 
     notifyItemsChanged(
       'request',
@@ -1721,7 +2028,7 @@ app.get('/owner/requests', async (req, res) => {
     );
   } catch (error) {
     sendPage(req, res, 500, {
-      heading: 'Your requests could not be loaded',
+      heading: 'My Requests could not be loaded',
       message: error.message,
       details: 'Nothing was changed. Try again in a moment.',
       tone: 'error',
@@ -1832,8 +2139,12 @@ app.post('/owner/requests', upload.none(), async (req, res) => {
     }
 
     // Post, then redirect: a refresh shows the page again instead of answering again,
-    // and the rows that were answered are simply gone from the list.
-    res.redirect(303, `/owner/requests?answered=${outcome.fulfilled}-${outcome.cancelled}`);
+    // and the rows that were answered are simply gone from the list. An answer given in the
+    // Requests Received tab goes back to the list, where that tab is, and the tab repeats the
+    // confirmation the standalone page would have shown - the row it came from has gone.
+    const back = String(req.body && req.body.from) === 'list' ? '/' : '/owner/requests';
+
+    res.redirect(303, `${back}?answered=${outcome.fulfilled}-${outcome.cancelled}`);
   } catch (error) {
     sendPage(req, res, 500, {
       heading: 'That could not be recorded',
@@ -1905,6 +2216,34 @@ function sendAnsweredAlready(req, res) {
   });
 }
 
+/**
+ * A session for the person an email token belongs to.
+ *
+ * The label is the provider they signed up by, so the menu still says *signed in via Discord*
+ * rather than inventing a fourth kind of login. A person with no identity row - one made by a
+ * script, or whose provider was removed - reads "email link", which is exactly how they got in.
+ */
+function sessionUserForOwner(owner) {
+  const known = Object.values(PROVIDERS).find((provider) => provider.key === owner.provider);
+  const user = {
+    id: owner.id,
+    provider: owner.provider || 'email',
+    providerLabel: known ? known.label : 'email link',
+    username: owner.username,
+    email: owner.email,
+    emailVerified: owner.emailVerified,
+    avatarUrl: owner.avatarUrl,
+  };
+
+  // A demo person stays in the demo database: which rows a session reads follows the person,
+  // and the link must not quietly open the real guilds for them.
+  if (owner.isDemo) {
+    user.isDemo = true;
+  }
+
+  return user;
+}
+
 app.get('/requests/fulfill/:token', async (req, res) => {
   const token = String(req.params.token || '');
   // The token is in the address bar, so this page must not hand it on in a Referer
@@ -1927,6 +2266,33 @@ app.get('/requests/fulfill/:token', async (req, res) => {
     if (!form) {
       sendAnsweredAlready(req, res);
       return;
+    }
+
+    // Clicking the link should feel like the site already knows you: the token names the
+    // person whose accounts these requests are aimed at, so sign them in and put them on
+    // Requests Received, where the row sits beside everything else waiting on their items.
+    // `?form=1` asks for the bare form instead - the one page that answers this email and
+    // nothing else - and a session that belongs to somebody else is left alone: an emailed
+    // link decides what one email may answer, never whose account the browser is using.
+    const signedIn = req.session ? req.session.user || null : null;
+    const wantsBareForm = String(req.query.form || '') === '1';
+
+    if (!wantsBareForm) {
+      const owner = await withDatabase((connection) => getFulfillTokenOwner(connection, token));
+
+      if (owner && (!signedIn || Number(signedIn.id) === Number(owner.id))) {
+        if (!signedIn) {
+          req.session.user = sessionUserForOwner(owner);
+          // Which ESO accounts are "mine" is read fresh for whoever the session now is.
+          req.session.accountNames = null;
+          logLine(
+            `Email link: signed in ${owner.username || `#${owner.id}`} and opened Requests Received`
+          );
+        }
+
+        res.redirect(303, '/?tab=received&waiting=1');
+        return;
+      }
     }
 
     res.type('html').send(
@@ -2030,7 +2396,7 @@ app.post('/requests/fulfill/:token', async (req, res) => {
 
     res.type('html').send(
       renderMessagePage({
-        title: 'Request answered - ItemShare',
+        title: 'Request answered - Guild\'s Bounty',
         heading: 'Thanks - that is recorded',
         message: summary ? `${summary}.` : 'Nothing was waiting on that link any more.',
         details:
@@ -2795,6 +3161,94 @@ app.post('/logout', (req, res) => {
   finish();
 });
 
+// Becoming somebody else. Checked again here rather than trusted from the session, because
+// a session outlives a deploy and this is the only thing standing between the tool and
+// every other person on the site.
+app.post('/view-as', async (req, res) => {
+  const real = viewAsSignedIn(req);
+
+  if (!isViewAsOperator(real)) {
+    res.status(404).type('text').send('Not found');
+    return;
+  }
+
+  const wanted = Number.parseInt(String((req.body && req.body.userId) || ''), 10);
+
+  if (!Number.isInteger(wanted) || wanted <= 0) {
+    sendPage(req, res, 400, {
+      heading: 'Choose somebody from the list',
+      message: 'The form arrived without a person to look at the site as.',
+      details: 'Nothing was changed. Pick a name from the menu at the top of the page.',
+      tone: 'notice',
+    });
+    return;
+  }
+
+  // Picking your own name is the way back, so it does what the way back does.
+  if (wanted === Number(real.id)) {
+    restoreOwnLogin(req);
+    res.redirect(303, '/');
+    return;
+  }
+
+  try {
+    const person = await withDatabase((connection) =>
+      getViewAsUser(connection, wanted, { isDemo: Boolean(real.isDemo) })
+    );
+
+    if (!person) {
+      sendPage(req, res, 404, {
+        heading: 'That person is not in the system',
+        message: 'Nobody with that id is here, or they are on the other side of the demo.',
+        details: 'Nothing was changed.',
+        tone: 'notice',
+      });
+      return;
+    }
+
+    req.session.viewAs = { original: real, since: new Date().toISOString() };
+    req.session.user = {
+      id: person.id,
+      provider: person.provider,
+      providerLabel: person.providerLabel,
+      username: person.displayName,
+      email: person.email,
+      emailVerified: person.emailVerified,
+      avatarUrl: person.avatarUrl,
+      // Which database a session reads follows the person who really signed in, never the
+      // one being looked at: the demo's rows and the real ones are not interchangeable.
+      isDemo: Boolean(real.isDemo),
+    };
+    // Which ESO accounts are "mine" is read fresh for whoever the session now is.
+    req.session.accountNames = null;
+
+    logLine(
+      `View as: ${real.username} is looking at the site as ${person.displayName} (#${person.id})`
+    );
+
+    res.redirect(303, '/');
+  } catch (error) {
+    sendPage(req, res, 500, {
+      heading: 'That person could not be loaded',
+      message: 'The site could not read who that is, so nothing was changed.',
+      details: error.message,
+      tone: 'error',
+    });
+  }
+});
+
+// The way back. It trusts only the person stored beside the swap, so a session that was never
+// looking at anybody has nothing to return from and is answered the way an unknown page is.
+app.post('/view-as/return', (req, res) => {
+  if (!isViewAsOperator(viewAsSignedIn(req)) || !viewAsOriginal(req)) {
+    res.status(404).type('text').send('Not found');
+    return;
+  }
+
+  restoreOwnLogin(req);
+  res.redirect(303, '/');
+});
+
 // ---------------------------------------------------------------- applying a file
 //
 // What happens to a saved variables file once it is in hand - whether it arrived
@@ -2847,26 +3301,53 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
     warnLine(`Could not look up icon paths on UESP: ${error.message}`);
   }
 
+  // ESO accounts in the file that belong to somebody else, so they are not part of this
+  // upload. Filled in while the accounts are checked.
+  const skippedAccounts = [];
+
   const outcome = await withDatabase(async (connection) => {
+    let usableAccounts = parsed.accounts;
+
     if (user) {
-      // Every ESO account in the file belongs to the signed-in person. An
-      // account claimed by somebody else stops the whole upload.
+      // An ESO account already linked to somebody else is left alone rather than failing
+      // the whole file: a shared computer, or a saved variables file copied from another
+      // player, usually still holds the uploader's own account, and refusing the lot threw
+      // that away over an account they were never going to get. The rest is stored, and the
+      // answer says which names were skipped and why.
+      usableAccounts = [];
+
       for (const accountName of parsed.accounts) {
         const link = await linkAccountToUser(connection, { accountName, userId: user.id });
 
         if (link === 'conflict') {
-          const conflict = new Error(
-            `The ESO account ${accountName} is already linked to a different person.`
-          );
-          conflict.statusCode = 409;
-          throw conflict;
+          skippedAccounts.push({
+            accountName,
+            reason: 'already linked to a different person',
+          });
+          continue;
         }
+
+        usableAccounts.push(accountName);
+      }
+
+      if (usableAccounts.length === 0) {
+        // Nothing is left to store, so say that plainly instead of reporting a successful
+        // upload that changed nothing.
+        const refused = new Error(
+          parsed.accounts.length === 1
+            ? `The ESO account ${parsed.accounts[0]} is already linked to a different person, so that file could not be used. Nothing was stored.`
+            : `Every ESO account in that file (${parsed.accounts.join(
+                ', '
+              )}) is already linked to a different person, so nothing was stored.`
+        );
+        refused.statusCode = 409;
+        throw refused;
       }
     }
 
     const summary = await replaceAccounts(
       connection,
-      parsed.accounts.map((accountName) => {
+      usableAccounts.map((accountName) => {
         // The server the file was written on travels with the account, and with every
         // guild row it touches: a guild id means nothing without it.
         const world = parsed.accountWorlds.get(accountName) || {};
@@ -2879,6 +3360,9 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
           guilds: parsed.accountGuilds.get(accountName) || new Map(),
           platform: world.platform || 0,
           worldName: world.worldName || '',
+          // How long this account keeps an item shared. 0 is a file with no expireDays,
+          // and then nothing is ever flagged LAST CHANCE.
+          expireDays: parsed.accountExpiryDays.get(accountName) || 0,
         };
       }),
       { sourceFile, userId: user ? user.id : null }
@@ -2892,6 +3376,14 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
   const uploaded = (Array.isArray(outcome) ? outcome : [outcome]).filter(Boolean);
   const uploadedItems = uploaded.reduce((sum, entry) => sum + (Number(entry.itemCount) || 0), 0);
   const uploadedAccounts = uploaded.map((entry) => entry.accountName).filter(Boolean);
+
+  if (skippedAccounts.length > 0) {
+    warnLine(
+      `Upload: left ${skippedAccounts
+        .map((entry) => entry.accountName)
+        .join(', ')} alone - already linked to a different person`
+    );
+  }
 
   // Rows an upload deliberately left alone, because somebody is still waiting on them.
   const heldBack = uploaded.flatMap((entry) =>
@@ -2942,6 +3434,10 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
     accountCount: uploaded.length,
     itemCount: uploaded.reduce((sum, entry) => sum + entry.itemCount, 0),
     alwaysShareCount: uploaded.reduce((sum, entry) => sum + entry.alwaysShareCount, 0),
+    // What the file did to the list, per account in the answer and in total here: an item
+    // nobody had before, an item only re-counted, an item gone.
+    addedItems: uploaded.reduce((sum, entry) => sum + (entry.addedItems || 0), 0),
+    refreshedItems: uploaded.reduce((sum, entry) => sum + (entry.refreshedItems || 0), 0),
     removedItems: uploaded.reduce((sum, entry) => sum + (entry.removedItems || 0), 0),
     cancelledRequests: uploaded.reduce((sum, entry) => sum + (entry.cancelledRequests || 0), 0),
     heldBack,
@@ -2949,6 +3445,8 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
     guildCount: parsed.guilds.size,
     iconLookup,
     icons,
+    // What the browser needs to say which accounts were not touched.
+    skippedAccounts,
     link: user ? 'linked' : 'skipped',
   };
 }
@@ -3253,7 +3751,7 @@ app.use((req, res) => {
 
   sendPage(req, res, 404, {
     heading: 'Page not found',
-    message: 'That address is not part of ItemShare. The shared item list is on the home page.',
+    message: 'That address is not part of Guild\'s Bounty. The shared item list is on the home page.',
     details: `No route for ${req.method} ${req.path}`,
   });
 });
@@ -3461,7 +3959,7 @@ if (DEMO_ACTIVITY_MS > 0) {
 }
 
 httpServer.listen(PORT, () => {
-  logLine(`ItemShare upload site listening on http://localhost:${PORT}`);
+  logLine(`Guild's Bounty upload site listening on http://localhost:${PORT}`);
   logLine('Live updates: socket.io on /socket.io');
   logLine(
     DEMO_ACTIVITY_MS > 0

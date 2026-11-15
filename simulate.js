@@ -61,7 +61,22 @@ const warn = (text) => console.warn(`${LABEL}${stamp()} ${text}`);
 const fail = (text) => console.error(`${LABEL}${stamp()} ${text}`);
 
 const HOLD_MINUTES = 5;
-const LOCATIONS = ['Inventory', 'Bank', 'Furnishing Vault', 'Craft Bag'];
+// Where a simulated copy can stand. The two houses are here on purpose: a furnishing
+// placed in one is in no bag at all, so it is written as "Placed (Mournoth Keep)" and the
+// site cannot recount it - which is the label the answered-row notice keys off. Without a
+// house in this list nothing the simulation wrote ever carried one.
+//
+// The first house sits third rather than last so somebody's shelf holds a placed item from
+// the first save: the rotation is by round, and a house at the end of the list would only
+// reach the shorter catalogues after several rounds.
+const LOCATIONS = [
+  'Inventory',
+  'Bank',
+  'Placed (Mournoth Keep)',
+  'Furnishing Vault',
+  'Craft Bag',
+  "Placed (Autumn's Gate)",
+];
 
 // Three people, deliberately different: one has a lot of one thing, one has single
 // copies, one mostly hoards materials. What they hold changes between rounds.
@@ -81,6 +96,9 @@ const PEOPLE = [
         trait: 'Sharpened',
         set: 'Briarheart',
         weapon: 'Greatsword',
+        level: 50,
+        cp: 160,
+        enchant: 'Glyph of Increase Physical Harm',
         count: 1,
       },
       {
@@ -93,6 +111,9 @@ const PEOPLE = [
         trait: 'Powered',
         set: "Mother's Sorrow",
         weapon: 'Inferno Staff',
+        level: 50,
+        cp: 160,
+        enchant: 'Glyph of Increase Magical Harm',
         count: 1,
       },
       {
@@ -102,6 +123,7 @@ const PEOPLE = [
         typeName: 'Material',
         quality: 2,
         qualityName: 'Superior',
+        level: 1,
         count: 12,
       },
       {
@@ -111,6 +133,7 @@ const PEOPLE = [
         typeName: 'Consumable',
         quality: 4,
         qualityName: 'Legendary',
+        level: 1,
         count: 5,
       },
     ],
@@ -124,6 +147,9 @@ const PEOPLE = [
         qualityName: 'Legendary',
         trait: 'Precise',
         set: 'Briarheart',
+        level: 50,
+        cp: 160,
+        enchant: 'Glyph of Increase Physical Harm',
       },
     ],
   },
@@ -142,6 +168,9 @@ const PEOPLE = [
         trait: 'Arcane',
         set: 'The Seducer',
         slot: 'Neck',
+        level: 50,
+        cp: 160,
+        enchant: 'Glyph of Magicka Recovery',
         count: 1,
       },
       {
@@ -154,6 +183,9 @@ const PEOPLE = [
         trait: 'Arcane',
         set: 'Twice-Born Star',
         slot: 'Ring',
+        level: 50,
+        cp: 160,
+        enchant: 'Glyph of Increase Magical Harm',
         count: 2,
       },
       {
@@ -163,6 +195,7 @@ const PEOPLE = [
         typeName: 'Style',
         quality: 3,
         qualityName: 'Epic',
+        level: 1,
         count: 1,
       },
     ],
@@ -174,6 +207,7 @@ const PEOPLE = [
         typeName: 'Material',
         quality: 4,
         qualityName: 'Legendary',
+        level: 1,
       },
     ],
   },
@@ -192,6 +226,9 @@ const PEOPLE = [
         trait: 'Impenetrable',
         set: "Hunding's Rage",
         slot: 'Chest',
+        level: 50,
+        cp: 160,
+        enchant: 'Glyph of Prismatic Defense',
         count: 1,
       },
       {
@@ -201,6 +238,7 @@ const PEOPLE = [
         typeName: 'Furnishing',
         quality: 1,
         qualityName: 'Fine',
+        level: 1,
         count: 3,
       },
     ],
@@ -212,6 +250,7 @@ const PEOPLE = [
         typeName: 'Consumable',
         quality: 4,
         qualityName: 'Legendary',
+        level: 1,
       },
     ],
   },
@@ -255,31 +294,18 @@ function buildItem(person, spec, index, guildIds) {
     itemId: spec.itemId,
     icon: '',
     itemName: spec.name,
-    itemType: spec.type,
     itemTypeName: spec.typeName,
     quality: spec.quality,
-    qualityName: spec.qualityName,
     trait: spec.trait || '',
-    traitType: '',
-    apparelSlot: spec.slot || '',
-    equipType: '',
-    apparelWeight: '',
-    armorType: '',
-    weaponType: spec.weapon || '',
-    weaponHandedness: '',
     setName: spec.set || '',
-    enchantName: '',
+    enchantName: spec.enchant || '',
     styleName: '',
-    requiredLevel: 0,
-    requiredCp: 0,
-    flavorText: null,
-    esoData: null,
-    furnitureDataId: 0,
+    requiredLevel: spec.level || 0,
+    requiredCp: spec.cp || 0,
     locationKey: `sim:${person.account}:${index}`,
     locationLabel: locationFor(person, index),
     itemCount: count,
     firstDumpedAt: seconds,
-    lastDumpedAt: seconds,
     guildIds,
   };
 }
@@ -296,26 +322,14 @@ function buildOffer(person, spec, index, guildIds) {
     itemId: spec.itemId,
     icon: '',
     itemName: spec.name,
-    itemType: spec.type,
     itemTypeName: spec.typeName,
     quality: spec.quality,
-    qualityName: spec.qualityName,
     trait: spec.trait || '',
-    traitType: '',
-    apparelSlot: spec.slot || '',
-    equipType: '',
-    apparelWeight: '',
-    armorType: '',
-    weaponType: spec.weapon || '',
-    weaponHandedness: '',
     setName: spec.set || '',
-    enchantName: '',
+    enchantName: spec.enchant || '',
     styleName: '',
-    requiredLevel: 0,
-    requiredCp: 0,
-    flavorText: null,
-    esoData: null,
-    furnitureDataId: 0,
+    requiredLevel: spec.level || 0,
+    requiredCp: spec.cp || 0,
     firstAddedAt: seconds,
     lastUpdatedAt: seconds,
     guildIds,
@@ -740,7 +754,7 @@ function describeRefusal({ status, body, token }) {
   if (status === 404) {
     return [
       `live pushes refused by ${SITE_URL} (HTTP 404, address from ${SITE.source}): nothing answers the simulate route there.`,
-      '  Either that address is not this ItemShare (check BASE_URL or --url), or the site is',
+      '  Either that address is not this Guild\'s Bounty (check BASE_URL or --url), or the site is',
       '  older than this check. The data still changes; open pages see it on their next',
       '  refresh.',
     ].join('\n');

@@ -1,6 +1,8 @@
 # Experimental Discord bot: setup and testing guide
 
-This is an opt-in development integration for ItemShare. Use a dedicated Discord test application, test server, and ItemShare test database. Test the development branch separately before considering any deployment. The API is disabled by default; installing dependencies or starting the normal website does not authorize a production rollout. No automatic deployment is part of this feature.
+The website is now **Guild's Bounty**, at https://guildsbounty.perdues.me. The ESO addon is still **ItemShare**, and its upload file remains `ItemShareSavedVars.lua`. Existing repository names, `ITEMSHARE_*` environment variables, database tables and `/items` commands retain their names. Configure this experiment against your separate test installation rather than the public site.
+
+This is an opt-in development integration for Guild's Bounty. Use a dedicated Discord test application, test server, and Guild's Bounty test database. Test the development branch separately before considering any deployment. The API is disabled by default; installing dependencies or starting the normal website does not authorize a production rollout. No automatic deployment is part of this feature.
 
 The bot lets eligible Discord members browse guild stock, select an ESO delivery account, and submit an immediate request for one item. Responses are private Discord interaction replies. A request records a delivery request; it does not transfer an ESO item or prove delivery.
 
@@ -8,9 +10,9 @@ The bot lets eligible Discord members browse guild stock, select an ESO delivery
 
 Each installation is bound by server configuration to one Discord server and one ESO guild, platform, and world. Users cannot choose a different guild or world through command arguments. The API checks configured member/officer roles and rechecks item scope and recipient eligibility on each operation.
 
-GuildSync is unchanged: no edits to its code, schema, configuration, or data are needed. An optional adapter can read confirmed identity links using existing SELECT-only database credentials configured in ItemShare. Never give this adapter write privileges. If the source is unavailable, do not treat a typed ESO account as confirmed.
+GuildSync is unchanged: no edits to its code, schema, configuration, or data are needed. An optional adapter can read confirmed identity links using existing SELECT-only database credentials configured in Guild's Bounty. Never give this adapter write privileges. If the source is unavailable, do not treat a typed ESO account as confirmed.
 
-A provisional recipient is only an ItemShare delivery association between a Discord user and an ESO account. It creates no account ownership, verified identity link, Discord role, or general guild access. Officer approval affects this delivery association only. It must not overwrite an existing verified identity or link somebody else's account to a website login.
+A provisional recipient is only an Guild's Bounty delivery association between a Discord user and an ESO account. It creates no account ownership, verified identity link, Discord role, or general guild access. Officer approval affects this delivery association only. It must not overwrite an existing verified identity or link somebody else's account to a website login.
 
 ## Prepare a test installation
 
@@ -23,7 +25,7 @@ git switch --track origin/feature/experimental-discord-bot
 
 If the local branch already exists, use `git switch feature/experimental-discord-bot`.
 
-1. Use the experimental development checkout and a separate ItemShare database, for example `itemshare_discord_test`. Set `ITEMSHARE_DATABASE` explicitly; ItemShare does not use `MARIADB_DATABASE` as its schema selector. Use the normal `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, and `MARIADB_PASSWORD` settings for this test database. Startup migrations must target ItemShare only.
+1. Use the experimental development checkout and a separate Guild's Bounty database, for example `itemshare_discord_test`. Set `ITEMSHARE_DATABASE` explicitly; Guild's Bounty does not use `MARIADB_DATABASE` as its schema selector. Use the normal `MARIADB_HOST`, `MARIADB_PORT`, `MARIADB_USER`, and `MARIADB_PASSWORD` settings for this test database. Startup migrations must target Guild's Bounty only.
 2. Put test inventory and offers into the configured ESO guild/platform/world. Include out-of-scope fixtures so isolation can be tested. Use fake recipients and controlled test mail addresses.
 3. Create a dedicated server with a member test role and an officer test role. Enable Discord Developer Mode and copy the server and role IDs. Use separate users to test member, officer, and unauthorized behavior.
 4. Store secrets in local environment variables or untracked `.env` files. Never commit `.env`, bot tokens, API bearer tokens, database passwords, or production database copies. Check `git status` before sharing changes.
@@ -42,7 +44,7 @@ Restrict the test channel to testers. Discord command visibility/channel permiss
 
 ## Configure and start
 
-There are two processes: the normal ItemShare server (with an explicitly enabled experimental API) and the standalone client in `discord-bot/`.
+There are two processes: the normal Guild's Bounty server (with an explicitly enabled experimental API) and the standalone client in `discord-bot/`.
 
 The client requires:
 
@@ -51,12 +53,12 @@ The client requires:
 | `DISCORD_TOKEN` | Dedicated test application's bot token. |
 | `DISCORD_CLIENT_ID` | That application's ID. |
 | `DISCORD_GUILD_ID` | Dedicated test Discord server ID. |
-| `ITEMSHARE_API_URL` | Origin of the test ItemShare server, for example `http://127.0.0.1:3101`; omit `/api` and operation paths. |
+| `ITEMSHARE_API_URL` | Origin of the test Guild's Bounty server, for example `http://127.0.0.1:3101`; omit `/api` and operation paths. |
 | `ITEMSHARE_BOT_TOKEN` | Dedicated API bearer secret shared with the test backend. |
 
-The bot token and ItemShare API token are different secrets. Website Discord OAuth login settings are also a separate concern; the bot does not need a Discord OAuth client secret. Ensure process working directories load the intended local environment file. Use HTTPS whenever the API crosses a trusted local development boundary.
+The bot token and Guild's Bounty API token are different secrets. Website Discord OAuth login settings are also a separate concern; the bot does not need a Discord OAuth client secret. Ensure process working directories load the intended local environment file. Use HTTPS whenever the API crosses a trusted local development boundary.
 
-Set these **backend** variables in the separate ItemShare instance's local environment:
+Set these **backend** variables in the separate Guild's Bounty instance's local environment:
 
 ```dotenv
 PORT=3101
@@ -76,11 +78,11 @@ ITEMSHARE_DISCORD_MAX_QUANTITY=20
 
 `ITEMSHARE_DISCORD_ENABLED` defaults to `false`; enable it only in this test instance. Role lists accept comma-separated IDs. Member roles are required; an empty officer-role list disables review access. Use the same `ITEMSHARE_BOT_TOKEN` in the client. The backend's `ITEMSHARE_DISCORD_GUILD_ID` must match the client's `DISCORD_GUILD_ID`. Configure the actual test ESO scope explicitly; platform `2` and `NA Megaserver` above are example values, not a way to select another member's scope.
 
-Optional confirmed-identity lookup is off unless `ITEMSHARE_GUILDSYNC_READ_ENABLED=true`. If an existing read-only account is available, configure `ITEMSHARE_GUILDSYNC_READ_HOST`, `ITEMSHARE_GUILDSYNC_READ_PORT`, `ITEMSHARE_GUILDSYNC_READ_DATABASE`, `ITEMSHARE_GUILDSYNC_READ_USER`, and `ITEMSHARE_GUILDSYNC_READ_PASSWORD` in ItemShare only. For TLS, set `ITEMSHARE_GUILDSYNC_READ_TLS=true`; certificate validation remains enabled. The source database must be bound to the same ESO guild via its `eso_guild_id` setting. Also explicitly set `ITEMSHARE_GUILDSYNC_READ_PLATFORM` and `ITEMSHARE_GUILDSYNC_READ_WORLD` to the known platform and megaserver of that GuildSync deployment; they must match the ItemShare scope. This is an administrator-declared trusted mapping, because the existing source setting does not attest platform/server. Verify the source deployment before enabling it; an unknown or mismatched mapping is refused. This change does not provision credentials or alter GuildSync. Leave lookup disabled if no suitable existing SELECT-only account is available.
+Optional confirmed-identity lookup is off unless `ITEMSHARE_GUILDSYNC_READ_ENABLED=true`. If an existing read-only account is available, configure `ITEMSHARE_GUILDSYNC_READ_HOST`, `ITEMSHARE_GUILDSYNC_READ_PORT`, `ITEMSHARE_GUILDSYNC_READ_DATABASE`, `ITEMSHARE_GUILDSYNC_READ_USER`, and `ITEMSHARE_GUILDSYNC_READ_PASSWORD` in Guild's Bounty only. For TLS, set `ITEMSHARE_GUILDSYNC_READ_TLS=true`; certificate validation remains enabled. The source database must be bound to the same ESO guild via its `eso_guild_id` setting. Also explicitly set `ITEMSHARE_GUILDSYNC_READ_PLATFORM` and `ITEMSHARE_GUILDSYNC_READ_WORLD` to the known platform and megaserver of that GuildSync deployment; they must match the Guild's Bounty scope. This is an administrator-declared trusted mapping, because the existing source setting does not attest platform/server. Verify the source deployment before enabling it; an unknown or mismatched mapping is refused. This change does not provision credentials or alter GuildSync. Leave lookup disabled if no suitable existing SELECT-only account is available.
 
-Start ItemShare from its own test folder so its environment file belongs to that instance. Keep the port distinct from other instances and point `ITEMSHARE_API_URL` to that port (for example `http://127.0.0.1:3101`). Populate fake/test inventory before issuing any real request command.
+Start Guild's Bounty from its own test folder so its environment file belongs to that instance. Keep the port distinct from other instances and point `ITEMSHARE_API_URL` to that port (for example `http://127.0.0.1:3101`). Populate fake/test inventory before issuing any real request command.
 
-Use Node.js 20 or newer. From the ItemShare test checkout root, install and start the website:
+Use Node.js 20 or newer. From the Guild's Bounty test checkout root, install and start the website:
 
 ```powershell
 npm ci
@@ -116,7 +118,7 @@ All commands start with `/items`. Select the subcommand in Discord's slash-comma
 | `/items request item:<reference> quantity:<number>` | Open a request confirmation for an item reference such as `inventory:123` or `offer:456`. Quantity is optional. |
 | `/items requests` | Show the invoking member's request history and recorded statuses. |
 | `/items review` | Officer-only list of delivery associations and review statuses. |
-| `/items review action:approve user:<member> eso:<account>` | Approve that member's ItemShare delivery association. |
+| `/items review action:approve user:<member> eso:<account>` | Approve that member's Guild's Bounty delivery association. |
 | `/items review action:reject user:<member> eso:<account>` | Reject that association. |
 | `/items help` | Show available commands and short usage guidance. |
 
@@ -129,7 +131,9 @@ Use the private Previous/Next controls to page through browse/search results. Ch
 
 Browse rows show name, quantity, reference, owner, and category. Select a result to open its request details and confirmation: reference, available quantity, owner, category, quality, level/CP, trait, style, enchantment, and recipient. The reference distinguishes inventory rows from offers; do not infer it from an item name. Different owners or stacks may have the same name. Check the displayed stock and recipient before confirming.
 
-Item details offer Confirm request, Change quantity, and Cancel. Change quantity opens a modal. Enter a positive whole number within the current stock and configured request limit, check the recipient, and press Confirm request to submit. Cancel leaves no new request. Controls expire after ten minutes; reopen the command when they expire. Controls belong to the invoking user; another member must use their own command.
+Always Share availability uses the owner's reported stock minus their Share Reserve and active requests/holds. An offer with unknown or zero available stock is excluded from browsing and category counts and cannot be requested. Several copies may be available, but each Always Share request is for **one copy**, matching the website. Use quantity `1` with an `offer:` reference. Inventory requests may request several copies, up to available stock and `ITEMSHARE_DISCORD_MAX_QUANTITY` (at most 20).
+
+Item details offer Confirm request and Cancel. Inventory items also offer Change quantity, which opens a modal; Always Share offers keep their quantity at one. Enter a positive whole number within the current stock and configured request limit, check the recipient, and press Confirm request to submit. Cancel leaves no new request. Controls expire after ten minutes; reopen the command when they expire. Controls belong to the invoking user; another member must use their own command.
 
 ### Choosing a recipient
 
@@ -147,25 +151,21 @@ Discord can retry an interaction. The same submission interaction is idempotent:
 
 Keep these three states separate:
 
-- **Request recorded:** ItemShare returns a request ID and status. This confirms the database operation only.
-- **Notification:** The existing ItemShare email/website notification hooks run after the request commits. Missing or failed email is not proof that the request was lost; check request history before retrying. Test mail delivery separately.
-- **ESO handover:** An owner/officer performs the actual in-game delivery and updates the normal ItemShare workflow. The Discord bot does not log into ESO, mail items, or confirm receipt automatically.
+- **Request recorded:** Guild's Bounty returns a request ID and status. This confirms the database operation only.
+- **Notification:** After commit, the owner's avatar request count and live item/request lists are updated, then the normal request email is sent when configured. Owners process requests on the website's **Requests Received** tab. Request email links use the site's existing signed-in access flow. Missing or failed email is not proof that the request was lost; check request history before retrying. Test mail delivery separately.
+- **ESO handover:** An owner/officer performs the actual in-game delivery and updates the normal Guild's Bounty workflow. The Discord bot does not log into ESO, mail items, or confirm receipt automatically.
 
-`/items requests` shows the invoking user's requests, recipient, quantity, and recorded fulfillment status with pagination. Use the status as ItemShare workflow information, not proof of in-game receipt. Fulfillment is handled through the existing website workflow; the bot has no delivery/complete/cancel command.
+`/items requests` shows the invoking user's requests, recipient, quantity, and recorded fulfillment status with pagination. Use the status as Guild's Bounty workflow information, not proof of in-game receipt. Fulfillment is handled through the existing website workflow; the bot has no delivery/complete/cancel command.
 
 ## Officer review
 
 An officer uses `/items review` to inspect Discord-to-ESO delivery associations and their statuses, verifies the proposed address through the guild's normal process, and uses approve or reject with both the Discord member and ESO account. Matching both values avoids approving another association for the same member accidentally.
 
-Ask the member to check `/items account` after review and inspect `/items requests` before submitting another request. Review does not itself fulfill or cancel an already recorded request. Approval is not a request submission and does not grant a role, website account ownership, or guild membership. Rejection prevents future use of that ItemShare association; it does not alter a GuildSync link or GuildSync data. Ordinary members must receive an authorization error for review operations even if they know the command syntax.
+Ask the member to check `/items account` after review and inspect `/items requests` before submitting another request. Review does not itself fulfill or cancel an already recorded request. Approval is not a request submission and does not grant a role, website account ownership, or guild membership. Rejection prevents future use of that Guild's Bounty association; it does not alter a GuildSync link or GuildSync data. Ordinary members must receive an authorization error for review operations even if they know the command syntax.
 
 ## Test acceptance checklist
 
-Automated development checks passed on November 10, 2026: all 199 existing checks,
-15 standalone client tests, eight API/identity-reader tests, and the new store regression
-script. HTTP tests use a local test server; store/identity tests use controlled database
-stubs. They do not establish real MariaDB migration behavior, live Discord delivery,
-or email delivery. Run the checklist below against the separate test installation.
+Run the current website checks plus `npm run test:discord-api`, `npm run test:discord-store`, and `npm test` inside `discord-bot/`. Regression coverage includes reported offer stock, reserves, active holds, one-copy offer requests, configured quantity limits, recipient confirmation, website basket isolation and owner badge notifications before email. HTTP tests use a local test server; store/identity tests use controlled database stubs. They do not establish real MariaDB migration behavior, live Discord delivery, or email delivery. Run the checklist below against the separate test installation.
 
 This checklist describes required validation; it is not a claim that a live Discord server, email provider, or production database has been tested.
 
@@ -174,21 +174,23 @@ This checklist describes required validation; it is not a claim that a live Disc
 - [ ] Dedicated test bot registers only guild commands, connects, and answers `/items help` privately.
 - [ ] Browse/search/category counts and previous/next navigation work with empty, single-page, and multi-page results; another member cannot operate private controls.
 - [ ] Inventory and offers display accurate details; references outside the configured ESO guild/platform/world are rejected, including manually supplied references.
+- [ ] Always Share stock matches the website: unknown/zero stock, stock entirely kept back, and fully requested stock are unavailable; multiple remaining copies stay visible. Each offer request submits exactly one copy.
 - [ ] Changing the selected recipient after opening a confirmation rejects that stale confirmation; reopening shows the new recipient.
 - [ ] Confirmed account selection works; unavailable identity data never invents a confirmed account.
 - [ ] Unlinked members receive the provisional prompt when enabled and a useful block when disabled. Provisional requests retain their unverified state; rejected associations cannot submit new requests.
-- [ ] Only officers can list/approve/reject provisional associations. Approval/rejection changes only ItemShare delivery association state.
+- [ ] Only officers can list/approve/reject provisional associations. Approval/rejection changes only Guild's Bounty delivery association state.
 - [ ] Quantity rejects zero, negative, fractional, excessive, and stale-stock submissions. Concurrent requests cannot reserve more stock than available.
 - [ ] Cancel creates no request; Confirm creates exactly one; retrying the same interaction returns the same request without a second reservation.
 - [ ] Discord submission leaves an existing website draft basket unchanged.
 - [ ] `/items requests` shows only the member's scoped requests, correct recipients/status, and working pagination.
 - [ ] A committed request remains visible if notification fails; controlled test email and website updates are checked independently.
+- [ ] An owner's open website pages receive the new avatar request count and Requests Received update after a bot submission, even if email fails. Their email link opens the existing Requests Received flow.
 - [ ] Fulfillment updates on the website are reflected in later status checks; no automatic in-game handover is implied.
 - [ ] GuildSync code, schema, configuration, and data remain unchanged; optional adapter credentials are SELECT-only.
 - [ ] `.env` and secrets are absent from tracked changes; no production deployment was triggered.
 
 ## Troubleshooting and removal
 
-If commands are missing, verify application/server IDs, installation scopes, guild command registration, and Discord channel access. If replies fail, inspect bot and ItemShare logs for the disabled API, bearer-token mismatch, scope mismatch, or role error. Redact secrets before sharing logs. If a recipient is blocked, check account selection and review status rather than granting extra bot permissions.
+If commands are missing, verify application/server IDs, installation scopes, guild command registration, and Discord channel access. If replies fail, inspect bot and Guild's Bounty logs for the disabled API, bearer-token mismatch, scope mismatch, or role error. Redact secrets before sharing logs. If a recipient is blocked, check account selection and review status rather than granting extra bot permissions.
 
-To end the experiment, disable the experimental API feature and stop the bot process. Optionally remove this test application's guild commands or remove the application from the test server. Revoke test tokens when no longer needed. No destructive database cleanup is required: keep request/audit history according to normal retention, and do not delete or modify GuildSync data. Removing commands or stopping the bot does not cancel already recorded ItemShare requests; handle those through the normal website workflow.
+To end the experiment, disable the experimental API feature and stop the bot process. Optionally remove this test application's guild commands or remove the application from the test server. Revoke test tokens when no longer needed. No destructive database cleanup is required: keep request/audit history according to normal retention, and do not delete or modify GuildSync data. Removing commands or stopping the bot does not cancel already recorded Guild's Bounty requests; handle those through the normal website workflow.

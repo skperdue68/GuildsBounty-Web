@@ -95,3 +95,42 @@ await assert.rejects(() => unowned.request({discordId:'1'}, {
 assert.ok(statements.some(s => s.sql === 'SET TRANSACTION ISOLATION LEVEL READ COMMITTED'));
 assert.ok(statements.some(s => s.sql === 'SELECT id FROM itemshare_shared_items WHERE id = ? FOR UPDATE'));
 console.log('Discord claim policy, unowned accounts, canonical recipients and transaction tests passed');
+
+// The bot reads the same reported stock as the website, never an assumed copy.
+const offerSql = calls[1].sql;
+assert.match(offerSql, /GREATEST\(0, COALESCE\(i\.held_quantity, 0\) - COALESCE\(i\.reserve_quantity, 0\)\)/);
+assert.doesNotMatch(offerSql, /\(1 - COALESCE/);
+assert.match(offerSql, /r\.status = 'pending'/);
+assert.match(offerSql, /r\.status = 'draft' AND r\.expires_at > NOW\(\)/);
+await assert.rejects(() => store.request({discordId:'1'}, {
+  expectedRecipient:'@Recipient', reference:'offer:9', quantity:2, interactionId:'offer-many',
+}), error => error.code === 'INVALID_INPUT' && /one copy/i.test(error.message));
+console.log('Always Share uses reported stock, reserves and holds; requests are one copy');
+
+for (const [label, held, reserve, reserved, free] of [
+  ['unknown', null, 0, 0, 0], ['empty', 0, 0, 0, 0],
+  ['kept back', 5, 5, 0, 0], ['fully requested', 5, 2, 3, 0],
+  ['several copies remain', 10, 2, 3, 5],
+]) {
+  idempotency = null;
+  const offerRow = { id:9, item_name:'Chair', account_name:'@Owner',
+    held_quantity:held, reserve_quantity:reserve, free_quantity:free };
+  const offerDb = {...db, execute:async (sql,args) => {
+    if (sql.includes('AS free_quantity') || sql.startsWith('SELECT DISTINCT a.id')) return [[offerRow]];
+    if (sql.includes('AS reserved')) return [[{reserved}]];
+    return db.execute(sql,args);
+  }};
+  const offers = createDiscordBotStore({withDatabase:fn=>fn(offerDb),scope});
+  const input = {expectedRecipient:'@Recipient',reference:'offer:9',quantity:1,interactionId:'stock-case'};
+  if (free === 0) {
+    await assert.rejects(() => offers.request({discordId:'1'},input), error => error.code === 'OUT_OF_STOCK', label);
+    const page = await offers.browse({discordId:'1'});
+    assert.equal(page.items.length, 0, label);
+    assert.equal((await offers.categories({discordId:'1'})).categories.length, 0, label);
+  } else {
+    const request = await offers.request({discordId:'1'},input);
+    assert.equal(request.request.quantity, 1, label);
+    assert.equal((await offers.item({discordId:'1'},{reference:'offer:9'})).item.quantity, free, label);
+  }
+}
+console.log('Always Share unknown, empty, reserved, held and multiple-copy request cases passed');

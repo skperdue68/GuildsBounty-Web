@@ -14,5 +14,5 @@ ALTER TABLE itemshare_shared_items
   ADD COLUMN IF NOT EXISTS reserve_quantity INT NOT NULL DEFAULT 0 AFTER held_quantity;
 
 ALTER TABLE itemshare_always_share
-  ADD COLUMN IF NOT EXISTS held_quantity INT NOT NULL DEFAULT 0 AFTER furniture_data_id,
+  ADD COLUMN IF NOT EXISTS held_quantity INT NOT NULL DEFAULT 0 AFTER required_cp,
   ADD COLUMN IF NOT EXISTS reserve_quantity INT NOT NULL DEFAULT 0 AFTER held_quantity;

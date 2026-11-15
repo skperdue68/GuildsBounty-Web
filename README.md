@@ -1,11 +1,11 @@
-# ItemShare web application
+# Guild's Bounty web application
 
 Experimental Discord integration is available on the development branch. The standalone
 client lives in `discord-bot/`; full setup, command and interaction documentation is in
 [Discord Bot Guide](docs/Discord-Bot-Guide.md). The API is disabled by default and optional
 GuildSync access performs only reads, using separately configured credentials.
 
-The website half of ItemShare: members of a guild upload the file the in-game addon
+The website half of Guild's Bounty: members of a guild upload the file the in-game addon
 writes, and the site publishes what each of them is willing to share. Anyone who
 shares a guild with an owner can browse those items, ask for some of a stack, and
 send the ask; the owner is emailed what was asked for and which character account to
@@ -80,11 +80,33 @@ Three have no sensible default and are worth setting before anyone else uses the
 | `BASE_URL` | Sign-in redirects and the links in request emails are built from it. Wrong here means people are sent to `localhost` that is not theirs |
 | `SESSION_SECRET` | Without it a fresh random secret is made on every boot, so a restart signs everybody out |
 | `MARIADB_USER` / `MARIADB_PASSWORD` | The defaults (`root`, no password) are for a throwaway local server only |
+| `LEGACY_HOSTS` | Names the site used before the rebrand, comma separated. Defaults to `itemshare.perdues.me`; set it to `''` to show the redirect notice nowhere |
+| `NEW_SITE_URL` | What that notice points at. Defaults to `https://guildsbounty.perdues.me` |
 
 Everything else - sign-in providers, email, the `/ingest` token, the hold window,
 retry timers - is optional and off when blank. See `.env.example` for each one.
 
-One deliberate oddity: **`MARIADB_DATABASE` is ignored.** ItemShare always uses its
+**One name is the old one for now.** The site answers on both `itemshare.perdues.me` and
+`guildsbounty.perdues.me`, and somebody who arrives by the old name gets a short card:
+*ItemShare is now Guild's Bounty*, with the new address linked. It goes away after ten seconds
+or on the cross, and it is drawn only on the page they land on - a visit by the new name never
+sees it, and a live refresh never brings it back. The name is read from `Forwarded` (RFC 7239,
+`host=`), then `X-Forwarded-Host`, then `X-Served-By`, then `Host`, so the check follows the
+address the browser asked for rather than the proxy's own. `X-Served-By` is not a standard
+header - proxies invented it - but some of them put the name they were asked for in it while
+rewriting `Host` to the upstream, and those are exactly the ones the card used to miss. If the card never appears behind a proxy, ask the app
+what it saw: every response carries **`X-Site-Host`**, the name it resolved.
+
+```
+curl -sI https://itemshare.perdues.me/ | grep -i x-site-host
+```
+
+The name you asked for means the proxy is passing it and the card should draw; a container
+name, `localhost` or an IP means the proxy is rewriting `Host` without saying what it was, and
+the answer is `proxy_set_header Host $host;` plus `proxy_set_header X-Forwarded-Host $host;`
+(or Caddy's `header_up Host {host}`).
+
+One deliberate oddity: **`MARIADB_DATABASE` is ignored.** Guild's Bounty always uses its
 own database (`ITEMSHARE_DATABASE`, default `itemshare`), so it cannot write into
 another application's schema even when both share a MariaDB server.
 
@@ -172,9 +194,13 @@ without completing a real OAuth round trip.
 **Which ESO account is yours.** Signing in is not the same as saying which ESO account is
 theirs, and the site needs the second answer: a request has to name the character to mail.
 The first time somebody signs in with no ESO account attached, the *ESO accounts* dialog
-opens by itself and asks for the name. It is also where the list lives - every attached
-account with its items, guilds and last upload, a **Remove** button at the bottom of each
-row, and the box that attaches another under the list. The profile menu reopens it at any
+opens by itself and says where accounts come from: an upload attaches every account in the
+file, and an invitation code adds the guild it opens. It is also where the list lives -
+every attached account with its items, guilds and last upload, the guilds the game reported
+drawn apart from the slot a code opened, and a red **Remove** at the bottom of each row.
+The box that attaches a name by hand, with its platform and server, appears once a file has
+been uploaded for the sign-in: until then the dialog only reports what is recorded, because
+the platform and the world are things the file answers. The profile menu reopens it at any
 time.
 
 Names typed by hand are normalised the way the addon writes them (`lib/accountNames.js`):
@@ -196,6 +222,17 @@ flavour text. Plus every ESO account in the file, each with its own guild member
 the server it was written on (`worldName` and `platformRaw`), and the standing offers.
 Fields the game does not expose are simply absent rather than being invented.
 
+Only what the site reads is kept. The addon once sent the numeric item type, the quality's
+own name, the trait type, the apparel and weapon descriptors (slot, equip type, weight,
+armour and weapon class, handedness), the furniture data id, the flavour text and a raw dump
+of every ESO getter that answered; none of that was ever drawn or filtered on, so the parser
+stopped reading it and migration 030 drops the columns it used to fill.
+
+The demo catalogue (`lib/demoItems.js`), `npm run simulate` and the fulfilment fixture build
+their items the same way, so none of them carries those fields either. The demo database needs
+no separate migration: it is dropped and rebuilt from the same migrations on every start, so it
+gets migration 030 along with everything else.
+
 **Fill in, then prune.** An upload writes every item the file mentions where it already
 stands - same row, same id, same first-seen date - and only afterwards deletes the rows
 the file no longer mentions. Nothing blinks out of the list between one upload and the
@@ -208,9 +245,24 @@ handled inside one transaction, so either all of them are replaced or none are.
 Guild membership is replaced in full as well (`itemshare_account_guilds`), so leaving a
 guild in game removes that guild's visibility after the next upload.
 
+Who may see a row is decided per row. A share reaches somebody through a guild you both
+belong to, on the same megaserver and platform; your own shares are yours whatever they are
+stamped with, so a guild you have left cannot take your own list away from you.
+
+The answer says what the file did to each account's list, per account and in total: how many
+items were **removed**, how many were **added**, and how many were **refreshed** - an item
+that was already there whose quantity the file reports differently, up or down. A refresh is
+neither an arrival nor a departure: the item stayed, only its count moved. An item held back
+because a request is still open is none of the three, because its stored count was
+deliberately left alone.
+
 The first upload from a signed-in person links their identity to the ESO account in
-`itemshare_accounts`. If that ESO account is already linked to a different person the
-upload is refused rather than silently reassigned.
+`itemshare_accounts`. An ESO account that is already linked to a different person is never
+silently reassigned: that account is left exactly as it was and the rest of the file is
+stored, so a file copied from another player still updates the accounts that are yours. The
+upload's answer names the accounts it stored and the ones it skipped, with the reason. A
+file holding nothing but somebody else's account stores nothing and says so, rather than
+reporting an upload that changed nothing.
 
 Item rows keep the account they came from (`itemshare_shared_items.account_name`), so
 someone who plays several ESO accounts can see which account holds each item. Which
@@ -262,6 +314,11 @@ platform and world - and so the browsing picker - cannot yet say which one is me
 Telling them apart needs the account key to be `(handle, platform, world)` through
 uploads, linking and the browsing choice, which is a migration and a change to how a
 session names its account; it is not something display can fix.
+
+A code redeemed on another server shows the same split in miniature: the membership row is
+written with the code's own platform and world, while the account itself still carries the
+world of its last upload. The slot shows up because an invited membership does not need the
+account row to match it, but which world the browsing picker offers never changes.
 
 ### Invitation codes
 
@@ -325,6 +382,28 @@ item, an `ItemShareExport.lua` compatibility copy - still parses, but its guilds
 read at all, so its items arrive with no guilds and nobody can see them. Re-export with
 the current addon instead.
 
+## The how-to page
+
+`/how-to` opens before signing in, and the same markup is the disclosure under the sign-in
+card and under the upload box, so the three cannot say different things. It is two sections:
+
+- **Been given a guild code?** - sign in, choose **Use Guild Code** at the top of the page,
+  enter the code and the ESO account it opens for. Nothing is installed and nothing is
+  uploaded: the code's guild appears in the list and its offerings can be asked for.
+- **Adding your own items** - the addon path, in the order somebody meets it: install,
+  upload, choose what to share in game, publish with `/reloadui`, answer requests.
+
+The code section comes first because it asks nothing of the reader - no game files, no
+upload, no membership in the guild in game - and an invited person should not have to read
+how to share their own items to find out what to do with their code.
+
+The two game screenshots in step 3 are files in `public/guide/`: `add-to-share.png` (the
+item's right-click menu, with Add to Share, Always Share This Item and Share Reserve) and
+`shared-items.png` (the Shared Items window, which is `/itemshare list`). `guideShot` asks
+`existsSync` on every render, so until a picture lands the step draws the frame that
+reserves its space rather than a broken image, and the page picks it up as soon as the file
+is in the folder - there is no build step and nothing to restart.
+
 ## Automatic uploads
 
 `POST /ingest` accepts the same file from a watcher instead of a browser, so the site
@@ -380,6 +459,7 @@ token travels in a header and the file contents are plain text over the wire.
 | Method | Path | Purpose |
 | --- | --- | --- |
 | `GET` | `/` | The page: tabs, filters, the item table |
+| `GET` | `/how-to` | The guide: a guild code, and adding your own items |
 | `GET` | `/items` | The item-list region only, as a fragment, for live refresh. `503` means "leave the screen alone" |
 | `POST` | `/upload` | Accept a `ItemShareSavedVars.lua` upload |
 | `POST` | `/ingest` | Accept the same file from a watcher, token-authenticated |
@@ -402,7 +482,7 @@ token travels in a header and the file contents are plain text over the wire.
 | `POST` | `/accounts/remove` | Unlink one of their ESO accounts, leaving what it shared |
 | `POST` | `/logout` | Delete the session row and clear the cookie |
 | `POST` | `/simulate/nudge` | Token-authenticated "something changed" push, used by `npm run simulate` |
-| `GET` | `/requests/fulfill/:token` | The answer form a request email links to; the token in the address is the credential |
+| `GET` | `/requests/fulfill/:token` | The link a request email carries: it signs that email's owner in and lands on Requests Received (`?form=1` asks for the bare one-email form instead) |
 | `POST` | `/requests/fulfill/:token` | Records what the owner says they sent: `0` cancels that row, anything else hands it over |
 | `GET` | `/owner/requests` | Signed-in list of what is waiting on your own items; with `X-ItemShare-Fragment: 1` it returns just the card the modal shows |
 | `POST` | `/owner/requests` | Records an answer given on the site, then redirects back so a refresh cannot answer twice; the fragment request gets the refreshed card instead |
@@ -418,10 +498,10 @@ as* control above the tabs picks it, and the choice is stored on the person
 signing out and follows you to another device. With a single account it is a label
 instead of a choice.
 
-The chosen account decides what **Request** shows: only items offered to guilds *that
-account* belongs to. **Offering** deliberately spans every linked account and names the
+The chosen account decides what **Browse Offers** shows: only items offered to guilds *that
+account* belongs to. **My Inventory** deliberately spans every linked account and names the
 account and character holding each item, so a second account never hides what the first
-one shares. **Your requests** covers everything you have asked for, from any account.
+one shares. **My Requests** covers everything you have asked for, from any account.
 
 The line under every item name carries the pieces that tell one copy from another, in
 the order a reader checks them: level, trait, crafting style, enchantment. Only the level
@@ -432,15 +512,20 @@ have is skipped rather than shown blank. A champion-point item shows its CP as t
 level - `Level CP160`, not the 50 every character has long passed. Two Briarheart daggers share a name, a
 set and a colour, so seeing that one is level 50 and *Precise* and the other level 10 and
 *Sharpened* should not mean scanning across to a column: the pieces sit where the name
-is, on **Request**, on **Offering** and on the owner's *Requests for your items* page.
+is, on **Browse Offers**, on **My Inventory** and on the *Requests Received* tab.
 Every row also shows the owning account and quantity. `Location` is a column
-on **Offering** only, where it reads `Inventory (Character Name)` and the character is not
+on **My Inventory** only, where it reads `Inventory (Character Name)` and the character is not
 repeated beside the account: which bag a copy is in is the question the person handing it
-over has to answer, and nothing the person asking is helped by. **Request** leaves the
+over has to answer, and nothing the person asking is helped by. **Browse Offers** leaves the
 column out altogether, so the copy's whereabouts stay on the owner's side of the site.
 
-Three tabs keep the split obvious, so no row needs a "You" tag: **Request** (other
-people's items), **Offering** (your own), and **Your requests**.
+Four tabs keep the split obvious, so no row needs a "You" tag: **Browse Offers** (other
+people's items, marked with a magnifier), **My Requests** (what you asked for, a list),
+**My Inventory** (your own, a box) and **Requests Received** (what was asked of you, an inbox
+tray). The order is the order the page is used in: browse, check what you asked for, look at
+what you hold, then answer. Each mark is drawn in the tab's own colour, including the lighter
+one a tab that is not open uses, and a visitor is given **Browse Offers** alone - the other
+three could only say "nothing here yet" to somebody with no accounts.
 
 Rows sit under their item type, alphabetical inside each group, until you turn that off.
 The switch above the table reads **Grouped by type** or **One list** and flips between
@@ -450,10 +535,94 @@ always run A-Z and the chosen order applies only inside each type; with it off, 
 to the whole list. A sort never moves a heading: **Added** newest-first puts the newest
 weapon first under Weapons, and Weapons is still where W falls in the alphabet.
 
-The **Item** and **Added** headings sort, cycling through three states on repeated
-clicks: ascending, descending, then back to the default. The chosen order is remembered
-in the `itemshare_sort` cookie and the grouping in `itemshare_group`, so both survive a
-reload without ever appearing in the URL.
+Every heading that has something to order by sorts: **Item**, **Added**, **Type**,
+**Trait**, **Location** (on **My Inventory**, where the column is drawn) and **Offered by**.
+Each cycles through three states on repeated clicks: ascending, descending, then off. As
+on *Requests Received*, several can be on at once. A press joins that column to the
+end of a queue, and each active heading carries its place as a small superscript before
+the arrow - a raised `2` then `\u25bc` reads as "the second sort, biggest first" - so a
+column that only breaks ties shows that it is doing something. The numbers are read from
+the queue each time the table is drawn, so switching off a column in front renumbers the
+ones behind it instead of leaving a `2` with nothing above it. A column only counts on a
+table that draws it: **Location** is on **My Inventory** alone, so a sort left there does
+not take the first place on **Request**, where its heading is not drawn and could not be
+switched off. Rows with nothing in the
+column - no trait, no recorded location - sink to the bottom whichever way it runs. The
+queue is remembered in the `itemshare_sort` cookie and the grouping in `itemshare_group` for
+**Browse Offers** and `itemshare_group_mine` for **My Inventory**, so both survive a reload
+without ever appearing in the URL. The two grouping choices are independent: one list can be
+cut up by type while the other is a flat list, and the switch on each tab shows the state of
+the list it sits on. Turning the headings off on **My Inventory** does not turn them off on
+**Browse Offers**, and neither switch moves the other's sort.
+
+Under a heading, the heading itself is a switch: a press folds that type's rows away and the
+count beside the name stays, so a folded type reads as folded rather than empty. A drawn
+chevron at the start of the heading - a stroke arrow the height of a capital letter, not a
+small glyph - points right while the rows are away and turns down when they are back, which
+is the one thing that has to be seen rather than guessed. A folded type survives a
+reload and a live refresh, in its own cookie - `itemshare_collapsed` for **Browse Offers** and
+`itemshare_collapsed_mine` for **My Inventory** - so folding Weapons on one list leaves
+Weapons open on the other. A word typed in the search box does not spring a folded type open:
+the rows it matches are counted and the heading goes on saying how many are waiting there,
+and opening it then shows what the word left.
+
+The whole list can be folded in one press. At the right-hand end of the row above the table,
+just left of **Grouped by type**, a small ghost button beside it reads **Collapse all** while
+any type is open and **Expand all** once every one is shut - the word is what the press will
+do, not what the list looks like. Its chevron is the same stroke as the per-type one: pointing
+right when a press would open everything, down when it would shut. One press moves that tab's
+list only, writes that list's own cookie, and keeps the rows in step with the search box, so
+folding everything on **Browse Offers** leaves **My Inventory** exactly as it was. The button
+is drawn whenever that list is grouped, even when it holds a single type - folding that one
+heading away is still a press worth making, and a guild whose members share only collectibles
+would otherwise never see it. A flat list, or an empty one, has no folds for it to reach, so
+there the button is simply not drawn.
+
+On the row above the table, beside **Grouped by type**, **Search this list** narrows what is
+already on the page, and a cross at the end of the box empties it and puts the list back. It
+applies about a second after the last keystroke rather than on every letter, so a word is
+finished before the table redraws around it. The box spans the row it sits in, on every tab
+that has one, with the cross at its right-hand end. Browse Offers and My Inventory each have their own box and
+their own word: typing on one leaves the other list untouched, and switching tabs brings
+back that tab's word with the rows it narrows. Matching is partial and ignores case, and looks at everything a row says:
+the name, its type and trait, its enchantment, style and set, the storage place, and who
+offers it. The type headings are labels for the rows rather than entries of their own, so
+they take no part in the matching: a heading stays while any row under it matches and goes
+when none do, until the search is cleared. Its count follows the search too, reading
+`(4 of 12)` while a term is narrowing the group and `(12)` again once it is cleared, so a
+heading never claims twelve rows above the four that are on screen. Every tab has its own
+box: **My Requests** and **Requests Received** narrow both of their tables at once - the
+basket and the log, the waiting list and the answered one - because the word is about an
+item, and which half of the tab a row sits in does not make it a different item.
+
+The *Requests Received* table sorts differently, because its four columns
+answer different questions and one order cannot serve all of them. `Item`, `Stored at`,
+`Mail to` and `Asked` each cycle ascending, descending, off - and a second heading can be
+on at the same time, joining the end of the queue. The columns apply in the order the
+headings were pressed, not the order they sit on screen, so *Mail to* then *Asked* means
+each mailbox in turn with its oldest ask first inside it. An active heading carries its
+place in that queue as a small superscript before the arrow - `\u00b2\u25bc` reads as the
+second sort, biggest first - and the numbers renumber when a column in front of them is
+switched off, so a queue never shows `2` with nothing above it. Without that number a
+second column looks idle while the first decides most of the table. A row with nothing in the column - no recorded place, say
+- sinks to the bottom whichever way that column runs, rather than floating up on a
+descending pass, and the queue is remembered in `itemshare_owner_sort`, never in the
+address bar. `Requested` and `Amount Sent` do not sort: they describe what you have
+answered, not how to find a row.
+
+The other three request tables sort the same way, and each remembers its own order under its
+own cookie rather than borrowing one: **In your basket** (`itemshare_basket_sort`) sorts by
+item, the account it is from, quantity and status; **Submitted requests**
+(`itemshare_sent_sort`)
+adds the day it went; and **Completed requests** (`itemshare_answered_sort`) sorts by item, who
+it went to, requested, amount sent, whether it was fulfilled and when. None of it reaches the
+address bar, so a link stays a plain link to the page.
+
+A table is never removed for being empty. All four keep their headings and put one line
+across every column - *No items have been requested.*, *No requests have been sent yet.*,
+*Nothing is waiting on your items right now.*, *Nothing has been answered yet.* - and the
+line goes as soon as there is a row, coming back when the last one is sent, cancelled or
+times out. A section that vanished read as one that had failed to load.
 
 `Added` is the day an item first entered its owner's shared list - the day they offered
 it - not the day of their latest upload, so re-uploading a long-held item does not make
@@ -461,16 +630,61 @@ it look new. An item that leaves the file altogether - unshared, or every copy h
 over - is dropped when that upload arrives, so if the owner offers it again later it
 comes back with the day they offered it again rather than the day it first appeared.
 
-On **Offering**, `Location` is where the owner's copy was the last time they saved: `Bank`,
+The age beside it is counted from a real UTC instant. Every connection is put in UTC
+(`useUtcSession` in `lib/database.js`, and `timezone: '+00:00'` so the driver reads a date
+column as the same instant rather than as the server's own clock), and the lists ask for
+`UNIX_TIMESTAMP(first_seen_at)`
+rather than formatting the column, so an item offered a minute ago reads as
+`00d 00h 01m 00s` wherever the database host's own clock is set - and each reader still sees
+the count run in their own time zone.
+
+The count starts at the largest field that holds anything and then writes every field to its
+right, each two digits wide: two seconds reads `02s`, a minute reads `01m 00s`, four days
+reads `04d 00h 00m 00s`, a month reads `01mo 00d 00h 00m 00s`. So a `00` in the column only
+appears to the right of a bigger field that has a value - `00h` means an item is a day old or
+more, never that a young row was padded out to a fixed width. Once a field is written it is
+never dropped for being zero, which is what stops the count losing a field and gaining it back
+a second later as it rolls over, and four days to the second keeps its `00h 00m 00s` instead
+of stopping at `04d`. Years and months join on the left as an item ages and keep everything to
+their right: at a month the days are still there, at zero. Request times, `LAST CHANCE` and
+the *Added* windows measure from the same instant, as they always did.
+
+On **My Inventory**, `Location` is where the owner's copy was the last time they saved: `Bank`,
 `Inventory (Character Name)`, `Furnishing Vault (...)`. An upload rewrites it, so moving
 something in game and saving again updates it without anyone touching the site.
 
-A filter bar narrows the list by item type, owner account, how recently it was added
-(day / 7 days / 30 days) and item name. Type and owner accept several values at once,
-each ticked value becoming a chip on a row underneath; clicking a chip removes just that
-value. Filters are ordinary query parameters, repeated once per value
-(`/?type=Weapon&type=Armor&owner=@Name&added=7&q=sword`), so a filtered view can be
-bookmarked and works with scripts off. The sort order is deliberately not among them:
+A filter bar narrows the list by item type, owner account and how recently it was added.
+Type and owner are menus that accept several values at once, each ticked value becoming a
+chip on a row underneath; clicking a chip removes just that value. **Added** is one choice
+at a time - **Any Time**, Last 24 Hours, Last 3 Days, Last 7 Days, Last 2 Weeks, Last 30
+Days, or **LAST CHANCE** - and it is the same menu as the other two rather than a dropdown.
+Its summary names the window it is on and carries no count, because one choice at a time
+could only ever say 1. **Any Time** comes first, so a window is let go of without taking the
+other filters off with it. Filters are ordinary query
+parameters, repeated once per value (`/?type=Weapon&type=Armor&owner=@Name&added=7`), so a
+filtered view can be bookmarked and works with scripts off.
+
+**One row per list, and only two lists have one.** Browse Offers and My Inventory each keep
+their own three choices, under their own names in the address bar: `type`, `owner` and
+`added` for what other people share, `mtype`, `mowner` and `madded` for the viewer's own bag
+both at once (`/?type=Weapon&madded=7` is a valid link). Switching tabs therefore shows that
+tab's filters as they were left, and a type narrowed on the guild's offers never hides a row
+inside your own inventory - which is exactly what one shared row used to do. The menus on each
+row are built from that list's own rows: Browse Offers from what the viewer may see, My
+Inventory from their own accounts. **RESET** clears the row it belongs to and leaves the other
+one alone. My Requests and Requests Received have no filter card at all: those tables are
+requests, not a view of the item list, and no type or owner filter speaks for them - the card
+is taken off the page on both tabs.
+
+Expiry belongs to the owner's file. `expireDays` in the account scope - `["expireDays"] =
+14` in a typical file - is how many days the addon keeps an item shared after it was first
+offered. An item shared longer ago than that is still listed and still claimable, so its
+row keeps its colour and its counts; it simply carries a red **LAST CHANCE** pill, whose
+tooltip names the owner's window, and *Added → LAST CHANCE* narrows the list to those rows.
+A file with no `expireDays` never flags anything: no pill appears anywhere, and the filter
+has nothing to show. The item name is not in the filter bar any more: each list carries its own *Search
+this list* field above the table, which narrows the rows already on the page and leaves the
+address bar alone. The sort order is deliberately not among them:
 it is a reading preference kept in a cookie, which keeps links clean and stops one
 person's sorting being handed to whoever opens their link.
 
@@ -520,9 +734,12 @@ guilds that name is in, and with those known the list narrows to the guilds the 
 account belongs to.
 
 Adding and removing attached names lives in the **Add or remove ESO accounts** dialog: the
-avatar menu opens it, every account there has its own **Remove** button, and the box under
-the list attaches another. The **Your ESO accounts** card on the page is a summary of the
-same list.
+avatar menu opens it, every account there has its own red **Remove** button, and the box
+under the list attaches another - both once a file has been uploaded, since a name typed by
+hand has no platform or server behind it. Guilds the game reported are listed on the
+account; a guild that came from an invitation code is shown as its own item underneath,
+labelled as the code's slot, because it is not a membership the character has in game. The
+**Your ESO accounts** card on the page is a summary of the same list.
 
 A visitor who is not signed in at all sees the same list, under the same hero, and can
 ask for any of it. **The first request asks for three things** - the ESO account name it
@@ -549,37 +766,56 @@ would be a way to make the site send mail to strangers. And if the named ESO acc
 already belongs to another sign-in, the request is refused rather than filed under
 somebody else's character.
 
-The two tabs that only make sense for somebody with items and requests of their own
-(**Offering** and **Your requests**) are not drawn for a visitor, so the page offers the
-one list that applies. Nothing is hidden for effect: the list is real, and reading it is
+The three tabs that only make sense for somebody with items and requests of their own
+(**My Requests**, **My Inventory** and **Requests Received**) are not drawn for a visitor, so
+the page offers the one list that applies. Nothing is hidden for effect: the list is real, and reading it is
 the reason the sign-in card sits above it rather than in front of it.
 
-The overlap is resolved per list: for the account you browse as in *Request*, and across
-every linked account in *Offering*.
+The overlap is resolved per list: for the account you browse as in *Browse Offers*, and across
+every linked account in *My Inventory*.
 
 ## Asking for something
 
-Every row in *Request* has a **Request** button that asks one of two things: **Request 1**,
+Every row in *Browse Offers* has a **Request** button that asks one of two things: **Request 1**,
 or **Request stack (N)** where N is everything still unclaimed. N is the copies nobody has
 claimed plus whatever is already in your own basket, never more than the raw `item_count`,
 so two people can never be promised the same five. What is picked there is the total you
 want to hold, so the same item stays one row in the basket.
 
-A standing offer has no count behind it, so it always means one copy, one at a time: it is
-listed as **Offered 1** until that copy is claimed, and then it leaves the list. It is not
-hidden while the owner has nothing in a bag, because the file no longer says: schema 4
-keeps an always-shared item out of `sharedItems`, so the offer itself is the only evidence
-that the owner wants to hand it out. The server refuses a second request for the same
-offer either way, so two people cannot be promised the same handover.
+A standing offer is a count, not a guess: **OFFERED** is what the owner holds in the place
+they marked it, less the amount they keep back there, and **AVAILABLE** is that less
+whatever a request already stands on. A row is drawn - and a request button appears - only
+while the file says how many are held and that number is above the reserve: one copy per
+press. An offer whose stock is all kept back, whose copies are all spoken for, or whose
+count the file never wrote is not a row to ask from at all. Nothing is assumed in its
+place: a missing count used to read as one copy, which is how an emptied bag went on
+showing *Offered 1*. The count and the place come from the addon, so an upload from 1.11.10
+or later is what puts an offer on the list; a file from an older build carries no count for
+its offers, and they are not shown until the next upload. A file that writes 0 is an answer
+too: the owner holds none, and that answer is shown: *My Inventory* keeps the owner's own
+offer listed with **0** offered while the file says the bag is empty, so an offer that has
+run dry is visible instead of gone, while *Browse Offers* leaves it out - a promise
+with nothing behind it is nothing to ask for. A count the file never wrote is not a row on
+either list. The server refuses what the list will not draw, and reopening an
+expired request follows the same rule, so two people cannot be promised the same handover.
+
+The standing-offers table is drawn with the inventory table's own columns, in the same
+order and at the same widths: **ADDED**, **OFFERED**, **RESERVED**, **AVAILABLE**,
+**TYPE**, **TRAIT**, **LOCATION** (on *My Inventory*, where the owner is the one opening
+the bag) and **OFFERED BY**. A column of offers therefore sits under the column of the same
+name above it rather than near it. **LOCATION** there is the place the owner marked the
+item in - the one place an offer's count belongs to - and it is what the request email
+names when a copy is handed over.
 
 When only one copy can be given, the button sends that request straight away rather than
 opening a dialog whose only answer is "one".
 
 The email that reaches the owner says which item, how many, and **where that copy was
-believed to be** - the same `Location` the Offering list shows, taken from the owner's own saved
+believed to be** - the same `Location` the My Inventory list shows, taken from the owner's own saved
 file at the moment the request was made. It is a place to look rather than a promise: an
 owner who moves the stack and saves again does not rewrite requests that are already
-waiting, and a standing offer carries no location to name.
+waiting, and a standing offer names the place it was marked in when the addon recorded one
+(1.11.10 and later); a file from an older build leaves that cell a dash.
 
 A request is recorded against the account you are browsing as - that is the character
 the owner is told to mail - so the account picker changes where a handover happens, not
@@ -628,7 +864,7 @@ picked rather than from the moment it is sent:
   cancelled with a sentence the requester can read: "Ghost Bane now has 2 of Briarheart
   Dagger, which does not cover the 3 you asked for." A row that merely moved is
   re-pointed by `item_key_hash` instead of being cancelled.
-- *Your requests* holds the basket and, below it, **Already sent**: only the requests
+- *My Requests* holds the basket and, below it, **Submitted requests**: only the requests
   that actually stand, newest first. A request that timed out or was cancelled is
   dropped rather than sitting in the list looking live; when a live update brings back a
   cancellation the page still says so in a toast, once.
@@ -699,7 +935,7 @@ configuration the site uses, printing the transport, sender and subject first, t
 result. Add `answer` as a second argument to look at the reply the asker gets instead. It
 opens no database connection and changes nothing, so it separates "the mail server works"
 from "the site is configured" - if it says the message was handed over and nothing
-arrives, the problem is the MTA's queue or DNS, not ItemShare.
+arrives, the problem is the MTA's queue or DNS, not Guild's Bounty.
 
 ## Item icons
 
@@ -759,6 +995,23 @@ Discord's avatar hash turned into a CDN URL (animated avatars keep their GIF for
 https URLs are stored, and if a picture stops loading the initials underneath show
 instead, so the header never depends on a third party.
 
+The avatar is the whole control: a 38px circle inside a light ring, with no name and no caret
+beside it. Who you are is the first thing the menu says - its heading carries the name and how
+you signed in - so drawing it in the header as well only crowded the picture. Nothing is lost
+to a screen reader: the button is labelled *Account menu for Develia, 3 requests to process*,
+and the name it uses for that label rides along on the button so a live count can be redrawn
+without reloading anything.
+
+**The red count on the avatar** says how many requests are waiting to be processed, in the
+top right corner of the circle and half outside it. It counts what the requests list
+groups: one per item, however many people asked for that item, because one answer settles
+them all. Nothing waiting means no badge at all, and past ninety-nine it reads **99+** so
+the circle never grows wider than the avatar. The number is worked out for the page before
+it is drawn - one small query on a full page load, skipped for the fragments a live refresh
+fetches - so it is already right when the page arrives rather than appearing a moment
+later. It is also what the button says to a screen reader: *Account menu for Develia, 3
+requests to process*.
+
 The only way out is the avatar menu in the header, which holds **Log out**. That posts to
 `/logout`, which deletes the session row and clears the cookie. Without JavaScript the
 form still submits.
@@ -766,6 +1019,41 @@ form still submits.
 Expired rows are pruned at startup and twice a day. If MariaDB is unreachable the session
 layer reports "no session" instead of failing the request, so the page still renders its
 database-error card rather than a blank screen.
+
+## Looking at the site as somebody else
+
+One Discord handle - `evainefaye` - gets an extra item at the bottom of the avatar menu, just
+above **Log out**: a picker whose own first line reads **View the Site As:**, listing everybody
+else in the system in alphabetical order. That line is the picker's name rather than a heading
+above it, so nothing has to be read before the list, and it cannot be chosen. Your own name is
+not in it - being yourself is what *Return to my own login* is for. Picking a name is the whole
+action: the page switches as soon as it is chosen, with no button to confirm it, and the session
+then acts as that person, so the list shows their guilds and their shelf, the request pages show
+what is addressed to them, the avatar is their picture and their pending count, and a person
+with no ESO account linked sees the prompts that person would see. A banner across the top of
+every page names who is being looked at - *This is the site as workswithdragons sees it* - and
+carries *Return to my own login*.
+
+While somebody else's site is on screen the menu works as theirs - the same accounts, requests and
+guild code items, because that is what looking at their site means - with two things missing from
+it. There is no picker, so stepping from one person to another goes through your own login first,
+and there is no **Log out**, which ends the whole session rather than the view. Return, then pick
+again or log out from your own menu, where both are.
+
+It is a test tool, not a role. Nothing grants it, it is checked on every request rather than
+remembered from a session, it needs Discord (a Google or email login with that name does not
+get it, and neither does a similar name), and both routes answer everybody else with the same
+404 the site gives for a page that is not there. The list is only the copy the session belongs
+to, so a real login never sees the demo's people, and the database a session reads follows the
+person who really signed in rather than the person being looked at.
+
+Two things follow from acting as somebody:
+
+- Anything written while looking at their site is written as them - a request sent, an item
+  answered, an account detached. The banner is there to keep that in mind.
+- **Log out** is hidden while somebody else's site is on screen, because it ends the whole
+  session rather than just the view; *Return to my own login* is the way back that keeps you
+  signed in, and Log out is in the menu again once you are.
 
 ## Live updates
 
@@ -823,7 +1111,11 @@ handled by one process would otherwise never reach sockets held by another.
 `itemshare_shared_items` and `itemshare_always_share` both carry `held_quantity` and
 `reserve_quantity`: what was in the bag and what the owner keeps back. `item_count` stays
 what is actually on offer, so every OFFERED/RESERVED/AVAILABLE calculation is unaffected by
-a reserve.
+a reserve. On a standing offer `held_quantity` is nullable, and null means the upload never
+said how many are held in the place the offer was marked: it is not read as zero, and not
+read as one copy either - the offer is simply not offered. A written 0 is an answer in its
+own right: the offer stays on *My Inventory* with 0 offered, where its owner can see it, and
+is left off *Browse Offers*.
 
 A guild id and its world are the stable identity; names are display only, because names
 are neither unique nor stable.
@@ -866,6 +1158,7 @@ npm run simulate -- --rounds 12
 | `npm run backfill` | `backfillIcons.js` | yes | no |
 | `npm run seed:demo` | `seedDemo.js` | yes | no |
 | `npm run requests:reopen` | `reopenRequests.js` | yes | no |
+| `npm run delete:user` | `deleteUser.js` | yes | no |
 | `npm run simulate` | `simulate.js` | yes | only for live pushes |
 | `npm run email:test` | `testEmail.js` | no | no |
 
@@ -983,6 +1276,49 @@ something), `1` nothing matched or everything was skipped, `2` usage.
 The command pushes nothing, so an open page shows the new hold on its next refresh - the
 basket and the "already asked for" counts are read from the tables each time.
 
+### npm run delete:user
+
+Removes one email and password login and everything attached to it. This is the only
+command that destroys data, so it prints what it found, asks for the login name again
+before it starts, and runs as one transaction.
+
+Both `--list` and the removal work on the logins people make here with an address and a
+password. A Discord or Google sign-in is the provider's account, so it is neither listed
+nor removed by this command, and an ESO account name is an item holder rather than a
+login.
+
+| Flag | Meaning |
+| --- | --- |
+| `--list` | Print the email and password logins, with their id and how many ESO accounts each has |
+| `<login>` | The address an email and password login was made with |
+| `--id <n>` | The person id, for when two people answer to the same name |
+| `--dry-run` | Run the same statements, print the counts, then roll back |
+| `--yes` | Skip the confirmation. Required when nothing can be typed, as in a script |
+| `--help`, `-h` | Print usage and exit |
+
+```bash
+npm run delete:user -- --list                          # the logins this command can remove
+npm run delete:user -- someone@example.com --dry-run   # what would go, changes nothing
+npm run delete:user -- someone@example.com             # asks for the name again first
+npm run delete:user -- --id 12 --yes                   # in a script, no prompt
+```
+
+Everything the person owns goes in one transaction: their ESO accounts with the shared
+items, standing offers, guild memberships and uploads on them, their baskets, and the
+requests asked for or owed on those accounts; the guild codes they created and the
+redemptions of them; and their sessions, identities, password, password reset rows, account
+links and the person row itself. Guilds and the item icon and tip caches are shared by
+everybody and are kept. A membership another person was granted with one of this person's
+codes keeps the guild and loses only the provenance - `granted_code_id` becomes `NULL` - so
+deleting a person never takes somebody else's invitation away.
+
+After the deletes the command counts every known reference again. Anything still attached
+is treated as a mistake in its list rather than something to live with: the transaction is
+rolled back and the leftovers are printed, so a half-removed person is never committed.
+`--dry-run` goes through the same statements and rolls back, so its counts are the real
+ones. Exit codes: `0` removed (or a dry run that found them), `1` nothing matched or
+something was left behind, `2` usage.
+
 ### npm run simulate
 
 Drives three made-up people through the same store code the site uses, so a list with
@@ -998,9 +1334,12 @@ real in the database, one at a time:
   a handover instead of asking for ever
 - **cancelling** - either a request already waiting, or one taken back out of the basket
 - **timing out** - the basket's deadline is pushed past, and the site's own sweeper runs
-- **re-saving** - items move between bags, bank and furnishing vault, stacks change and
-  pending requests are re-settled against the new file; logged as `<name> Inventory
-  Refreshed` with where each item landed
+- **re-saving** - items move between bags, bank, furnishing vault and the houses they are
+  placed in, stacks change and pending requests are re-settled against the new file;
+  logged as `<name> Inventory Refreshed` with where each item landed. Some of what these
+  people share stands in a house, written `Placed (Mournoth Keep)` the way a real file
+  writes it, so a row whose count only a `/ishare scan` can correct turns up without
+  waiting for one in game
 
 | Flag | Meaning |
 | --- | --- |
@@ -1044,7 +1383,7 @@ line either way. Both processes hash the token with the same function
 - **`refused ... that site has no SIMULATE_TOKEN at all`** - HTTP 404 with
   `token-not-set`: a different `.env`, or a site started before the token was added.
 - **`refused ... (HTTP 404): nothing answers the simulate route there`** - that address is
-  not this ItemShare (check `BASE_URL` or `--url`), or the site predates this check.
+  not this Guild's Bounty (check `BASE_URL` or `--url`), or the site predates this check.
 
 The site's answer to a refusal is JSON carrying the fingerprint it holds and never the
 token, and its own log line names both fingerprints, so the comparison works from either
@@ -1130,7 +1469,7 @@ npm run email:test -- you@example.com answer
 
 It opens no database connection and changes nothing, so it separates "the mail server
 works" from "the site is configured": if it says the message was handed over and nothing
-arrives, the problem is the MTA's queue or DNS, not ItemShare. It exits `0` when the
+arrives, the problem is the MTA's queue or DNS, not Guild's Bounty. It exits `0` when the
 message was accepted, `1` when email is not configured or the transport refused it, and
 `2` on a missing or malformed address.
 
@@ -1183,7 +1522,7 @@ blank until step 6.
 
 ```ini
 [Unit]
-Description=ItemShare web application
+Description=Guild's Bounty web application
 After=network.target mariadb.service
 
 [Service]
@@ -1207,7 +1546,7 @@ journalctl -u itemshare -f
 Use `command -v node` for `ExecStart`: it is `/usr/bin/node` for a distro package and
 something else for nvm or a tarball install. Running from `WorkingDirectory` is enough -
 the server finds `.env` and `migrations/` by its own path. On boot the log names the
-migrations it applied and then `ItemShare upload site listening on ...`.
+migrations it applied and then `Guild's Bounty upload site listening on ...`.
 
 Setting `NODE_ENV` changes nothing here; the site does not read it.
 
@@ -1253,7 +1592,7 @@ kept - so a database dump is the whole backup.
 
 **After deploying, check:** the page loads over https, a sign-in round trip completes, an
 upload lands, the Request tab shows items, picking one shows the basket clock, sending it
-appears in *Your requests* with a send time, and
+appears in *My Requests* with a send time, and
 `SELECT filename FROM itemshare_schema_migrations;` lists migrations through `019`, an owner
 answers their request email, and the requester's list says what was handed over.
 
@@ -1307,9 +1646,26 @@ to mail them to, and one link at the end. Gmail and several other webmail client
 pressed - the answer was lost with no error shown. Nothing in the message is submitted any
 more, and no number in it is editable.
 
-The link goes straight to `/requests/fulfill/:token`, the page that answers this message:
-no sign-in, no dashboard, nothing to search for. The owner sets a row to what actually
-left their bag, saves it, and `0` means nothing was sent from that row - which cancels it.
+The link goes to `/requests/fulfill/:token`, and it arrives **signed in, on Requests
+Received**: the token already names the person whose ESO accounts these requests are aimed
+at, so the site builds their session from it and redirects to `/?tab=received&waiting=1`
+rather than showing a password box to somebody who has just come out of their inbox.
+`waiting=1` is the jump: the page opens **Waiting on your items** at the top of the screen
+instead of the tab strip, with the pinned top bar, tabs and search row allowed for, so the
+reader lands on the table they came to answer. The requests are there with everything else
+waiting on their items, and the owner sets a row to what actually left their bag, saves it,
+and `0` means nothing was sent from that row - which cancels it.
+
+A signed-out write under `/requests` is still refused - asking for an item needs a person
+behind it - but `/requests/fulfill/:token` is exempt, because its token is the whole
+permission. That guard is why Save in the email used to answer "Sign in before asking for an
+item" after the row had already been filled in.
+
+The link only ever signs in as the owner the token belongs to. If the browser is already
+signed in as somebody else, the session is left alone and the bare form is shown instead: an
+emailed link decides what one email may answer, never whose account the browser is using.
+`?form=1` shows that same form on purpose - the one page that answers this email and nothing
+else - and it is what a link with no readable owner falls back to.
 
 A message is rarely answered in one go - half a stack today, the rest next week - so each
 row is submitted on its own. Saving one row records only that row: the others stay
@@ -1324,14 +1680,22 @@ pending, and the same link answers them later.
   before per-row saving still works: `quantity_<id>` fields are read the same way.
 - GET shows the page and POST records a row. A mail client is never trusted with a form,
   so this page is the only way a message gets answered.
-- The same answering is **Process Requests**, reachable from the account menu. It opens as
-  a modal over the item list rather than replacing it, so answering costs one small
-  request and the list underneath is still where it was; Escape, the large white close
-  in the corner or a click outside it puts it away. `/owner/requests` is still a whole
-  page for a bookmark or a direct visit, and the modal fetches the same card as a
-  fragment, so the two cannot drift apart. It lists what is waiting on the person's own
-  ESO accounts, oldest ask first, and answers a row before returning the list, so what
-  was just answered disappears instead of being answerable twice.
+- The same answering is the **Requests Received** tab, which is on the item list itself
+  rather than behind an entry in the account menu: what is waiting on the person's own ESO
+  accounts, oldest ask first, with the quantity asked for, the amount sent filled in ready to
+  change, and **Fulfilled** / **Not fulfilled** on the row. Answering posts and comes back to
+  the tab, so what was just answered disappears instead of being answerable twice, and the
+  tab says what it recorded. Under the working list is **Completed requests**: what was handed
+  over, how many arrived of how many were asked, and when. `/owner/requests` is still a whole
+  page for a bookmark or a direct visit and still draws the same table, which is why the card
+  and the tab share one renderer - they cannot drift apart.
+- The request email's **Answer these requests** button opens `/requests/fulfill/<token>`,
+  which signs the owner in from the token and redirects to Requests Received - the same work,
+  beside everything else waiting on their items, with no password to find on a phone. The
+  message no longer carries a second **Already signed in?** link, since that one depended on a
+  session the reader did not have and only reached a sign-in screen. The list reads `?tab=` on
+  load (`request`, `offer`, `mine`, `received`) and opens that tab instead of the remembered
+  one.
 - **One row per item, however many times it was asked for.** Two, then two more, then one
   is a page row reading **Requested 5**, because that is one conversation. The database
   rows stay separate: the number you send is spent on the oldest asks first, so 3 against
@@ -1388,7 +1752,12 @@ only useful thing is the file that supplies them.
 `demo@example.com` with the password `demo` is a sign-in that needs neither. It is a real person row with
 `itemshare_users.is_demo = 1`, one ESO account (`@ItemShareDemo`), one guild -
 **Alphabet Mafia** on PC / NA Megaserver - and the curated catalogue in
-`lib/demoItems.js` shared with it. It is created at startup, and again on a demo sign-in
+`lib/demoItems.js` shared with it. The catalogue carries the fields an upload carries, not
+just names: its weapons, armour and jewellery are level 50, CP 160 and enchanted, so the
+requirement and enchantment columns have something to read. Everything that is not gear -
+materials, consumables, furnishings and motifs - is level 1, the level an item with no
+requirement carries, so no row looks as though its level were unknown. None of them carries
+a champion point requirement, a glyph or a style, because none of those exists for it. It is created at startup, and again on a demo sign-in
 if it is missing, so a fresh database already has it. The address on it is
 `demo@example.com`, on the reserved documentation domain, and creating an ordinary
 account with that address is refused, so nobody can take it over.
@@ -1428,6 +1797,15 @@ write an owner's next upload makes - and lets go of asks the guildmates sent and
 followed through on after two minutes (`lib/demoShelf.js`). A visitor's own requests are
 never released; the guildmates answer those. Item rows, request history and the date each
 offer was first made all survive a top-up.
+
+**LAST CHANCE.** The demo's own account and its three guildmates all keep an item for 30
+days (`DEMO_EXPIRE_DAYS` in `lib/demoItems.js`), while the starter dates in
+`lib/itemAges.js` run from about three months old down to a few hours. The two meet in the
+middle on purpose: the oldest rows are past the window and carry the red pill, the newest
+are inside it and do not, so one visit shows what the flag means rather than a list that is
+all pills or none. It also gives *Added → LAST CHANCE* rows to show, which on a shelf of undated
+rows would be an empty list. `expireDays` is a property of the owner's account, not of an
+item, so every row of an owner shares the one window - the same rule a real upload follows.
 
 **Other people.** A visitor who owned every row in the copy would have nothing to ask
 for: the Request tab would mirror their own bag. `lib/demoCast.js` writes three
