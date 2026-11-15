@@ -723,15 +723,25 @@ code {
 }
 
 /* Folded, the caret points at the heading; open, it points down at the rows. It is the one
-   thing on the row that says the type is shut rather than empty. */
+   thing on the row that says the type is shut rather than empty, so it is a drawn chevron
+   at the size of a capital letter rather than a small mark: at 10px a text arrow read as a
+   speck next to 11px capitals. */
 .type-caret {
-  font-size: 10px;
-  line-height: 1;
-  color: var(--muted);
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: #cbd5e1;
+  transition: transform 120ms ease;
 }
 
 .type-row:not(.is-collapsed) .type-caret {
   transform: rotate(90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .type-caret {
+    transition: none;
+  }
 }
 
 .type-row.is-collapsed td {

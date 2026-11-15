@@ -150,6 +150,16 @@ landed on `main`.
   reader sees it run in their own clock. Request times, LAST CHANCE and the *Added* windows
   measure from the same instant, exactly as before.
 
+### Fixed
+
+- **Opening a folded type on My Inventory did nothing.** Folding worked, and so did the
+  caret, but the rows never came back: the heading named its list `mine`, which is the **My
+  Requests** tab, and opening a type hands the rows back through that tab's panel - which
+  draws no item table at all. The two lists now name themselves with their tab's own word
+  (`request` for **Browse Offers**, `offer` for **My Inventory**), so opening a type finds
+  the table it belongs to. The rows are also given back first and narrowed afterwards, so a
+  fold opens even if the search has nothing to say about it.
+
 ### Changed
 
 - **The avatar menu carries the name under the picture.** The name used to sit to the left of
@@ -157,6 +167,10 @@ landed on `main`.
   picture with the caret to the right, and the pill is as wide as the name needs (an ellipsis
   at 132px). The header is one piece instead of two, and the button keeps the accessible name
   it reads out, so the visible name is not announced twice.
+- **The fold's caret is a chevron you can read.** It was a 10px text arrow beside 11px
+  capitals, which read as a speck rather than an indicator; it is now a drawn chevron at
+  15px, turning from right to down in 120 ms (no turn at all where reduced motion is asked
+  for).
 - **Two request tables are named for what they hold.** *Already sent* on **My Requests** is
   now **Submitted requests**, and *Already answered* on **Requests Received** is now
   **Completed requests**: "already sent" read as though the item had gone out, when the table
