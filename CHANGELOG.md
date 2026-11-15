@@ -57,6 +57,12 @@ landed on `main`.
   what an item with no requirement carries. They still have no champion points, glyph or
   style, because they have none: the row reads *Level 1* and stops there, rather than
   looking as though its level were simply unknown.
+- **An upload now says what it did to your list.** The answer under the file drop gives each
+  account's totals and then, underneath, `2 items removed, 5 items added, 1 item refreshed`.
+  A refresh is an item you already had whose quantity the file reports differently - a stack
+  that grew or shrank - so it is not mistaken for something new or something gone, and an
+  item left alone because a request is still open is counted as none of the three.
+
 
 ### Fixed
 

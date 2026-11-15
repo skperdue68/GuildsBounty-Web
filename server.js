@@ -3041,6 +3041,10 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
     accountCount: uploaded.length,
     itemCount: uploaded.reduce((sum, entry) => sum + entry.itemCount, 0),
     alwaysShareCount: uploaded.reduce((sum, entry) => sum + entry.alwaysShareCount, 0),
+    // What the file did to the list, per account in the answer and in total here: an item
+    // nobody had before, an item only re-counted, an item gone.
+    addedItems: uploaded.reduce((sum, entry) => sum + (entry.addedItems || 0), 0),
+    refreshedItems: uploaded.reduce((sum, entry) => sum + (entry.refreshedItems || 0), 0),
     removedItems: uploaded.reduce((sum, entry) => sum + (entry.removedItems || 0), 0),
     cancelledRequests: uploaded.reduce((sum, entry) => sum + (entry.cancelledRequests || 0), 0),
     heldBack,

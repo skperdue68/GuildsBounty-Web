@@ -207,6 +207,13 @@ handled inside one transaction, so either all of them are replaced or none are.
 Guild membership is replaced in full as well (`itemshare_account_guilds`), so leaving a
 guild in game removes that guild's visibility after the next upload.
 
+The answer says what the file did to each account's list, per account and in total: how many
+items were **removed**, how many were **added**, and how many were **refreshed** - an item
+that was already there whose quantity the file reports differently, up or down. A refresh is
+neither an arrival nor a departure: the item stayed, only its count moved. An item held back
+because a request is still open is none of the three, because its stored count was
+deliberately left alone.
+
 The first upload from a signed-in person links their identity to the ESO account in
 `itemshare_accounts`. An ESO account that is already linked to a different person is never
 silently reassigned: that account is left exactly as it was and the rest of the file is
