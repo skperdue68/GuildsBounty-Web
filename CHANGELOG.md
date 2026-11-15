@@ -184,6 +184,12 @@ landed on `main`.
   **Browse Offers** and `itemshare_collapsed_mine` for **My Inventory**, so it survives a
   reload and the two lists fold independently. A search word does not reopen a folded type:
   its heading keeps the count of what matched, and opening it shows those rows.
+- **One press folds the whole list, or opens all of it.** Beside **Grouped by type** is a
+  small **Collapse all** / **Expand all** button - the word is the action, so it reads
+  *Collapse all* while anything is open and *Expand all* once everything is shut, with a
+  chevron that turns the same way as the per-type one. It acts on the tab it sits on, in that
+  list's own cookie, so folding everything on **Browse Offers** leaves **My Inventory** as it
+  was, and it is drawn only when the list is grouped and has more than one type.
 - **The search boxes on My Requests and Requests Received filter as they are typed.** They
   were accepted and then dropped by the handler that whitelisted the older two tabs, so a word
   in either box waited for a reload; all four now narrow on the same delay as each other.
