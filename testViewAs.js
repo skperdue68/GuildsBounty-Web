@@ -396,16 +396,30 @@ t('a row that is not a person is dropped rather than drawn', () => {
   assert.deepEqual(arrangeForMenu(null), []);
 });
 
-t('the list leaves out the person looking, and the one being looked at', () => {
+t('the list leaves out the person looking, and nobody else', () => {
   const body = storeFunction('listViewAsUsers');
 
   assert.match(body, /exclude = \[\]/);
   assert.match(body, /AND id NOT IN \(\$\{inClause\(skip\)\}\)/, 'the query skips them');
   assert.match(body, /\[isDemo \? 1 : 0, \.\.\.skip\]/, 'and binds their ids');
 
-  // Both ids are what the server hands over: yours, and the one the page is already showing.
-  assert.match(server, /const skip = \[Number\(real\.id\), acting \? acting\.id : 0\]/);
+  // Only your own id: whoever is being looked at stays in the list, because the picker shows
+  // them as the line it is on. Leaving them out emptied the list on a small site and took the
+  // picker with it.
+  assert.match(server, /const skip = \[Number\(real\.id\)\]/);
+  assert.doesNotMatch(server, /acting \? acting\.id : 0/, 'the person being looked at is not skipped');
   assert.match(server, /listViewAsUsers\(connection, \{ isDemo: Boolean\(real\.isDemo\), exclude: skip \}\)/);
+});
+
+t('while looking at somebody the picker is still there, on their line', () => {
+  const menu = viewAsMenu({
+    people: [{ id: 9, name: 'workswithdragons' }],
+    acting: { id: 9, name: 'workswithdragons' },
+  });
+
+  assert.match(menu, /data-view-as-picker/, 'the picker is drawn while acting');
+  assert.match(menu, /value="9" selected/, 'and says whose page is on screen');
+  assert.match(menu, /Return to my own login/, 'with the way back beside it');
 });
 
 t('the panel is bounded, so Log out cannot fall off the bottom of the window', () => {
@@ -420,6 +434,13 @@ t('the panel is bounded, so Log out cannot fall off the bottom of the window', (
 
 t('with nobody else to offer, the menu is not drawn rather than empty', () => {
   assert.equal(viewAsMenu({ people: [], acting: null }), '');
+});
+
+t('but with somebody on screen, the way back is drawn even with an empty list', () => {
+  const menu = viewAsMenu({ people: [], acting: { id: 9, name: 'Ada' } });
+
+  assert.match(menu, /action="\/view-as\/return"/);
+  assert.doesNotMatch(menu, /data-view-as-picker/, 'a picker with nothing in it is not drawn');
 });
 
 let passed = 0;
