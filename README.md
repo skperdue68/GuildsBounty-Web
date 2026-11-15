@@ -86,8 +86,10 @@ retry timers - is optional and off when blank. See `.env.example` for each one.
 *ItemShare is now Guild's Bounty*, with the new address linked. It goes away after ten seconds
 or on the cross, and it is drawn only on the page they land on - a visit by the new name never
 sees it, and a live refresh never brings it back. The name is read from `Forwarded` (RFC 7239,
-`host=`), then `X-Forwarded-Host`, then `Host`, so the check follows the address the browser
-asked for rather than the proxy's own. If the card never appears behind a proxy, ask the app
+`host=`), then `X-Forwarded-Host`, then `X-Served-By`, then `Host`, so the check follows the
+address the browser asked for rather than the proxy's own. `X-Served-By` is not a standard
+header - proxies invented it - but some of them put the name they were asked for in it while
+rewriting `Host` to the upstream, and those are exactly the ones the card used to miss. If the card never appears behind a proxy, ask the app
 what it saw: every response carries **`X-Site-Host`**, the name it resolved.
 
 ```

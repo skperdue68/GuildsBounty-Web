@@ -23,9 +23,9 @@ landed on `main`.
   appears only on the page somebody lands on, only for the old name: a visit by the new one has
   nothing to read, and a live refresh does not bring it back. Which names count is
   `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`. The name is read from `Forwarded`
-  (`host=`), then `X-Forwarded-Host`, then `Host`, and every response says the name it settled
-  on in **`X-Site-Host`** - one `curl -I` then tells a proxy that is passing the name from one
-  that is rewriting it.
+  (`host=`), then `X-Forwarded-Host`, then `X-Served-By`, then `Host`, and every response says
+  the name it settled on in **`X-Site-Host`** - one `curl -I` then tells a proxy that is
+  passing the name from one that is rewriting it.
 
 - **Requests Received: a fourth tab, where the owner's list used to live behind the account
   menu.** It is the same working list the owner's page draws - one row per item, the quantity

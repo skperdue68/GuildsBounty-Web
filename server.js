@@ -179,12 +179,23 @@ const NEW_SITE_URL = String(process.env.NEW_SITE_URL || 'https://guildsbounty.pe
  */
 function requestHost(req) {
   const headers = (req && req.headers) || {};
-  // RFC 7239 `Forwarded: for=1.2.3.4;host=itemshare.perdues.me;proto=https` is what a proxy
-  // that does not send X-Forwarded-Host usually sends instead, so it is read first. Only the
-  // first entry counts: that is the name the browser asked for, the rest are hops behind it.
+  // In order of how much the header is to be trusted. RFC 7239 `Forwarded:
+  // for=1.2.3.4;host=itemshare.perdues.me;proto=https` is the standard one, and only its first
+  // entry counts: that is the name the browser asked for, the rest are hops behind it.
+  //
+  // `X-Served-By` is not standard at all - proxies invented it, and some of them (the one in
+  // front of this site among them) put the name they were asked for in it while rewriting
+  // `Host` to the upstream. It is read before `Host` for that reason: on such a proxy `Host`
+  // is a container name, and believing it means the rebrand card can never draw.
   const forwarded = String(headers.forwarded || '').split(',')[0];
   const named = /(?:^|;)\s*host=("?)([^";]+)\1/i.exec(forwarded);
-  const raw = String((named && named[2]) || headers['x-forwarded-host'] || headers.host || '');
+  const raw = String(
+    (named && named[2]) ||
+      headers['x-forwarded-host'] ||
+      headers['x-served-by'] ||
+      headers.host ||
+      ''
+  );
 
   return raw.split(',')[0].trim().toLowerCase().replace(/:\d+$/, '');
 }
