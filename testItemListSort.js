@@ -8,7 +8,14 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { SORT_FIELDS, parseSortOrder, queuePlace } from './lib/sortQueue.js';
+import {
+  OWNER_SORT_FIELDS,
+  SHARED_SORT_FIELDS,
+  SORT_FIELDS,
+  drawnQueue,
+  parseSortOrder,
+  queuePlace,
+} from './lib/sortQueue.js';
 import { orderFor } from './lib/store.js';
 import { inventoryTable, listSearchBox, offerTable, renderListRegion } from './lib/views.js';
 
@@ -209,6 +216,56 @@ t('a heading that is off carries no badge', () => {
 
   assert.match(html, /<span class="sort-queue" hidden><\/span>/);
   assert.doesNotMatch(html, /<sup class="sort-rank">2<\/sup>/);
+});
+
+t('a sort on a column this table does not draw is not a place in its queue', () => {
+  // Sorted by LOCATION on My Inventory, then opened Request. That table draws no LOCATION
+  // heading, so it shows no badge for it - and it must not count it either, or the page
+  // looks unsorted while the first heading pressed there is numbered 2 with nothing above it.
+  const html = request({ order: queue(['location', 'asc']) });
+
+  assert.doesNotMatch(html, /<sup class="sort-rank">/, 'nothing to show, nothing counted');
+});
+
+t('so the first heading pressed on Request really is the first', () => {
+  const html = request({ order: queue(['location', 'asc'], ['name', 'asc']) });
+
+  assert.match(html, /<sup class="sort-rank">1<\/sup>\u25b2/, 'Item is 1, not 2');
+  assert.doesNotMatch(html, /<sup class="sort-rank">2<\/sup>/);
+});
+
+t('My Inventory keeps LOCATION in its queue, because it draws that column', () => {
+  const html = offering({ order: queue(['location', 'asc'], ['name', 'asc']) });
+
+  assert.match(html, /aria-label="Location, sorted ascending, 1 in the sort order"/);
+  assert.match(html, /aria-label="Item, sorted ascending, 2 in the sort order"/);
+});
+
+t('a standing offer on Request counts the same way its own headings do', () => {
+  const html = offerTable(rows, { mine: false, filters: { order: queue(['location', 'asc'], ['owner', 'desc']) } });
+
+  assert.match(html, /<sup class="sort-rank">1<\/sup>\u25bc/, 'Offered by is 1');
+});
+
+t('drawnQueue keeps only the columns the table is given', () => {
+  const order = queue(['location', 'asc'], ['name', 'desc']);
+
+  assert.deepEqual(drawnQueue(order, SHARED_SORT_FIELDS).map((entry) => entry.field), ['name']);
+  assert.deepEqual(drawnQueue(order, OWNER_SORT_FIELDS).map((entry) => entry.field), ['location', 'name']);
+  assert.deepEqual(drawnQueue(undefined, SHARED_SORT_FIELDS), []);
+});
+
+t('the Request rows are ordered by that same cut queue, not by the hidden column', () => {
+  const server = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const from = server.indexOf('data.requestItems = await getSharedItemsForViewer');
+
+  assert.match(server, /const sharedOrder = drawnQueue\(filters\.order, SHARED_SORT_FIELDS\)/);
+  assert.ok(from > -1, 'the Request list is fetched');
+  assert.match(server.slice(from, from + 240), /order: sharedOrder/, 'and ordered by the cut queue');
+
+  const offers = server.indexOf('data.requestOffers = await getAlwaysShareForViewer');
+  assert.ok(offers > -1);
+  assert.match(server.slice(offers, offers + 260), /order: sharedOrder/);
 });
 
 t('the heading reports the direction and its place to a screen reader', () => {

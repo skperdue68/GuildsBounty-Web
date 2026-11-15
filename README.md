@@ -511,7 +511,10 @@ end of a queue, and each active heading carries its place as a small superscript
 the arrow - a raised `2` then `\u25bc` reads as "the second sort, biggest first" - so a
 column that only breaks ties shows that it is doing something. The numbers are read from
 the queue each time the table is drawn, so switching off a column in front renumbers the
-ones behind it instead of leaving a `2` with nothing above it. Rows with nothing in the
+ones behind it instead of leaving a `2` with nothing above it. A column only counts on a
+table that draws it: **Location** is on **My Inventory** alone, so a sort left there does
+not take the first place on **Request**, where its heading is not drawn and could not be
+switched off. Rows with nothing in the
 column - no trait, no recorded location - sink to the bottom whichever way it runs. The
 queue is remembered in the `itemshare_sort` cookie and the grouping in `itemshare_group`,
 so both survive a reload without ever appearing in the URL.

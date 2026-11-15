@@ -5,6 +5,16 @@ landed on `main`.
 
 ## Unreleased
 
+### Fixed
+
+- **A sort on Location no longer hides on the Request list, or numbers the first column there
+  `2`.** Location is a column on My Inventory only. Sorting by it and then opening Request left
+  a queue the Request headings could not show - no badge anywhere, so the list looked unsorted -
+  while the rows stayed ordered by it and the first heading pressed was numbered `2` with
+  nothing above it, then `3`. Each table now counts only the columns it draws, so the numbers
+  and the rows agree: Location still decides on My Inventory and is simply not part of the
+  Request list's order.
+
 ### Added
 
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
