@@ -160,7 +160,6 @@ landed on `main`.
   same tools row as the other two tabs rather than in a narrow column of their own, with the
   cross at the right-hand end clearing them, and they narrow both tables on the tab as the
   word is typed.
-
 - **Every request table says what it is, even when it is empty.** *In your basket* and
   *Already sent* on My Requests, and *Waiting on your items* and *Already answered* on
   Requests Received, keep their headings and put one line across every column when there is
