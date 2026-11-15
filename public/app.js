@@ -564,8 +564,9 @@ if (listRegion) {
         if (shut) {
           for (const row of groupMembers(heading)) row.hidden = true;
         } else {
-          // Opening hands the rows back to the search box, so a word typed while the type
-          // was shut still decides what shows.
+          // The rows come back first, so opening a type never depends on anything else
+          // succeeding; the search box then narrows them again if it holds a word.
+          for (const row of groupMembers(heading)) row.hidden = false;
           applyListSearch(list);
         }
       }
@@ -758,7 +759,10 @@ if (listRegion) {
   // the two choices are independent, so one must not overwrite the other.
   // One cookie per list. Browse Offers keeps the name it has always used; My Inventory has its
   // own, so the two can be grouped differently and each switch reports the list it sits on.
-  const GROUP_COOKIES = { request: 'itemshare_group', mine: 'itemshare_group_mine' };
+  // Keyed by the tab's own name: `request` is Browse Offers, `offer` is My Inventory. Not
+  // `mine`, which is the My Requests tab, draws no type headings, and answers to a different
+  // panel - the mistake that made opening a folded type leave its rows hidden.
+  const GROUP_COOKIES = { request: 'itemshare_group', offer: 'itemshare_group_mine' };
 
   function writeGroupCookie(list, value) {
     const name = GROUP_COOKIES[list] || GROUP_COOKIES.request;
@@ -770,7 +774,7 @@ if (listRegion) {
 
   // Which types are folded away, one cookie per list, for the same reason the grouping has
   // two: Browse Offers and My Inventory are read separately and must not move each other.
-  const FOLDED_COOKIES = { request: 'itemshare_collapsed', mine: 'itemshare_collapsed_mine' };
+  const FOLDED_COOKIES = { request: 'itemshare_collapsed', offer: 'itemshare_collapsed_mine' };
 
   // The names are written escaped and split on the commas between them, so a blank cookie
   // means nothing is folded - which is how every list starts.

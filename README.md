@@ -539,9 +539,10 @@ the list it sits on. Turning the headings off on **My Inventory** does not turn 
 **Browse Offers**, and neither switch moves the other's sort.
 
 Under a heading, the heading itself is a switch: a press folds that type's rows away and the
-count beside the name stays, so a folded type reads as folded rather than empty. A small
-caret on the row points right while the rows are away and turns down when they are back,
-which is the one thing that has to be seen rather than guessed. A folded type survives a
+count beside the name stays, so a folded type reads as folded rather than empty. A drawn
+chevron at the start of the heading - a stroke arrow the height of a capital letter, not a
+small glyph - points right while the rows are away and turns down when they are back, which
+is the one thing that has to be seen rather than guessed. A folded type survives a
 reload and a live refresh, in its own cookie - `itemshare_collapsed` for **Browse Offers** and
 `itemshare_collapsed_mine` for **My Inventory** - so folding Weapons on one list leaves
 Weapons open on the other. A word typed in the search box does not spring a folded type open:
