@@ -383,8 +383,10 @@ app.use((req, res, next) => {
     : null;
 
   // Never offered in its own list: your own name is not a place to go, it is the place the
-  // way back leads, and the person being looked at is the page you are already on.
-  const skip = [Number(real.id), acting ? acting.id : 0].filter((id) => id > 0);
+  // way back leads. Whoever is being looked at stays in, because the picker draws them as its
+  // chosen line - leaving them out emptied the list on a small site and took the picker with
+  // it, so there was no way to step from one person straight to another.
+  const skip = [Number(real.id)].filter((id) => id > 0);
 
   withDatabase((connection) =>
     listViewAsUsers(connection, { isDemo: Boolean(real.isDemo), exclude: skip })
