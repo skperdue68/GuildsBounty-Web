@@ -7,6 +7,13 @@ landed on `main`.
 
 ### Added
 
+- **Arriving by the old address says the site has a new name.** `itemsync.perdues.me` still
+  works, and a visit by it opens a short card - *ItemShare is now Guild's Bounty*, with
+  `guildsbounty.perdues.me` linked - that closes itself after ten seconds or on the cross. It
+  appears only on the page somebody lands on, only for the old name: a visit by the new one has
+  nothing to read, and a live refresh does not bring it back. Which names count is
+  `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`.
+
 - **The Discord account named `evainefaye` can look at the site as anybody.** An extra item
   in the avatar menu lists everybody else in the system, alphabetically - your own name is not
   in it, and neither is whoever's page you are already on - and picking one, with no button to
