@@ -6,7 +6,7 @@ const referencePattern = /^(inventory|offer):[1-9]\d*$/;
 export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSessions=1000}) {
  const sessions=new Map();
  return async function handle(i) {
-  if(i.isChatInputCommand() && i.commandName!=='items') return;
+  if(i.isChatInputCommand() && i.commandName!=='guildsbounty') return;
   if(!i.isChatInputCommand() && !i.customId?.startsWith('is:')) return;
   const privateReply = content => i.reply({content,flags:64,allowedMentions:{parse:[]}});
   if(i.guildId!==guildId) return privateReply('Use this command in the configured guild.');
@@ -14,8 +14,8 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
   let state,action;
   if(!i.isChatInputCommand()) {
    const [,key,kind]=i.customId.split(':');state=sessions.get(key);action=kind;
-   if(!state) return privateReply('This control expired. Run /items again.');
-   if(state.user!==i.user.id) return privateReply('This control belongs to another member. Run /items yourself.');
+   if(!state) return privateReply('This control expired. Run /guildsbounty again.');
+   if(state.user!==i.user.id) return privateReply('This control belongs to another member. Run /guildsbounty yourself.');
   } else {
    while(sessions.size>=maxSessions) sessions.delete(sessions.keys().next().value);
    const key=randomBytes(8).toString('hex');state={key,user:i.user.id,expires:now()+ttlMs};sessions.set(key,state);
@@ -30,7 +30,7 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
   const call=(operation,input={})=>api(operation,{...input,actor:{discordId:i.user.id,username:i.user.username,roleIds:roles},discordGuildId:i.guildId});
   const send=(content,components=[])=>i.editReply({content:String(content).slice(0,1950),components,allowedMentions:{parse:[]}});
   async function details(reference,quantity=1) {
-   if(!referencePattern.test(reference)) return send('Use a reference such as inventory:123 or offer:123 from /items browse.');
+   if(!referencePattern.test(reference)) return send('Use a reference such as inventory:123 or offer:123 from /guildsbounty browse.');
    const {item,maxQuantity=20}=await call('item',{reference}); const identity=await call('identity');
    // Each displayed confirmation owns an immutable snapshot; old buttons expire.
    sessions.delete(state.key);
@@ -40,7 +40,7 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
    if(offer && quantity!==1) return send('Always Share requests are for one copy at a time. Reopen this item with quantity 1.');
    const limit=Math.min(offer?1:maxQuantity,Number(item.quantity)||0);
    if(!Number.isSafeInteger(quantity)||quantity<1||quantity>limit) return send(limit<1?'This item has no available copies. Browse again for current stock.':`Choose a whole-number quantity from 1 to ${limit}, then reopen the request.`);
-   if(!identity.selectedAccount) return send('Choose your ESO recipient with /items account eso:@Account, then run your request again. Provisional recipients are subject to officer review.');
+   if(!identity.selectedAccount) return send('Choose your ESO recipient with /guildsbounty account eso:@Account, then run your request again. Provisional recipients are subject to officer review.');
    state.recipient=identity.selectedAccount;
    return send(`Confirm request: ${quantity} × ${safe(item.name)}\nReference: ${safe(reference)} · Available: ${safe(item.quantity)}\nOwner: ${safe(item.owner)} · Category: ${safe(item.category)} · Quality: ${safe(item.quality)}\nLevel: ${safe(item.level)} · CP: ${safe(item.cp)} · Trait: ${safe(item.trait)}\nStyle: ${safe(item.style)} · Enchant: ${safe(item.enchant)}\nRecipient: ${safe(identity.selectedAccount)}\n${offer?'Always Share: one copy per request. ':''}Submitting creates an immediate request. Provisional recipients are subject to officer review.`,[row([button(id('confirm'),'Confirm request',3),...(offer?[]:[button(id('quantity'),'Change quantity')]),button(id('cancel'),'Cancel',4)])]);
   }
@@ -50,7 +50,7 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
    if(action==='cancel') {sessions.delete(state.key);return send('Request cancelled.');}
    if(action==='quantitySubmit') {const q=Number(i.fields.getTextInputValue('quantity'));if(!Number.isSafeInteger(q)||q<1||q>20)return send('Quantity must be a whole number from 1 to 20, within available stock and the server limit.');return await details(state.reference,q);}
    if(action==='confirm') {
-    if(state.submitting) return send('This confirmation has already been used. Check /items requests.');
+    if(state.submitting) return send('This confirmation has already been used. Check /guildsbounty requests.');
     state.submitting=true;
     const {request,duplicate}=await call('request',{reference:state.reference,quantity:state.quantity,expectedRecipient:state.recipient,interactionId:i.id});
     sessions.delete(state.key);return send(`${duplicate?'Already recorded':'Request recorded'} #${safe(request.id)}: ${safe(request.quantity)} × ${safe(request.itemName)}\nStatus: ${safe(request.status)} · Recipient: ${safe(request.recipient)} · ${safe(request.verification)}`);
@@ -60,9 +60,9 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
    let sub=i.isChatInputCommand()?i.options.getSubcommand():state.view;
    if(action?.startsWith('cat'))sub='browse';
    if(action==='next')state.page++;if(action==='prev')state.page--;
-   if(sub==='help')return send('/items browse — browse stock\n/items search name — search\n/items categories — category buttons\n/items account [eso] — view/select ESO recipient\n/items request item [quantity] — use inventory:ID or offer:ID; confirm before submitting\n/items requests — your request history\n/items review [action] [user] [eso] — officer association review\nAll results are private; controls expire after 10 minutes.');
+   if(sub==='help')return send('/guildsbounty browse — browse stock\n/guildsbounty search name — search\n/guildsbounty categories — category buttons\n/guildsbounty account [eso] — view/select ESO recipient\n/guildsbounty request item [quantity] — use inventory:ID or offer:ID; confirm before submitting\n/guildsbounty requests — your request history\n/guildsbounty review [action] [user] [eso] — officer association review\nAll results are private; controls expire after 10 minutes.');
    if(sub==='request')return await details(i.options.getString('item'),i.options.getInteger('quantity')??1);
-   if(sub==='account') {const esoAccount=i.options.getString('eso');const data=await call(esoAccount?'account':'identity',esoAccount?{esoAccount}:{});return send(`Selected: ${safe(data.selectedAccount||'none')}\n${data.accounts.map(a=>`${safe(a.esoAccount)} — ${safe(a.status)} (${safe(a.source)})`).join('\n')||'No linked account.'}\nUse /items account eso:@Account to select a recipient.${data.allowProvisional?' Unlinked recipients are provisional and subject to officer review.':''}`);}
+   if(sub==='account') {const esoAccount=i.options.getString('eso');const data=await call(esoAccount?'account':'identity',esoAccount?{esoAccount}:{});return send(`Selected: ${safe(data.selectedAccount||'none')}\n${data.accounts.map(a=>`${safe(a.esoAccount)} — ${safe(a.status)} (${safe(a.source)})`).join('\n')||'No linked account.'}\nUse /guildsbounty account eso:@Account to select a recipient.${data.allowProvisional?' Unlinked recipients are provisional and subject to officer review.':''}`);}
    if(sub==='review') {const data=await call('review',{action:i.options.getString('action')??'list',discordId:i.options.getUser('user')?.id,esoAccount:i.options.getString('eso')??undefined});return send(data.associations.map(a=>`${safe(a.discordId)} · ${safe(a.esoAccount)} · ${safe(a.status)}`).join('\n')||'No associations.');}
    if(sub==='categories') {
     if(i.isChatInputCommand()){state.page=1;state.categories=(await call('categories')).categories;}
@@ -84,7 +84,7 @@ export function createHandler({guildId,api,now=Date.now,ttlMs=10*60*1000,maxSess
    return send(`${content||'No results.'}\nPage ${data.page}/${data.totalPages} · ${data.total} results${data.scope?` · ${safe(data.scope.guildName)} / ${safe(data.scope.platform)} / ${safe(data.scope.worldName)}`:''}`,controls);
   } catch(error) {
    // Failed/uncertain submissions remain consumed: never retry writes automatically.
-   const message=error.publicMessage||'Guild\'s Bounty could not complete this action. Check /items requests before retrying a request, or contact an officer.';
+   const message=error.publicMessage||'Guild\'s Bounty could not complete this action. Check /guildsbounty requests before retrying a request, or contact an officer.';
    if(i.deferred||i.replied)return send(message);return privateReply(message);
   }
  };

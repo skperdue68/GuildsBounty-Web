@@ -1,5 +1,5 @@
 import { SlashCommandBuilder } from 'discord.js';
-export const commands=[new SlashCommandBuilder().setName('items').setDescription('Experimental private Guild\'s Bounty access').setDMPermission(false)
+export const commands=[new SlashCommandBuilder().setName('guildsbounty').setDescription('Experimental private Guild\'s Bounty access').setDMPermission(false)
  .addSubcommand(c=>c.setName('browse').setDescription('Browse available items'))
  .addSubcommand(c=>c.setName('search').setDescription('Search available items').addStringOption(o=>o.setName('name').setDescription('Item name').setRequired(true).setMaxLength(100)))
  .addSubcommand(c=>c.setName('categories').setDescription('Browse categories'))

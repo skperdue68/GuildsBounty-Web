@@ -1,6 +1,6 @@
 # Experimental Discord bot: setup and testing guide
 
-The website is now **Guild's Bounty**, at https://guildsbounty.perdues.me. The ESO addon is still **ItemShare**, and its upload file remains `ItemShareSavedVars.lua`. Existing repository names, `ITEMSHARE_*` environment variables, database tables and `/items` commands retain their names. Configure this experiment against your separate test installation rather than the public site.
+The website is now **Guild's Bounty**, at https://guildsbounty.perdues.me. The ESO addon is still **ItemShare**, and its upload file remains `ItemShareSavedVars.lua`. Existing repository names, `ITEMSHARE_*` environment variables, database tables retain their names. Discord commands now start with `/guildsbounty`. Configure this experiment against your separate test installation rather than the public site.
 
 This is an opt-in development integration for Guild's Bounty. Use a dedicated Discord test application, test server, and Guild's Bounty test database. Test the development branch separately before considering any deployment. The API is disabled by default; installing dependencies or starting the normal website does not authorize a production rollout. No automatic deployment is part of this feature.
 
@@ -12,7 +12,7 @@ Each installation is bound by server configuration to one Discord server and one
 
 GuildSync is unchanged: no edits to its code, schema, configuration, or data are needed. An optional adapter can read confirmed identity links using existing SELECT-only database credentials configured in Guild's Bounty. Never give this adapter write privileges. If the source is unavailable, do not treat a typed ESO account as confirmed.
 
-A provisional recipient is only an Guild's Bounty delivery association between a Discord user and an ESO account. It creates no account ownership, verified identity link, Discord role, or general guild access. Officer approval affects this delivery association only. It must not overwrite an existing verified identity or link somebody else's account to a website login.
+A provisional recipient is only a Guild's Bounty delivery association between a Discord user and an ESO account. It creates no account ownership, verified identity link, Discord role, or general guild access. Officer approval affects this delivery association only. It must not overwrite an existing verified identity or link somebody else's account to a website login.
 
 ## Prepare a test installation
 
@@ -106,21 +106,21 @@ Register commands again after command definitions change. Registration replaces 
 
 ## Commands and interaction flow
 
-All commands start with `/items`. Select the subcommand in Discord's slash-command picker. There is no text prefix, message scraping, or DM workflow.
+All commands start with `/guildsbounty`. Select the subcommand in Discord's slash-command picker. There is no text prefix, message scraping, or DM workflow.
 
 | Command | Purpose and arguments |
 | --- | --- |
-| `/items browse` | Show the first page of stock available in this installation's ESO scope. |
-| `/items search name:<text>` | Search item names. Example: `/items search name:rubedite`. |
-| `/items categories` | List stock categories and counts, then choose a category to browse. |
-| `/items account` | Show known delivery accounts and the selected recipient. |
-| `/items account eso:<account>` | Select a confirmed account or submit/select a provisional recipient when allowed. |
-| `/items request item:<reference> quantity:<number>` | Open a request confirmation for an item reference such as `inventory:123` or `offer:456`. Quantity is optional. |
-| `/items requests` | Show the invoking member's request history and recorded statuses. |
-| `/items review` | Officer-only list of delivery associations and review statuses. |
-| `/items review action:approve user:<member> eso:<account>` | Approve that member's Guild's Bounty delivery association. |
-| `/items review action:reject user:<member> eso:<account>` | Reject that association. |
-| `/items help` | Show available commands and short usage guidance. |
+| `/guildsbounty browse` | Show the first page of stock available in this installation's ESO scope. |
+| `/guildsbounty search name:<text>` | Search item names. Example: `/guildsbounty search name:rubedite`. |
+| `/guildsbounty categories` | List stock categories and counts, then choose a category to browse. |
+| `/guildsbounty account` | Show known delivery accounts and the selected recipient. |
+| `/guildsbounty account eso:<account>` | Select a confirmed account or submit/select a provisional recipient when allowed. |
+| `/guildsbounty request item:<reference> quantity:<number>` | Open a request confirmation for an item reference such as `inventory:123` or `offer:456`. Quantity is optional. |
+| `/guildsbounty requests` | Show the invoking member's request history and recorded statuses. |
+| `/guildsbounty review` | Officer-only list of delivery associations and review statuses. |
+| `/guildsbounty review action:approve user:<member> eso:<account>` | Approve that member's Guild's Bounty delivery association. |
+| `/guildsbounty review action:reject user:<member> eso:<account>` | Reject that association. |
+| `/guildsbounty help` | Show available commands and short usage guidance. |
 
 ### Browsing, categories, and details
 
@@ -137,9 +137,9 @@ Item details offer Confirm request and Cancel. Inventory items also offer Change
 
 ### Choosing a recipient
 
-Requests require a selected ESO `@Account` recipient. Before confirming a request, run `/items account` to inspect the selected ESO account. Where several confirmed accounts exist, explicitly select the intended one. A Discord display name is not an ESO recipient address. Confirmation records the displayed recipient; if the selected account changes before submission, the backend rejects the stale confirmation. Reopen the item and confirm the intended recipient again.
+Requests require a selected ESO `@Account` recipient. Before confirming a request, run `/guildsbounty account` to inspect the selected ESO account. Where several confirmed accounts exist, explicitly select the intended one. A Discord display name is not an ESO recipient address. Confirmation records the displayed recipient; if the selected account changes before submission, the backend rejects the stale confirmation. Reopen the item and confirm the intended recipient again.
 
-If no confirmed account is available, the bot directs you to `/items account eso:@Account` when provisional recipients are enabled; then retry the request. Supply the exact delivery account and read the provisional notice. This records an unverified delivery association; it does not verify ownership. If provisional recipients are disabled, arrange account confirmation through the existing account-linking process before requesting. Never ask users for their ESO password.
+If no confirmed account is available, the bot directs you to `/guildsbounty account eso:@Account` when provisional recipients are enabled; then retry the request. Supply the exact delivery account and read the provisional notice. This records an unverified delivery association; it does not verify ownership. If provisional recipients are disabled, arrange account confirmation through the existing account-linking process before requesting. Never ask users for their ESO password.
 
 When provisional recipients are enabled, a provisional association may be used to submit a request before officer approval; the response retains its provisional verification state. Officers can review it afterward. A rejected recipient cannot be used. Inspect the displayed verification/review state; a prompt or officer action is not a completed item request.
 
@@ -147,7 +147,7 @@ When provisional recipients are enabled, a provisional association may be used t
 
 Confirm submits a single item immediately. It does not add to, submit, clear, or reset an existing website draft basket. For several items, submit separate requests. Stock and eligibility are checked again at submission, so a previously displayed result can become unavailable. Refresh and choose a smaller quantity or another item when necessary.
 
-Discord can retry an interaction. The same submission interaction is idempotent: a retry should return the recorded request instead of reserving twice. A fresh command/confirmation is a new submission, so check `/items requests` after an ambiguous result before intentionally requesting again.
+Discord can retry an interaction. The same submission interaction is idempotent: a retry should return the recorded request instead of reserving twice. A fresh command/confirmation is a new submission, so check `/guildsbounty requests` after an ambiguous result before intentionally requesting again.
 
 Keep these three states separate:
 
@@ -155,13 +155,13 @@ Keep these three states separate:
 - **Notification:** After commit, the owner's avatar request count and live item/request lists are updated, then the normal request email is sent when configured. Owners process requests on the website's **Requests Received** tab. Request email links use the site's existing signed-in access flow. Missing or failed email is not proof that the request was lost; check request history before retrying. Test mail delivery separately.
 - **ESO handover:** An owner/officer performs the actual in-game delivery and updates the normal Guild's Bounty workflow. The Discord bot does not log into ESO, mail items, or confirm receipt automatically.
 
-`/items requests` shows the invoking user's requests, recipient, quantity, and recorded fulfillment status with pagination. Use the status as Guild's Bounty workflow information, not proof of in-game receipt. Fulfillment is handled through the existing website workflow; the bot has no delivery/complete/cancel command.
+`/guildsbounty requests` shows the invoking user's requests, recipient, quantity, and recorded fulfillment status with pagination. Use the status as Guild's Bounty workflow information, not proof of in-game receipt. Fulfillment is handled through the existing website workflow; the bot has no delivery/complete/cancel command.
 
 ## Officer review
 
-An officer uses `/items review` to inspect Discord-to-ESO delivery associations and their statuses, verifies the proposed address through the guild's normal process, and uses approve or reject with both the Discord member and ESO account. Matching both values avoids approving another association for the same member accidentally.
+An officer uses `/guildsbounty review` to inspect Discord-to-ESO delivery associations and their statuses, verifies the proposed address through the guild's normal process, and uses approve or reject with both the Discord member and ESO account. Matching both values avoids approving another association for the same member accidentally.
 
-Ask the member to check `/items account` after review and inspect `/items requests` before submitting another request. Review does not itself fulfill or cancel an already recorded request. Approval is not a request submission and does not grant a role, website account ownership, or guild membership. Rejection prevents future use of that Guild's Bounty association; it does not alter a GuildSync link or GuildSync data. Ordinary members must receive an authorization error for review operations even if they know the command syntax.
+Ask the member to check `/guildsbounty account` after review and inspect `/guildsbounty requests` before submitting another request. Review does not itself fulfill or cancel an already recorded request. Approval is not a request submission and does not grant a role, website account ownership, or guild membership. Rejection prevents future use of that Guild's Bounty association; it does not alter a GuildSync link or GuildSync data. Ordinary members must receive an authorization error for review operations even if they know the command syntax.
 
 ## Test acceptance checklist
 
@@ -171,7 +171,7 @@ This checklist describes required validation; it is not a claim that a live Disc
 
 - [ ] API disabled by default; disabled requests fail without changing stock.
 - [ ] Missing/wrong API bearer token, wrong Discord guild, and missing allowed roles are denied.
-- [ ] Dedicated test bot registers only guild commands, connects, and answers `/items help` privately.
+- [ ] Dedicated test bot registers only guild commands, connects, and answers `/guildsbounty help` privately.
 - [ ] Browse/search/category counts and previous/next navigation work with empty, single-page, and multi-page results; another member cannot operate private controls.
 - [ ] Inventory and offers display accurate details; references outside the configured ESO guild/platform/world are rejected, including manually supplied references.
 - [ ] Always Share stock matches the website: unknown/zero stock, stock entirely kept back, and fully requested stock are unavailable; multiple remaining copies stay visible. Each offer request submits exactly one copy.
@@ -182,7 +182,7 @@ This checklist describes required validation; it is not a claim that a live Disc
 - [ ] Quantity rejects zero, negative, fractional, excessive, and stale-stock submissions. Concurrent requests cannot reserve more stock than available.
 - [ ] Cancel creates no request; Confirm creates exactly one; retrying the same interaction returns the same request without a second reservation.
 - [ ] Discord submission leaves an existing website draft basket unchanged.
-- [ ] `/items requests` shows only the member's scoped requests, correct recipients/status, and working pagination.
+- [ ] `/guildsbounty requests` shows only the member's scoped requests, correct recipients/status, and working pagination.
 - [ ] A committed request remains visible if notification fails; controlled test email and website updates are checked independently.
 - [ ] An owner's open website pages receive the new avatar request count and Requests Received update after a bot submission, even if email fails. Their email link opens the existing Requests Received flow.
 - [ ] Fulfillment updates on the website are reflected in later status checks; no automatic in-game handover is implied.
@@ -194,3 +194,7 @@ This checklist describes required validation; it is not a claim that a live Disc
 If commands are missing, verify application/server IDs, installation scopes, guild command registration, and Discord channel access. If replies fail, inspect bot and Guild's Bounty logs for the disabled API, bearer-token mismatch, scope mismatch, or role error. Redact secrets before sharing logs. If a recipient is blocked, check account selection and review status rather than granting extra bot permissions.
 
 To end the experiment, disable the experimental API feature and stop the bot process. Optionally remove this test application's guild commands or remove the application from the test server. Revoke test tokens when no longer needed. No destructive database cleanup is required: keep request/audit history according to normal retention, and do not delete or modify GuildSync data. Removing commands or stopping the bot does not cancel already recorded Guild's Bounty requests; handle those through the normal website workflow.
+
+## Updating an existing test bot
+
+After pulling this branch, run `npm ci` and `npm run deploy-commands` from `discord-bot/`, then restart the bot. Command registration replaces the test application's guild commands, removing the old `/items` command and installing `/guildsbounty`. This does not change GuildSync commands because the test bot uses its own application. Set the application's display name to **Guild's Bounty Test** in the Discord Developer Portal. The existing `ITEMSHARE_*` settings remain compatible; no environment-variable migration is needed.
