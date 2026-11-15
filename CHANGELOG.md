@@ -122,6 +122,14 @@ landed on `main`.
 
 ### Changed
 
+- **The demo and the simulator build rows the same shape as an upload.** Their fixtures still
+  filled in the thirteen fields the tables no longer have, so a demo item and a simulated item
+  described data the site cannot store - harmless, because the insert only ever reads the
+  column list, but misleading to anybody reading the catalogue and expecting those fields to
+  arrive. They are gone from both, and a check in `npm run test:schema` now turns each field a
+  demo or simulated item carries into the column it would need and fails if there is no such
+  column. The database itself needed nothing: the demo copy is built from the same migrations
+  on every start, so it has no such columns either way.
 - **The item tables are down to what the site actually uses.** Thirteen columns were stored
   and never read: the numeric item type, the quality's own name, the trait type, the apparel
   and weapon descriptors, the furniture data id, the flavour text, the raw dump of every ESO

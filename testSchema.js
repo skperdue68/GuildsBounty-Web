@@ -12,12 +12,17 @@
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 
+import { ITEMS, OFFERS, buildItem, buildOffer } from './lib/demoItems.js';
+
 const tests = [];
 const t = (label, run) => tests.push([label, run]);
 
 const read = (path) => readFileSync(new URL(`./${path}`, import.meta.url), 'utf8');
 
 const store = read('lib/store.js');
+const demoItems = read('lib/demoItems.js');
+const simulate = read('simulate.js');
+const fulfillment = read('testFulfillment.js');
 const savedVars = read('lib/savedVars.js');
 const schema = read('migrations/001_itemshare_schema.sql');
 const offers = read('migrations/008_itemshare_always_share.sql');
@@ -216,6 +221,85 @@ t('the migration is the newest one, so it runs last', () => {
   const last = files[files.length - 1];
 
   assert.match(last, /^030_itemshare_drop_unused_item_columns\.sql$/, `newest is ${last}`);
+});
+
+// --------------------------------------------------------------------- the fixtures
+
+// A demo or simulated item is a row the site writes, so it has to be shaped like one: if it
+// carries a field the table has no column for, the fixture is describing data the site cannot
+// store, and the next reader has no way to tell which fields are real.
+const camel = (column) => column.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
+
+// What a builder's own object literal says, for the two files that cannot be imported here.
+const builderBody = (text, marker) => {
+  const from = text.indexOf(marker);
+  assert.ok(from > -1, `${marker} is where the test can find it`);
+
+  const body = text.slice(from);
+  return body.slice(0, body.indexOf('\n}'));
+};
+
+t('a demo item is shaped exactly like a row, plus the guild links', () => {
+  const fields = new Set(itemColumns.map(camel));
+  const item = buildItem(ITEMS[0], 0, [1]);
+
+  for (const key of Object.keys(item)) {
+    if (key === 'guildIds') {
+      continue;
+    }
+
+    assert.ok(fields.has(key), `${key} has no column in ITEM_COLUMNS, so nothing will store it`);
+  }
+
+  assert.ok(fields.has('itemTypeName'), 'and the type the list filters by is still there');
+});
+
+t('a demo offer is shaped exactly like a row too', () => {
+  const fields = new Set(offerColumns.map(camel));
+  const offer = buildOffer(OFFERS[0], 0, [1]);
+
+  for (const key of Object.keys(offer)) {
+    if (key === 'guildIds') {
+      continue;
+    }
+
+    assert.ok(fields.has(key), `${key} has no column in ALWAYS_COLUMNS`);
+  }
+});
+
+t('the demo builders no longer carry a column the site dropped', () => {
+  const dead = ['itemType', 'qualityName', 'traitType', 'apparelSlot', 'equipType', 'apparelWeight',
+    'armorType', 'weaponType', 'weaponHandedness', 'furnitureDataId', 'flavorText', 'esoData',
+    'lastDumpedAt'];
+
+  for (const marker of ['export function buildItem(', 'export function buildOffer(']) {
+    const body = builderBody(demoItems, marker);
+
+    for (const field of dead) {
+      assert.doesNotMatch(body, new RegExp(`\\b${field}:`), `${field} is not a demo item field`);
+    }
+  }
+});
+
+t('the simulator builds the same rows, so it carries none of them either', () => {
+  const dead = ['itemType', 'qualityName', 'traitType', 'apparelSlot', 'equipType', 'apparelWeight',
+    'armorType', 'weaponType', 'weaponHandedness', 'furnitureDataId', 'flavorText', 'esoData',
+    'lastDumpedAt'];
+
+  for (const marker of ['function buildItem(', 'function buildOffer(']) {
+    const body = builderBody(simulate, marker);
+
+    for (const field of dead) {
+      assert.doesNotMatch(body, new RegExp(`\\b${field}:`), `${field} is not a simulated item field`);
+    }
+  }
+});
+
+t('the fulfilment fixture is a row too, not a wider thing', () => {
+  const body = builderBody(fulfillment, 'function itemFor(');
+
+  assert.doesNotMatch(body, /\\b(itemType|qualityName|traitType|apparelSlot|equipType):/);
+  assert.doesNotMatch(body, /\\b(flavorText|esoData|furnitureDataId|lastDumpedAt):/);
 });
 
 let total = 0;
