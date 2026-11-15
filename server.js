@@ -1,6 +1,11 @@
 #!/usr/bin/env node
 import { readCookie, readGrouping } from './lib/preferences.js';
-import { SORT_FIELDS, parseSortOrder } from './lib/sortQueue.js';
+import {
+  SORT_FIELDS,
+  SHARED_SORT_FIELDS,
+  drawnQueue,
+  parseSortOrder,
+} from './lib/sortQueue.js';
 import { keepDemoShelfFull } from './lib/demoShelf.js';
 import { errorLine, logLine, warnLine } from './lib/log.js';
 // Guild's Bounty upload site: signs in with Discord or Google (both optional),
@@ -985,6 +990,12 @@ async function viewerAccountNames(req, connection, user) {
         // to, so the signed-in person's id is what has to go down to the list.
         const viewerUserId = user ? user.id : 0;
 
+        // The Request list draws no LOCATION column, so a sort left on LOCATION from My
+        // Inventory is dropped from its queue rather than ordering rows by a column the page
+        // cannot show or switch off. The view cuts the queue the same way when it draws the
+        // headings (see `tableFilters` in lib/views.js), so the numbers and the rows agree.
+        const sharedOrder = drawnQueue(filters.order, SHARED_SORT_FIELDS);
+
         data.facets = await getViewerFacets(connection, requestScope);
         data.sharedItems = await getSharedItemsForViewer(connection, accountNames, {
           ...filters,
@@ -992,10 +1003,14 @@ async function viewerAccountNames(req, connection, user) {
         });
         data.requestItems = await getSharedItemsForViewer(connection, requestScope, {
           ...filters,
+          order: sharedOrder,
           viewerUserId,
         });
         data.alwaysShare = await getAlwaysShareForViewer(connection, accountNames, filters);
-        data.requestOffers = await getAlwaysShareForViewer(connection, requestScope, filters);
+        data.requestOffers = await getAlwaysShareForViewer(connection, requestScope, {
+          ...filters,
+          order: sharedOrder,
+        });
       // A hold follows the account it was asked from. Reading the basket without this
       // leaves the state the item list already complains about: a copy held by a person
       // this sign-in is not, with nothing to send and nothing to cancel. It runs on a
