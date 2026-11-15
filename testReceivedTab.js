@@ -11,6 +11,8 @@ import fs from 'node:fs';
 
 import { renderListRegion, renderPage } from './lib/views.js';
 
+const read = (path) => fs.readFileSync(new URL(`./${path}`, import.meta.url), 'utf8');
+
 let total = 0;
 let failures = 0;
 
@@ -206,6 +208,17 @@ t('the page carries the tab, with its waiting row and its history on it', () => 
   assert.match(html, /Ancient Silk/, 'and so is what was answered');
 });
 
+// A live refresh replaces the list region with a freshly drawn copy, so the tab has to be
+// reapplied to the new tabs and panels or the reader is thrown back to Browse Offers - and
+// the received rows, which arrive in that same swap, would be drawn on a hidden panel.
+t('the tab stays open across a live refresh', () => {
+  const app = read('public/app.js');
+
+  assert.match(app, /panel\.hidden = panel\.dataset\.panel !== activeTab/, 'the new panels follow the tab');
+  assert.match(app, /stored === 'received'/, 'and the choice outlives a page rebuild');
+  assert.match(app, /has\('answered'\)\) activeTab = 'received'/, 'an answer comes back to it');
+});
+
 // ------------------------------------------------------------- the working list
 
 t('the waiting list is the owner list: quantity asked for, and the two answers', () => {
@@ -277,6 +290,19 @@ t('the answer posted from the tab redirects to the list, not the old page', () =
   const server = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
 
   assert.match(server, /req\.body\.from\) === 'list' \? '\/' : '\/owner\/requests'/);
+});
+
+// A pushed change redraws the list through /items, not through the page, so the fragment has
+// to be built from the same loader - otherwise the tab updates its count and its rows only on
+// a reload, which is the one thing a live list must not do.
+t('the live refresh draws the received list from the same data as the page', () => {
+  const server = read('server.js');
+  const at = server.indexOf("app.get('/items'");
+  const route = server.slice(at, at + 900);
+
+  assert.ok(at > -1, 'the fragment route is still there');
+  assert.match(route, /collectViewerData\(/);
+  assert.match(route, /renderListRegion\(data\)/);
 });
 
 t('the list loads both halves for a signed-in person', () => {
