@@ -124,6 +124,11 @@ landed on `main`.
 
 ### Changed
 
+- **The view-as picker moved to the bottom of the avatar menu and names itself.** Its first
+  line reads **View the Site As:** rather than a separate *View the site as another person*
+  heading above it, and the whole block now sits just above **Log out** instead of above the
+  menu's links. The banner that says whose site is on screen names the person instead of their
+  number: *This is the site as workswithdragons sees it* rather than *as #2 sees it*.
 - **The Added count keeps every field below the biggest one that has a value.** It starts at
   the largest field holding anything and writes everything to the right of it, two digits
   each, so an item four days old reads `04d 00h 00m 00s` rather than `04d`, and a month old

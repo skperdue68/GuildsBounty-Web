@@ -123,7 +123,41 @@ t('the menu lists every person the server sent, with their id', () => {
     assert.match(menu, new RegExp(`value="${person.id}"`), `${person.name} is in the list`);
   }
 
-  assert.equal((menu.match(/<option /g) || []).length, people.length, 'one line per person');
+  // One line per person, plus the picker's own name at the top.
+  assert.equal(
+    (menu.match(/<option /g) || []).length,
+    people.length + 1,
+    'one line per person and the placeholder'
+  );
+});
+
+t('the picker names itself, so nothing has to sit above it', () => {
+  const menu = viewAsMenu({ people, acting: null });
+
+  assert.match(menu, />\s*View the Site As:\s*</, 'the picker is labelled by its own first line');
+  assert.doesNotMatch(menu, /account-menu-note/, 'and no line sits above it');
+  assert.match(menu, /<option value="" disabled selected>/, 'the placeholder is not a person');
+});
+
+t('while somebody is on screen the placeholder is there but not chosen', () => {
+  const menu = viewAsMenu({ people, acting: { id: 9, name: 'Ada' } });
+
+  assert.match(menu, /View the Site As:/, 'the name of the picker is still visible');
+  assert.doesNotMatch(menu, /disabled selected/, 'but the person looked at is the chosen line');
+});
+
+t('the picker sits at the bottom of the menu, just above Log out', () => {
+  const html = pageFor({ ...operator, viewAs: { people, acting: null } });
+  const picker = html.indexOf('data-view-as-picker');
+  const logout = html.lastIndexOf('action="/logout"');
+
+  assert.ok(picker > -1, 'the picker is drawn');
+  assert.ok(logout > -1, 'and so is the way out');
+  assert.ok(
+    html.indexOf('Create Guild Code') < picker,
+    'the picker comes after the menu links rather than in the middle of them'
+  );
+  assert.ok(picker < logout, 'and above Log out, which is the last thing in the menu');
 });
 
 t('it posts the chosen id to the route the server watches', () => {
@@ -173,7 +207,8 @@ t('every page says who is being looked at, and carries the way back', () => {
 
   assert.match(html, /view-as-banner/);
   assert.match(html, /Viewing as Ada/);
-  assert.match(html, /#9/);
+  assert.match(html, /This is the site as Ada sees it\./, 'the banner names the person');
+  assert.doesNotMatch(html, /#9 sees it/, 'and not their number');
   assert.match(html, /action="\/view-as\/return"/);
 });
 

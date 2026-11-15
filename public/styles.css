@@ -1014,17 +1014,15 @@ th.num {
 /* The test tool's picker in the avatar menu. A real <select>, because the list is every
    person in the site and a menu item per person would be unusable. */
 .account-menu-viewas {
-  margin: 4px 0;
-  padding: 8px 10px 10px;
+  margin: 4px 0 6px;
+  padding: 10px 10px 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .account-menu-viewas-form {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 6px;
 }
 
 .account-menu-select {
