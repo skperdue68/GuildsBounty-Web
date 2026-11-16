@@ -137,7 +137,7 @@ t('the eye says what it does, in a picture and in words', () => {
 });
 
 t('the eye is on the reset page even though that page has no item list', () => {
-  assert.match(reset, /src="\/password-toggle\.js"/);
+  assert.match(reset, /src="\/password-toggle\.js(?:\?v=[0-9a-f]{10})??"/);
   assert.equal(reset.includes('/app.js'), false, 'and the list script still stays off it');
   assert.equal(reset.includes('socket.io'), false);
 });
@@ -330,8 +330,8 @@ t('the two-box forms have a place to say what is wrong, and load the check', () 
   assert.match(signUp, /data-form-note[^>]*role="alert"/, 'the sign-up form can speak');
   assert.match(reset, /data-form-note[^>]*role="alert"/, 'and so can a reset link');
 
-  assert.match(renderSignInPage({}), /src="\/password-check\.js"/, 'the sign-up form is on the sign-in page');
-  assert.match(reset, /src="\/password-check\.js"/, 'a reset link is two boxes of its own');
+  assert.match(renderSignInPage({}), /src="\/password-check\.js(?:\?v=[0-9a-f]{10})??"/, 'the sign-up form is on the sign-in page');
+  assert.match(reset, /src="\/password-check\.js(?:\?v=[0-9a-f]{10})??"/, 'a reset link is two boxes of its own');
 });
 
 t('a pair that disagrees is stopped on the form, in the server\u2019s words', () => {
@@ -443,8 +443,8 @@ t('registering hides the ways in, and Cancel puts them back', () => {
 });
 
 t('only the page with the account form loads the script that closes it', () => {
-  assert.match(renderSignInPage({}), /src="\/auth-panel\.js"/, 'the sign-in card closes in place');
-  assert.doesNotMatch(reset, /src="\/auth-panel\.js"/, 'a reset link has no account form');
+  assert.match(renderSignInPage({}), /src="\/auth-panel\.js(?:\?v=[0-9a-f]{10})??"/, 'the sign-in card closes in place');
+  assert.doesNotMatch(reset, /src="\/auth-panel\.js(?:\?v=[0-9a-f]{10})??"/, 'a reset link has no account form');
 });
 
 t('Cancel closes the form and clears it without leaving the page', () => {

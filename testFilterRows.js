@@ -793,6 +793,37 @@ t('a tab shows its own filter row before it narrows or counts anything', () => {
   );
 });
 
+t('a ticked box leaves the menu open, and a click outside closes it', () => {
+  const source = read('public/app.js');
+  const changeHandler = source.slice(
+    source.indexOf("document.addEventListener('change'"),
+    source.indexOf("document.addEventListener('input'")
+  );
+
+  assert.ok(changeHandler.includes('applyFilters(form)'), 'the choice still applies as it is made');
+  assert.doesNotMatch(
+    changeHandler,
+    /\.open = false/,
+    'ticking a box must not close the menu it lives in - three types is three reopenings'
+  );
+
+  // The only way out is the click that lands outside the menu.
+  const clickHandler = source.slice(source.indexOf("document.addEventListener('click'"));
+  assert.match(
+    clickHandler,
+    /details\[open\]'\)\.forEach[\s\S]{0,200}?\.open = false/,
+    'a click outside the menu closes it'
+  );
+
+  // The menu has to survive the refresh a choice starts, or it shuts anyway when the region
+  // comes back: the reconciler keeps `open` from the node already on the page.
+  assert.match(
+    source,
+    /current\.matches\('details'\) && name === 'open'/,
+    'a live refresh keeps an open menu open'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {

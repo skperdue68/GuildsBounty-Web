@@ -296,8 +296,8 @@ await t('every page has a way back to the item list, and the codes page is no ex
 });
 
 await t('the avatar menu works on the pages that have no item list', () => {
-  assert.match(codesPage, /src="\/header-menu\.js"/, 'the menu is opened by its own script');
-  assert.match(joinPage, /src="\/header-menu\.js"/);
+  assert.match(codesPage, /src="\/header-menu\.js(?:\?v=[0-9a-f]{10})??"/, 'the menu is opened by its own script');
+  assert.match(joinPage, /src="\/header-menu\.js(?:\?v=[0-9a-f]{10})??"/);
   assert.doesNotMatch(joinPage, /src="\/app\.js"/, 'the item list is still not loaded');
 });
 

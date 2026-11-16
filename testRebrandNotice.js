@@ -72,7 +72,7 @@ t('the notice is dismissible, and only where it is drawn', () => {
 
   assert.match(withNotice, /data-rebrand-close/, 'the cross');
   assert.match(withNotice, /aria-label="Close this notice"/);
-  assert.match(withNotice, /src="\/rebrand-notice\.js"/, 'and the script that closes it');
+  assert.match(withNotice, /src="\/rebrand-notice\.js(?:\?v=[0-9a-f]{10})??"/, 'and the script that closes it');
   assert.doesNotMatch(without, /rebrand-notice/, 'no notice, no script, nothing to close');
 });
 

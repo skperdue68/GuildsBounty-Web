@@ -7,6 +7,22 @@ landed on `main`.
 
 ### Changed
 
+### Added
+
+- **The page says which build it is.** The stylesheet and every script are now asked for by
+  the version of the files this build was made with (`/styles.css?v=…`, `/app.js?v=…`,
+  stamped from their own size and modification time), and the same short stamp sits in the
+  footer as `build 1a2b3c4d5e`. A fix that does not seem to have arrived can be told apart from
+  a browser - or anything between it and the server - still holding yesterday's copy: reload,
+  and the stamp plus every file it loads should be the new one.
+
+### Changed
+
+- **A filter menu stays open while you fill it in.** Ticking a type closed the box, so two
+  types meant opening it twice, and a type and an owner meant twice more. The menu is left
+  open now, its numbers and rows still updating as each box is ticked, and it closes when the
+  click lands outside it (or on RESET, or on the summary).
+
 - **The standing-offers heading is a heading again, not a bar as deep as the whole pinned
   strip.** It was given the height of the tabs, the filter band and the search row together so
   that it could cover the tabs while a long list scrolled under it - which left roughly 90px of

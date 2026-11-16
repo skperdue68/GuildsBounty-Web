@@ -1365,12 +1365,9 @@ if (listRegion) {
       return;
     }
 
-    // Picking something in a menu closes it; the chip below shows the result.
-    const menu = event.target.closest('details');
-
-    if (menu && (event.target.type === 'checkbox' || event.target.type === 'radio')) {
-      menu.open = false;
-    }
+    // The menu stays open. A filter row is a handful of boxes ticked in one sitting - two
+    // types, a type and an owner - and closing on the first one means hunting the box down
+    // again for every other. It closes when the click lands outside it, further down.
 
     applyFilters(form);
   });
