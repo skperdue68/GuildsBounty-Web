@@ -72,6 +72,13 @@ landed on `main`.
 
 ### Fixed
 
+- **A type whose last row has gone leaves the menu, and its chip with it.** The option was
+  marked hidden, but `display: flex` on `.filter-option` outranked the browser's `[hidden]`
+  rule, so the type stayed in the list with `(0)` beside it. The menu now restates the rule,
+  and a ticked type that loses its last row is unticked and the filter row is applied again, so
+  the chip under the bar goes with the option instead of leaving a filter the reader cannot see
+  or switch off.
+
 - **Every count beside a type now comes from the rows on the page.** The number in the Type menu
   was whatever the page was first sent, so after a live push - somebody uploading, an offer
   running out - it kept counting rows that were no longer there until the page was reloaded.

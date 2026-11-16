@@ -2300,6 +2300,12 @@ tr.row-fading td {
   cursor: pointer;
 }
 
+/* A type whose last row has gone is taken out of the menu, and the display above outranks
+   the browser's [hidden] rule, so restate it. */
+.filter-option[hidden] {
+  display: none;
+}
+
 .filter-option:hover {
   background: rgba(148, 163, 184, 0.14);
 }

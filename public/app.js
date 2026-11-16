@@ -812,6 +812,11 @@ if (listRegion) {
       // exactly as the server drew them.
       if (counts.size === 0) continue;
 
+      // A type whose last row has gone leaves the menu, and if it was one of the list's
+      // choices its chip under the bar leaves with it: leaving the box ticked would keep the
+      // list narrowed by a value that no menu offers and no chip shows.
+      let dropped = false;
+
       for (const box of menu.querySelectorAll(`input[data-filter][name="${name}"]`)) {
         const option = box.closest('.filter-option');
         const count = option ? option.querySelector('.filter-option-count') : null;
@@ -819,11 +824,20 @@ if (listRegion) {
 
         if (count) count.textContent = `(${total})`;
 
-        // A type the list is not drawing any more is not a choice any more. The server has
-        // already dropped it from the address bar, so nothing ticked disappears under the
-        // reader: what is left is exactly the list in front of them.
+        // A type the list is not drawing any more is not a choice any more: it leaves the
+        // menu, so what is left is exactly the list in front of the reader.
         if (option) option.hidden = total === 0;
+
+        if (total === 0 && box.checked) {
+          box.checked = false;
+          dropped = true;
+        }
       }
+
+      // The choice has gone, so the query and the chips are drawn again without it: one
+      // request for the list the reader can actually see, rather than a page still narrowed by
+      // a value that is no longer offered.
+      if (dropped) applyFilters(form);
     }
   }
 

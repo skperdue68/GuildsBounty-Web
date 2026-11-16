@@ -14,6 +14,24 @@ import { renderListRegion, filterBar, FILTER_NAMES } from './lib/views.js';
 
 const read = (path) => fs.readFileSync(new URL(`./${path}`, import.meta.url), 'utf8');
 
+// One function out of public/app.js, braces balanced, so a piece of the page can be run on
+// its own against a fake DOM.
+function functionSource(source, name) {
+  const at = source.indexOf(`function ${name}(`);
+
+  assert.ok(at > -1, `MISSING ANCHOR: function ${name} in public/app.js`);
+
+  let depth = 0;
+
+  for (let i = source.indexOf('{', at); i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    if (source[i] === '}') depth -= 1;
+    if (depth === 0) return source.slice(at, i + 1);
+  }
+
+  throw new Error(`unbalanced function ${name}`);
+}
+
 let total = 0;
 let failures = 0;
 
@@ -284,6 +302,108 @@ t('a folded type keeps its rows, so folding cannot move a count', () => {
     /if \(row\.hidden\) continue/,
     'a row hidden by a fold still counts'
   );
+});
+
+
+// --------------------------------------------------- a type that has gone leaves the menu
+
+t('an option with no rows left is hidden by a rule that can actually hide it', () => {
+  const css = read('public/styles.css');
+
+  assert.match(
+    css,
+    /\.filter-option\[hidden\]\s*\{[^}]*display:\s*none/,
+    'the display on .filter-option outranks [hidden], so the menu restates it'
+  );
+});
+
+t('the last row of a ticked type takes the tick and the chip with it', () => {
+  const app = read('public/app.js');
+  const source = functionSource(app, 'syncTypeCounts');
+
+  const options = {};
+  const boxes = {};
+
+  for (const [type, checked] of [
+    ['Weapons', true],
+    ['Apparel', false],
+  ]) {
+    const count = { textContent: '(1)' };
+    const option = { hidden: false, querySelector: (selector) => (selector === '.filter-option-count' ? count : null) };
+    const box = { value: type, checked, closest: () => option };
+
+    options[type] = { option, count };
+    boxes[type] = box;
+  }
+
+  const menu = {
+    querySelector: () => boxes.Weapons,
+    querySelectorAll: () => [boxes.Weapons, boxes.Apparel],
+  };
+  const form = { dataset: { filterList: 'request' }, querySelectorAll: () => [menu] };
+  const rowsLeft = [{ getAttribute: () => 'Apparel' }];
+  const asked = []; 
+
+  const listRegion = { querySelectorAll: () => rowsLeft };
+  const sync = new Function(
+    'filterForms',
+    'filterListOf',
+    'FILTER_PARAMS',
+    'listRegion',
+    'applyFilters',
+    `${source}
+return syncTypeCounts;`
+  )(
+    () => [form],
+    (node) => (node.dataset.filterList === 'offer' ? 'offer' : 'request'),
+    { request: { type: 'type', owner: 'owner', added: 'added' }, offer: {} },
+    listRegion,
+    (node) => asked.push(node)
+  );
+
+  sync();
+
+  assert.equal(options.Weapons.count.textContent, '(0)', 'Weapons counts nothing');
+  assert.equal(options.Weapons.option.hidden, true, 'and is drawn away');
+  assert.equal(boxes.Weapons.checked, false, 'the tick goes with it');
+  assert.equal(options.Apparel.option.hidden, false, 'the type that still has rows stays');
+  assert.equal(options.Apparel.count.textContent, '(1)', 'counting its row');
+  assert.deepEqual(asked, [form], 'and the list is asked again without the value');
+});
+
+t('a ticked type that still has rows keeps its tick and asks for nothing', () => {
+  const app = read('public/app.js');
+  const source = functionSource(app, 'syncTypeCounts');
+
+  const count = { textContent: '(0)' };
+  const option = { hidden: true, querySelector: () => count };
+  const box = { value: 'Weapons', checked: true, closest: () => option };
+  const menu = { querySelector: () => box, querySelectorAll: () => [box] };
+  const form = { dataset: { filterList: 'request' }, querySelectorAll: () => [menu] };
+  const asked = [];
+
+  const sync = new Function(
+    'filterForms',
+    'filterListOf',
+    'FILTER_PARAMS',
+    'listRegion',
+    'applyFilters',
+    `${source}
+return syncTypeCounts;`
+  )(
+    () => [form],
+    () => 'request',
+    { request: { type: 'type', owner: 'owner', added: 'added' } },
+    { querySelectorAll: () => [{ getAttribute: () => 'Weapons' }] },
+    (node) => asked.push(node)
+  );
+
+  sync();
+
+  assert.equal(count.textContent, '(1)', 'the number follows the row back');
+  assert.equal(option.hidden, false, 'and the option is drawn again');
+  assert.equal(box.checked, true, 'the reader keeps their choice');
+  assert.deepEqual(asked, [], 'with no request in flight');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);
