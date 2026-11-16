@@ -25,7 +25,7 @@ function t(label, run) {
 }
 
 const user = { username: 'Tester', email: 'tester@example.com', emailVerified: true };
-const upload = { uploaded_at: '2026-11-01 10:00:00', source_file: 'ItemShareSavedVars.lua' };
+const upload = { uploaded_at: '2026-11-01 10:00:00', source_file: 'GuildsBountySavedVars.lua' };
 
 function account(extra = {}) {
   return {
@@ -51,7 +51,7 @@ t('with no uploaded file there is nothing to add, remove or choose', () => {
   assert.doesNotMatch(html, /action="\/accounts\/remove"/, 'no removing');
   assert.doesNotMatch(html, /name="platform"/, 'no platform to set');
   assert.doesNotMatch(html, /name="worldName"/, 'no server to set');
-  assert.match(html, /Upload <strong>ItemShareSavedVars\.lua<\/strong>/, 'it says how instead');
+  assert.match(html, /Upload <strong>GuildsBountySavedVars\.lua<\/strong>/, 'it says how instead');
 });
 
 t('an empty dialog points at the upload rather than asking for a name', () => {

@@ -9,7 +9,7 @@ import {
 import { keepDemoShelfFull } from './lib/demoShelf.js';
 import { errorLine, logLine, warnLine } from './lib/log.js';
 // Guild's Bounty upload site: signs in with Discord or Google (both optional),
-// accepts ItemShareSavedVars.lua and replaces every shared item for every ESO
+// accepts GuildsBountySavedVars.lua and replaces every shared item for every ESO
 // account in the file. Styling follows the GuildSync palette.
 //
 //   npm start            (reads .env)
@@ -157,13 +157,12 @@ const STARTED_LABEL = new Date().toISOString().replace('T', ' ').replace(/\.\d+Z
 const PORT = Number(process.env.PORT || 3000);
 const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
 
-// The site answers on more than one name while the rebrand settles. `itemshare.perdues.me` is
-// the old one: it still serves everything, and somebody arriving by it is told once where the
-// site has moved. Any other name is simply the site, so the notice never appears for people
-// who came in the new way. Set LEGACY_HOSTS to a comma separated list to change which names
-// count as the old address, or to '' to serve the notice on none of them.
+// The site can answer on more than one name, and somebody arriving by an old one is told once
+// where it has moved. No name counts as old until it is named here, so a fresh install serves
+// the notice nowhere and every visitor simply gets the site. Set LEGACY_HOSTS to a comma
+// separated list of the names that should carry the notice.
 const LEGACY_HOSTS = new Set(
-  String(process.env.LEGACY_HOSTS === undefined ? 'itemshare.perdues.me' : process.env.LEGACY_HOSTS)
+  String(process.env.LEGACY_HOSTS === undefined ? '' : process.env.LEGACY_HOSTS)
     .split(',')
     .map((host) => host.trim().toLowerCase())
     .filter(Boolean)
@@ -182,7 +181,7 @@ const NEW_SITE_URL = String(process.env.NEW_SITE_URL || 'https://guildsbounty.pe
 function requestHost(req) {
   const headers = (req && req.headers) || {};
   // In order of how much the header is to be trusted. RFC 7239 `Forwarded:
-  // for=1.2.3.4;host=itemshare.perdues.me;proto=https` is the standard one, and only its first
+  // for=1.2.3.4;host=old.example.com;proto=https` is the standard one, and only its first
   // entry counts: that is the name the browser asked for, the rest are hops behind it.
   //
   // `X-Served-By` is not standard at all - proxies invented it, and some of them (the one in
@@ -3237,7 +3236,7 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
 
   if (parsed.accounts.length === 0) {
     const empty = new Error(
-      'No ESO account was found in that file. Upload ItemShareSavedVars.lua, not another file.'
+      'No ESO account was found in that file. Upload GuildsBountySavedVars.lua, not another file.'
     );
     empty.statusCode = 400;
     throw empty;
@@ -3428,7 +3427,7 @@ app.post('/upload', upload.single('savedvars'), async (req, res) => {
     return;
   }
   if (!req.file) {
-    res.status(400).json({ error: 'Choose your ItemShareSavedVars.lua file first.' });
+    res.status(400).json({ error: 'Choose your GuildsBountySavedVars.lua file first.' });
     return;
   }
 
@@ -3448,7 +3447,7 @@ app.post('/upload', upload.single('savedvars'), async (req, res) => {
 
 // ------------------------------------------------------- automatic uploads (GuildSync)
 //
-// GuildSync watches ItemShareSavedVars.lua on the machine that runs the game and
+// GuildSync watches GuildsBountySavedVars.lua on the machine that runs the game and
 // posts the file's contents here whenever ESO saves it, so the site stays current
 // without anyone opening the page. It is the same work as an upload - same parse,
 // same replace, same live update - with a shared token instead of a signed-in
@@ -3510,7 +3509,7 @@ app.post(
 
     if (!fileText.trim()) {
       res.status(400).json({
-        error: 'Send the contents of ItemShareSavedVars.lua in the request body, streamed or in one piece.',
+        error: 'Send the contents of GuildsBountySavedVars.lua in the request body, streamed or in one piece.',
       });
       return;
     }
@@ -3518,7 +3517,7 @@ app.post(
     // The watcher knows the real file name; record it so an upload can be traced to
     // the file it came from. Anything longer is trimmed rather than refused.
     const sourceFile = String(
-      req.get('x-guildsbounty-file') || req.get('x-itemshare-file') || 'ItemShareSavedVars.lua'
+      req.get('x-guildsbounty-file') || req.get('x-itemshare-file') || 'GuildsBountySavedVars.lua'
     ).slice(0, 200);
 
     try {
@@ -3749,7 +3748,7 @@ app.use((error, req, res, next) => {
   // repeating "request entity too large" or zlib's "incorrect header check".
   const ingestMessage =
     error.type === 'entity.too.large'
-      ? 'That body is larger than 12 MB. ItemShareSavedVars.lua is well under that, so check what was sent.'
+      ? 'That body is larger than 12 MB. GuildsBountySavedVars.lua is well under that, so check what was sent.'
       : error.type === 'entity.parse.failed' || error.code === 'Z_DATA_ERROR'
         ? 'Could not decompress that body. Send it as plain text, or gzip it properly.'
         : error.type === 'encoding.unsupported'
@@ -3775,7 +3774,7 @@ app.use((error, req, res, next) => {
     heading: status === 413 ? 'That file is too large' : 'Something went wrong',
     message,
     details:
-      status === 413 ? 'ItemShareSavedVars.lua should be well under 12 MB, so check you picked the right file.' : '',
+      status === 413 ? 'GuildsBountySavedVars.lua should be well under 12 MB, so check you picked the right file.' : '',
     tone: 'error',
   });
 });

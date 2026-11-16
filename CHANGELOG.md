@@ -17,9 +17,7 @@ landed on `main`.
 
   Rebranding the cookies means one visit starts with the defaults again: the grouping, the
   folded types, the sort queues and the remembered tab are read from the new names, and the old
-  cookies are simply never looked at. The addon's own files (`ItemShareSavedVars.lua`,
-  `ItemShareExport.lua`, the in-game `/itemshare` command), the old `itemshare.perdues.me`
-  address and the earlier entries in this file keep the old name on purpose.
+  cookies are simply never looked at.
 
 - **The database has the new name too.** The tables are `guildsbounty_*`, the bookkeeping table
   is `guildsbounty_schema_migrations`, the database is `guildsbounty` (and `guildsbounty-demo`
@@ -31,6 +29,19 @@ landed on `main`.
   re-applied against a schema that already has it. A table already under its new name is left
   alone, and a second boot finds nothing to do. The migration files themselves were renamed
   (`019_guildsbounty_request_fulfillment.sql` and so on) to match.
+
+- **The last of the old name is gone from everything you can read.** The upload instructions, the
+  error messages, the guide, the README and the demo account say **GuildsBounty** now -
+  `GuildsBountySavedVars.lua`, `GuildsBounty.lua`, the in-game `/guildsbounty` command and
+  `@GuildsBountyDemo` - and the notice for an old address reads *Guild's Bounty answers here now*
+  rather than naming the old site. What is left of the old name is only ever read, never shown:
+  a file still written as `ItemShareSavedVars` uploads exactly as before, the old
+  `X-ItemShare-*` headers are still accepted, and a database on the old table names is still
+  adopted. The card itself is now opt-in: no address counts as an old one until it is listed in
+  `LEGACY_HOSTS`, so a fresh install never shows it.
+
+  The addon has to agree with the site on one thing: the table name it writes. Everything else
+  about the file is unchanged, so an addon that has not been updated keeps working.
 
 - **The filter card belongs to Browse Offers and My Inventory, and the two now keep their own
   filters.** It used to sit above every tab and narrow one shared idea of the list, so a type

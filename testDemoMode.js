@@ -681,7 +681,7 @@ check('attaching an ESO account asks for its platform and server, both required'
         guildCount: 1,
         guilds: [],
         // A file has arrived, so the dialog lets this person attach another name by hand.
-        lastUpload: { uploaded_at: '2026-11-01 10:00:00', source_file: 'ItemShareSavedVars.lua' },
+        lastUpload: { uploaded_at: '2026-11-01 10:00:00', source_file: 'GuildsBountySavedVars.lua' },
       },
     ],
     accountServers: [
@@ -783,7 +783,7 @@ check('a signed-in person with no ESO account is asked to upload', () => {
   });
 
   assertMatch(page, /id="savedvars"/, 'the upload field is missing');
-  assertMatch(page, /Upload your ItemShare\.lua File from your Saved Variables Folder Here/, 'the upload card is missing');
+  assertMatch(page, /Upload your GuildsBounty\.lua File from your Saved Variables Folder Here/, 'the upload card is missing');
   assert(!page.includes('data-item-key'), 'no item may be listed before an upload');
 });
 

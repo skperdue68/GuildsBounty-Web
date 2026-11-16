@@ -676,7 +676,7 @@ try {
   console.log('\n12. A file copied to a new account still names the old one inside its items');
   // Exactly the shape of a saved variables file copied between accounts: the tables are
   // renamed, but every entry keeps the accountName the addon wrote when it was dumped.
-  const copiedFile = `ItemShareSavedVars =
+  const copiedFile = `GuildsBountySavedVars =
 {
     ["Default"] =
     {
@@ -799,7 +799,7 @@ try {
           },`
     ).join('\n');
 
-  const v3File = `ItemShareSavedVars =
+  const v3File = `GuildsBountySavedVars =
 {
   ["Default"] =
   {
@@ -859,7 +859,7 @@ ${guildedItems('@TestV3')}
       { sourceFile }
     );
 
-  const v3Upload = (await storeFile('@TestV3', parsedV3, 'ItemShareSavedVars.lua'))[0];
+  const v3Upload = (await storeFile('@TestV3', parsedV3, 'GuildsBountySavedVars.lua'))[0];
 
   ok('the upload records five guilds', v3Upload.guildCount, 5);
 
@@ -920,7 +920,7 @@ ${guildedItems('@TestV3')}
 
   console.log('\n14. A registered guild with no items, and a character with no snapshot');
 
-  const idleFile = `ItemShareSavedVars =
+  const idleFile = `GuildsBountySavedVars =
 {
   ["Default"] =
   {
@@ -980,7 +980,7 @@ ${guildedItems('@TestV3')}
     [9101, 9102]
   );
 
-  await storeFile('@TestIdle', idle, 'ItemShareSavedVars.lua');
+  await storeFile('@TestIdle', idle, 'GuildsBountySavedVars.lua');
 
   ok(
     'the guild no item names is still upserted with its name',
@@ -995,7 +995,7 @@ ${guildedItems('@TestV3')}
   // The table key is empty and there is no itemKey: the link and the location are all
   // that is left to identify the row. `count` is gone too, so heldCount - reserve is the
   // shareable number.
-  const minimalFile = `ItemShareSavedVars =
+  const minimalFile = `GuildsBountySavedVars =
 {
   ["Default"] =
   {
@@ -1039,7 +1039,7 @@ ${guildedItems('@TestV3')}
   // The shape the addon writes now: no `count` and no `reserve` on the entry, the amount
   // kept back in `locationReserves` keyed by link and location, and an always-shared item
   // that is not repeated in `sharedItems`.
-  const v4File = `ItemShareSavedVars =
+  const v4File = `GuildsBountySavedVars =
 {
   ["Default"] =
   {
@@ -1105,7 +1105,7 @@ ${guildedItems('@TestV3')}
     [['Ghastly Eye Bowl', undefined, 0]]
   );
 
-  await storeFile('@TestV4', v4, 'ItemShareSavedVars.lua');
+  await storeFile('@TestV4', v4, 'GuildsBountySavedVars.lua');
 
   ok(
     'the upload stores the reserve, not the bag count',
@@ -1145,7 +1145,7 @@ ${guildedItems('@TestV3')}
   // The same Soul Gem link in three places, with 113 of the 400 in house storage 8 kept
   // back. The reserve belongs to that stack, so the bank and bag stacks stay whole.
   const soulGemLink = '|H0:item:33271:31:50:0:0:0:0:0:0:0:0:0:0:0:0:36:0:0:0:0:0|h|h';
-  const soulGemFile = (linkReserves, locationReserves = `{ ["${soulGemLink}||housestorage:8"] = 113 }`) => `ItemShareSavedVars =
+  const soulGemFile = (linkReserves, locationReserves = `{ ["${soulGemLink}||housestorage:8"] = 113 }`) => `GuildsBountySavedVars =
 {
     ["Default"] =
     {
@@ -1223,7 +1223,7 @@ ${guildedItems('@TestV3')}
     ]
   );
 
-  await storeFile('@TestLoc', extractShareData(soulGemFile('{ }')), 'ItemShareSavedVars.lua');
+  await storeFile('@TestLoc', extractShareData(soulGemFile('{ }')), 'GuildsBountySavedVars.lua');
   const [soulRows] = await connection.execute(
     'SELECT location_key, item_count, reserve_quantity FROM guildsbounty_shared_items WHERE account_name = ? ORDER BY location_key',
     ['@TestLoc']

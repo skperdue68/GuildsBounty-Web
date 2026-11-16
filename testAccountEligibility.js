@@ -25,7 +25,7 @@ await test('an account with no guilds sees the upload instruction instead of req
   assert.match(region,/data-guild-upload-required/);
   assert(!region.includes('data-item-key="inventory:99"'));
   assert(!region.includes('data-request data-kind="inventory" data-id="99"'));
-  assert.match(region,/ItemShareSavedVars\.lua/);
+  assert.match(region,/GuildsBountySavedVars\.lua/);
 });
 
 await test('known account queries always enforce exact guild/platform/server matching',async()=>{

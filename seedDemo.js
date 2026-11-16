@@ -92,7 +92,7 @@ try {
 
   if (guilds.size === 0) {
     console.error(
-      'No guilds found for that account. Upload your ItemShareSavedVars.lua on the site first,\n' +
+      'No guilds found for that account. Upload your GuildsBountySavedVars.lua on the site first,\n' +
         'so the demo account has a guild it can share into.'
     );
     process.exitCode = 1;

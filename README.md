@@ -17,14 +17,14 @@ This repository is the **web application only**.
 **Here:**
 
 - the Express site, its routes, its server-rendered views and its Socket.IO live updates
-- the parser for `ItemShareSavedVars.lua` - the site has to read that file, so the
+- the parser for `GuildsBountySavedVars.lua` - the site has to read that file, so the
   parser ships with it
 - the MariaDB schema and its migrations
 - the operator scripts: icon backfill, demo seeding, the request simulator, a mail check
 
 **Not here:**
 
-- the ESO addon that writes `ItemShareSavedVars.lua`
+- the ESO addon that writes `GuildsBountySavedVars.lua`
 - anything that watches the game's `SavedVariables` folder, or that knows where the game
   is installed on any machine
 - GuildSync, or any other client that posts to `/ingest`
@@ -75,25 +75,27 @@ Three have no sensible default and are worth setting before anyone else uses the
 | `BASE_URL` | Sign-in redirects and the links in request emails are built from it. Wrong here means people are sent to `localhost` that is not theirs |
 | `SESSION_SECRET` | Without it a fresh random secret is made on every boot, so a restart signs everybody out |
 | `MARIADB_USER` / `MARIADB_PASSWORD` | The defaults (`root`, no password) are for a throwaway local server only |
-| `LEGACY_HOSTS` | Names the site used before the rebrand, comma separated. Defaults to `itemshare.perdues.me`; set it to `''` to show the redirect notice nowhere |
+| `LEGACY_HOSTS` | Names the site used to answer on, comma separated, so somebody arriving by one is told once where it moved. Empty by default: nothing counts as old until it is listed |
 | `NEW_SITE_URL` | What that notice points at. Defaults to `https://guildsbounty.perdues.me` |
 
 Everything else - sign-in providers, email, the `/ingest` token, the hold window,
 retry timers - is optional and off when blank. See `.env.example` for each one.
 
-**One name is the old one for now.** The site answers on both `itemshare.perdues.me` and
-`guildsbounty.perdues.me`, and somebody who arrives by the old name gets a short card:
-*ItemShare is now Guild's Bounty*, with the new address linked. It goes away after ten seconds
-or on the cross, and it is drawn only on the page they land on - a visit by the new name never
-sees it, and a live refresh never brings it back. The name is read from `Forwarded` (RFC 7239,
-`host=`), then `X-Forwarded-Host`, then `X-Served-By`, then `Host`, so the check follows the
-address the browser asked for rather than the proxy's own. `X-Served-By` is not a standard
-header - proxies invented it - but some of them put the name they were asked for in it while
-rewriting `Host` to the upstream, and those are exactly the ones the card used to miss. If the card never appears behind a proxy, ask the app
-what it saw: every response carries **`X-Site-Host`**, the name it resolved.
+**Old addresses are opt-in.** Nothing is treated as an old name until it is listed in
+`LEGACY_HOSTS`, so a fresh install serves the notice nowhere and every visitor simply gets the
+site. List the addresses you used to answer on - `LEGACY_HOSTS=old.example.com` - and somebody
+arriving by one of them gets a short card: *Guild's Bounty answers here now*, with
+`NEW_SITE_URL` linked. It goes away after ten seconds or on the cross, and it is drawn only on
+the page they land on - a visit by the current name never sees it, and a live refresh never
+brings it back. The name is read from `Forwarded` (RFC 7239, `host=`), then
+`X-Forwarded-Host`, then `X-Served-By`, then `Host`, so the check follows the address the browser
+asked for rather than the proxy's own. `X-Served-By` is not a standard header - proxies invented
+it - but some of them put the name they were asked for in it while rewriting `Host` to the
+upstream, and those are exactly the ones the card used to miss. If the card never appears behind
+a proxy, ask the app what it saw: every response carries **`X-Site-Host`**, the name it resolved.
 
 ```
-curl -sI https://itemshare.perdues.me/ | grep -i x-site-host
+curl -sI https://guildsbounty.perdues.me/ | grep -i x-site-host
 ```
 
 The name you asked for means the proxy is passing it and the card should draw; a container
@@ -101,27 +103,34 @@ name, `localhost` or an IP means the proxy is rewriting `Host` without saying wh
 the answer is `proxy_set_header Host $host;` plus `proxy_set_header X-Forwarded-Host $host;`
 (or Caddy's `header_up Host {host}`).
 
-### What still says ItemShare, and why
+### What still answers to the old name
 
-Everything this repository owns now says **GuildsBounty** (`guildsbounty` inside an identifier):
-the package name, the filter and sort cookies (`guildsbounty_sort`, `guildsbounty_group`,
+Everything this repository owns says **GuildsBounty** (`guildsbounty` inside an identifier): the
+package name, the filter and sort cookies (`guildsbounty_sort`, `guildsbounty_group`,
 `guildsbounty_group_mine`, `guildsbounty_collapsed`, `guildsbounty_collapsed_mine`,
 `guildsbounty_basket_sort`, `guildsbounty_sent_sort`, `guildsbounty_owner_sort`,
 `guildsbounty_answered_sort`), the keys the browser keeps for itself (`guildsbounty:tab` and
 its neighbours), the `X-GuildsBounty-*` headers, the mail boundary and `Message-ID` domain, the
-fallback session-secret prefix, and the wordmark. The old `X-ItemShare-*` headers are still
-*accepted* and never sent, so an uploader that has not been updated - or a browser holding an
-old `app.js` - keeps working.
+fallback session-secret prefix, the tables, the database and the wordmark.
 
-Three things carry the old name on purpose, because they are not this application's to rename:
+What is left of the old name is *read*, never shown and never sent, so that nothing already in
+somebody's hands breaks on the day it changed:
 
-- **The addon's own files and command.** `ItemShare.lua`, `ItemShareSavedVars.lua`,
-  `ItemShareExport.lua` and the in-game `/itemshare` command belong to the addon; the site reads
-  whatever that file is called, so its instructions have to name it correctly.
-- **`itemshare.perdues.me`.** That is the old address the redirect card exists for. Renaming it
-  would break the card for everybody still using the old link.
-- **`CHANGELOG.md` before this entry.** It is a record of what happened under the old name;
+- **The uploaded file's table.** `GuildsBountySavedVars` is what the instructions ask for and
+  what every message names. A file still written as `ItemShareSavedVars` holds the same table
+  and is read the same way, so an addon that has not been updated keeps uploading.
+- **The request headers.** `X-ItemShare-Token`, `X-ItemShare-File`, `X-ItemShare-Fragment` and
+  `x-itemshare-simulate` are still read. Nothing sends them: every response and every script
+  uses the `X-GuildsBounty-*` names.
+- **The old table and database names.** A database still on `itemshare_*` tables is adopted on
+  the first boot, and `ITEMSHARE_DATABASE` is still read when `GUILDSBOUNTY_DATABASE` is blank -
+  see *Startup and migrations*.
+- **`CHANGELOG.md` before those entries.** It is a record of what happened under the old name;
   rewriting it would make the history wrong.
+
+The addon's own files (`GuildsBounty.lua`, `GuildsBountySavedVars.lua`, `GuildsBountyExport.lua`)
+and the in-game `/guildsbounty` command are named here the way the addon names them: the site
+reads whatever the uploaded file calls itself, so the two only have to agree on the table name.
 
 The database is renamed as well: the tables are `guildsbounty_*`, the ledger is
 `guildsbounty_schema_migrations`, and the database is `guildsbounty` (`guildsbounty-demo` for the
@@ -410,7 +419,7 @@ same. An account scope is recorded even when it holds no items, so somebody who 
 file where they share nothing still tells the site which server they play on.
 
 Only this layout is read. An older file - `knownGuilds`, guild fields copied onto every
-item, an `ItemShareExport.lua` compatibility copy - still parses, but its guilds are not
+item, an `GuildsBountyExport.lua` compatibility copy - still parses, but its guilds are not
 read at all, so its items arrive with no guilds and nobody can see them. Re-export with
 the current addon instead.
 
@@ -431,7 +440,7 @@ how to share their own items to find out what to do with their code.
 
 The two game screenshots in step 3 are files in `public/guide/`: `add-to-share.png` (the
 item's right-click menu, with Add to Share, Always Share This Item and Share Reserve) and
-`shared-items.png` (the Shared Items window, which is `/itemshare list`). `guideShot` asks
+`shared-items.png` (the Shared Items window, which is `/guildsbounty list`). `guideShot` asks
 `existsSync` on every render, so until a picture lands the step draws the frame that
 reserves its space rather than a broken image, and the page picks it up as soon as the file
 is in the folder - there is no build step and nothing to restart.
@@ -455,8 +464,8 @@ The body is the file's **contents**, not a multipart form:
 curl -X POST https://your-site.example/ingest \
   -H "Authorization: Bearer $INGEST_TOKEN" \
   -H "Content-Type: text/plain" \
-  -H "X-GuildsBounty-File: ItemShareSavedVars.lua" \
-  --data-binary @ItemShareSavedVars.lua
+  -H "X-GuildsBounty-File: GuildsBountySavedVars.lua" \
+  --data-binary @GuildsBountySavedVars.lua
 ```
 
 The body is read as bytes and inflated if needed, so the sender does not have to know
@@ -465,7 +474,7 @@ the size up front: chunked transfer, no `Content-Length`, gzip or deflate in
 land here the same way. Piping off disk works too:
 
 ```bash
-gzip -c ItemShareSavedVars.lua | curl -X POST https://your-site.example/ingest \
+gzip -c GuildsBountySavedVars.lua | curl -X POST https://your-site.example/ingest \
   -H "Authorization: Bearer $INGEST_TOKEN" \
   -H "Content-Type: application/octet-stream" \
   -H "Content-Encoding: gzip" \
@@ -474,7 +483,7 @@ gzip -c ItemShareSavedVars.lua | curl -X POST https://your-site.example/ingest \
 
 `X-GuildsBounty-Token` is accepted as an alternative to the `Bearer` header, and
 `X-GuildsBounty-File` names the file for the upload log (it defaults to
-`ItemShareSavedVars.lua`). The old `X-ItemShare-Token` and `X-ItemShare-File` are still read, so
+`GuildsBountySavedVars.lua`). The old `X-ItemShare-Token` and `X-ItemShare-File` are still read, so
 a watcher that has not been updated keeps uploading.
 
 | Reply | Meaning |
@@ -494,7 +503,7 @@ token travels in a header and the file contents are plain text over the wire.
 | `GET` | `/` | The page: tabs, filters, the item table |
 | `GET` | `/how-to` | The guide: a guild code, and adding your own items |
 | `GET` | `/items` | The item-list region only, as a fragment, for live refresh. `503` means "leave the screen alone" |
-| `POST` | `/upload` | Accept a `ItemShareSavedVars.lua` upload |
+| `POST` | `/upload` | Accept a `GuildsBountySavedVars.lua` upload |
 | `POST` | `/ingest` | Accept the same file from a watcher, token-authenticated |
 | `POST` | `/browsing-account` | Choose the ESO account browsing uses; a form post that redirects back to `/` |
 | `POST` | `/requests` | Put an item in the basket, or top up its quantity |
@@ -759,7 +768,7 @@ ESO account name and an address the first time and that makes them a person, and
 signed in without an account is told to attach one - the request route refuses neither in
 silence, and `POST /requests` refuses a guest that names no account and no address.
 
-> Upload ItemShareSavedVars.lua so we know who you are - you do not need to share
+> Upload GuildsBountySavedVars.lua so we know who you are - you do not need to share
 > anything.
 
 Attaching a name is enough to ask for items - uploading is what tells the site which
@@ -1783,7 +1792,7 @@ then the page is the upload box, because there are no guilds to compare against 
 only useful thing is the file that supplies them.
 
 `demo@example.com` with the password `demo` is a sign-in that needs neither. It is a real person row with
-`guildsbounty_users.is_demo = 1`, one ESO account (`@ItemShareDemo`), one guild -
+`guildsbounty_users.is_demo = 1`, one ESO account (`@GuildsBountyDemo`), one guild -
 **Alphabet Mafia** on PC / NA Megaserver - and the curated catalogue in
 `lib/demoItems.js` shared with it. The catalogue carries the fields an upload carries, not
 just names: its weapons, armour and jewellery are level 50, CP 160 and enchanted, so the
@@ -1818,7 +1827,7 @@ basket is recorded and the owners are told nothing - and the password cannot be 
 the reset request is refused before any link is made, and `demo@example.com` can never
 receive mail. Uploading stays switched off: the drop zone is still on the page, but
 the card says so and the page script shows that sentence instead of sending the file. A
-banner says the same on every page. Removing its own `@ItemShareDemo` is rehearsed too:
+banner says the same on every page. Removing its own `@GuildsBountyDemo` is rehearsed too:
 it is attached again in the same request, because the demo has nothing to browse or ask as
 without it - every other account really is removed.
 

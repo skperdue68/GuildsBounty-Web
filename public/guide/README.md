@@ -8,7 +8,7 @@ way and does not jump when the picture lands.
 | File | What it must show |
 | --- | --- |
 | `add-to-share.png` | The right-click menu on an item in game, with **Add to Share**, **Always Share This Item** and **Share Reserve** visible. |
-| `shared-items.png` | The Shared Items window - what `/itemshare list` opens - with an item, its count and where each copy is kept. |
+| `shared-items.png` | The Shared Items window - what `/guildsbounty list` opens - with an item, its count and where each copy is kept. |
 
 Both are PNGs and are shown at the size they were captured at, centred in the column: a
 picture is never stretched to fill it, and one wider than the column is held to 760px rather
