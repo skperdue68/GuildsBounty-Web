@@ -45,6 +45,11 @@ function measureStickyBars() {
   publish('--sticky-top', document.querySelector('.top-bar'));
   publish('--list-head-h', document.querySelector('.list-head'));
 
+  // The filter band sits between the two: a tab with no row of its own - My Requests,
+  // Requests Received - hides it, and its height measures 0px, which leaves the search row
+  // and the headings exactly where they would have been.
+  publish('--list-band-h', document.querySelector('.filter-band'));
+
   // The tallest search row on the page, because a card can hold two tables that each carry
   // one and the headings have to clear whichever stands over them. Nothing on the page means
   // 0px, which leaves the headings exactly where they were.

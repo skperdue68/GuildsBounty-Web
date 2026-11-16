@@ -458,7 +458,7 @@ t('the filter row sits inside the list card, between the tabs and the search', (
 t('the band keeps air above and below and loses the empty chip floor', () => {
   const css = read('public/styles.css');
 
-  assert.match(css, /\.filter-band \{\s*padding: 16px 0 18px;/, 'air above and below');
+  assert.match(css, /\.filter-band \{[^}]*padding: 16px 0 18px;/, 'air above and below');
   assert.match(css, /\.filter-chips:empty \{\s*display: none;/, 'no chip row when none are chosen');
   assert.match(css, /\.filter-chips \{[^}]*margin-top: 10px;/, 'and room for one when they are');
   assert.match(
@@ -537,6 +537,200 @@ return applyListSearch;`
   run('');
 
   assert.equal(marks.has('data-search-miss'), false, 'clearing the word takes the mark back');
+});
+
+
+// ------------------------------------------------- the number on each tab, and the pinning
+
+const item = (key, name, type, account) => ({
+  id: key,
+  item_key_hash: key,
+  item_name: name,
+  item_type_name: type,
+  item_count: 1,
+  account_name: account,
+});
+
+const fourTabRegion = () =>
+  renderListRegion({
+    user: { provider: 'discord', username: 'evainefaye', id: 1, accountNames: ['@Eva'] },
+    accounts: [
+      {
+        accountName: '@Eva',
+        guildCount: 1,
+        guilds: [{ guild_name: 'G' }],
+        platform: 'pc',
+        worldName: 'NA',
+      },
+    ],
+    browsingAccount: '@Eva',
+    sharedItems: [item('o1', 'Ancient Silk Robe', 'Apparel', '@Eva'), item('o2', 'Amber Ring', 'Apparel', '@Eva')],
+    requestItems: [
+      item('r1', 'Briarheart Dagger', 'Weapons', '@Other'),
+      item('r2', 'Hunding&#39;s Rage', 'Weapons', '@Other'),
+      item('r3', 'Colovian Hood', 'Apparel', '@Other'),
+      item('r4', 'Own Thing', 'Motif', '@Eva'),
+    ],
+    requestOffers: [],
+    alwaysShare: [],
+    facets,
+    facetsMine,
+    filters: {},
+    requests: [],
+    basketRows: [
+      { id: 11, status: 'draft', item_name: 'A', item_type_name: 'Weapons', quantity: 1, owner_account_name: '@Other' },
+      { id: 12, status: 'draft', item_name: 'B', item_type_name: 'Apparel', quantity: 1, owner_account_name: '@Other' },
+      { id: 13, status: 'cancelled', item_name: 'C', item_type_name: 'Motif', quantity: 1, owner_account_name: '@Other' },
+    ],
+    basket: { count: 2, quantity: 2, secondsLeft: 600, holdMinutes: 30 },
+    received: [
+      { id: 21, item_name: 'D', asked: 1, requesters: ['@Guy'], location_label: 'Bank' },
+      { id: 22, item_name: 'E', asked: 2, requesters: ['@Gal'], location_label: 'Bank' },
+    ],
+    receivedHistory: [],
+  });
+
+const tabNumbers = (region) =>
+  Object.fromEntries(
+    [...region.matchAll(/<button[^>]*data-tab="([a-z]+)"[\s\S]*?<span class="tab-count">(\d+)<\/span>/g)].map(
+      ([, name, number]) => [name, Number(number)]
+    )
+  );
+
+const countedRows = (region, tab) =>
+  [...region.matchAll(new RegExp(`<tr[^>]*data-counts-tab="${tab}"`, 'g'))].length;
+
+t('every tab counts the rows it marks, on all four tabs', () => {
+  const region = fourTabRegion();
+  const numbers = tabNumbers(region);
+
+  assert.deepEqual(
+    Object.keys(numbers).sort(),
+    ['mine', 'offer', 'received', 'request'],
+    'all four tabs are drawn'
+  );
+
+  for (const tab of ['request', 'offer', 'mine', 'received']) {
+    assert.equal(
+      numbers[tab],
+      countedRows(region, tab),
+      `${tab}: the number on the tab is the rows it counts`
+    );
+  }
+
+  assert.equal(countedRows(region, 'request'), 3, 'Browse Offers counts nobody&#39;s own rows');
+  assert.equal(countedRows(region, 'mine'), 2, 'a cancelled basket row is not a request any more');
+});
+
+t('the page writes the number the rows give it, and a search takes one away', () => {
+  const region = fourTabRegion();
+  const numbers = tabNumbers(region);
+  const spans = Object.fromEntries(
+    Object.keys(numbers).map((tab) => [tab, { textContent: String(numbers[tab]) }])
+  );
+  const tabs = [...region.matchAll(/<button[^>]*data-tab="([a-z]+)"/g)].map((match) => ({
+    dataset: { tab: match[1] },
+    querySelector: (selector) =>
+      selector === '.tab-count' ? spans[match[1]] || null : null,
+  }));
+  const rows = [...region.matchAll(/<tr[^>]*data-counts-tab="([a-z]+)"/g)].map((match) => {
+    const row = { tab: match[1], marked: false };
+    row.hasAttribute = (name) => name === 'data-search-miss' && row.marked;
+    return row;
+  });
+  const app = read('public/app.js');
+  const listRegion = {
+    querySelectorAll: (selector) => {
+      if (selector === '[data-tab]') return tabs;
+      const found = /data-counts-tab="([a-z]+)"/.exec(selector);
+      return found ? rows.filter((row) => row.tab === found[1]) : [];
+    },
+  };
+  const syncTabCounts = new Function(
+    'listRegion',
+    `${functionSource(app, 'syncTabCounts')}
+return syncTabCounts;`
+  )(listRegion);
+
+  syncTabCounts();
+
+  for (const tab of ['request', 'offer', 'mine', 'received']) {
+    assert.equal(
+      spans[tab].textContent,
+      String(numbers[tab]),
+      `${tab}: the page agrees with the server`
+    );
+  }
+
+  // One offer hidden by a word: that tab's number comes down by one, and the others stay.
+  const offer = rows.find((row) => row.tab === 'offer');
+  offer.marked = true;
+  syncTabCounts();
+
+  assert.equal(
+    spans.offer.textContent,
+    String(numbers.offer - 1),
+    'the offer tab counts what the word leaves'
+  );
+  assert.equal(
+    spans.request.textContent,
+    String(numbers.request),
+    'and the tab the word was not typed on is untouched'
+  );
+});
+
+t('the band pins between the tabs and the search, and neither covers it', () => {
+  const css = read('public/styles.css');
+  const app = read('public/app.js');
+
+  assert.match(css, /\.filter-band \{[^}]*position: sticky;/, 'the band pins');
+  assert.match(
+    css,
+    /\.filter-band \{[^}]*top: calc\(var\(--sticky-top, 0px\) \+ var\(--list-head-h, 0px\)\);/,
+    'under the tab row'
+  );
+  assert.match(css, /\.filter-band \{[^}]*z-index: 12;/, 'at the tab row’s level');
+
+  assert.match(
+    css,
+    /\.list-tools \{[^}]*var\(--list-band-h, 0px\)/,
+    'the search row pins below the band, not over it'
+  );
+  assert.match(
+    css,
+    /\.list-table thead th \{[^}]*var\(--list-band-h, 0px\)/,
+    'and the column headings clear it'
+  );
+  assert.match(
+    css,
+    /\.list-tools \+ \.table-shell \.list-table thead th \{[^}]*var\(--list-band-h, 0px\)[\s\S]*?var\(--list-tools-h, 0px\)/,
+    'both offsets when a search row is above the table'
+  );
+
+  assert.match(
+    app,
+    /publish\('--list-band-h', document\.querySelector\('\.filter-band'\)\);/,
+    'the band’s height is measured, so a tab without a row measures 0px'
+  );
+
+  // The order of the stack is in the offsets: the band starts where the tab row ends, the
+  // search row where the band ends, the headings under both. Nothing is given the band's
+  // height as its start, so nothing can land on top of it.
+  const bandRule = css.slice(css.indexOf('.filter-band {'), css.indexOf('.filter-band {') + 320);
+
+  assert.doesNotMatch(bandRule, /--list-tools-h/, 'the band starts at the tab row, not under the search');
+
+  const toolsRule = css.slice(css.indexOf('.list-tools {'), css.indexOf('.list-tools {') + 320);
+
+  assert.match(toolsRule, /--list-head-h/, 'the search row starts below the tab row');
+  assert.match(toolsRule, /--list-band-h/, 'and below the band');
+
+  const toolsHeading = css.slice(
+    css.indexOf('.list-tools + .table-shell .list-table thead th'),
+    css.indexOf('.list-tools + .table-shell .list-table thead th') + 400
+  );
+
+  assert.match(toolsHeading, /--list-tools-h/, 'the headings under a search row clear it too');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

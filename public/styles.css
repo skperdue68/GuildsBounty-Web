@@ -819,7 +819,7 @@ th {
    while the rows scroll: one block from the tabs down to OFFERED BY. It sits a step below
    the tab bar in the stack, and both offsets are measured in app.js. */
 .list-table thead th {
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px));
   z-index: 11;
 }
 
@@ -827,7 +827,10 @@ th {
    first row of data rides up between the two bars. Only the tables that carry the row: the
    closing offers table without a search of its own has no bar to clear. */
 .list-tools + .table-shell .list-table thead th {
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px));
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px) +
+      var(--list-tools-h, 0px)
+  );
 }
 
 tbody tr:hover {
@@ -1262,9 +1265,20 @@ a.primary-button {
    live update must never wipe out what someone is typing there. */
 /* The filter row lives inside the list card, between the tabs and the search, so it is
    a band rather than a card of its own: air above, air below, and no border to make it look
-   like a second panel. */
+   like a second panel.
+
+   It pins in the same stack as the bars around it - under the tab row and over the search
+   row - so scrolling a long list never takes the menus away from the rows they narrow.
+   --list-band-h is this band's own height, measured in app.js, because the search row and
+   the column headings pin directly under it; it is 0px on a tab that has no row at all. */
 .filter-band {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  z-index: 12;
   padding: 16px 0 18px;
+  background: rgba(9, 20, 45, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
 .filter-band[hidden] {
@@ -1621,7 +1635,8 @@ a.primary-button {
    the jump lands with the heading it aimed at hidden behind them. */
 .subhead[id] {
   scroll-margin-top: calc(
-    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px)
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px) +
+      var(--list-tools-h, 0px)
   );
 }
 
@@ -1648,7 +1663,9 @@ a.primary-button {
      for the same reason the tab bar's is. */
   display: flex;
   align-items: center;
-  min-height: var(--list-head-h, 0px);
+  min-height: calc(
+    var(--list-head-h, 0px) + var(--list-band-h, 0px) + var(--list-tools-h, 0px)
+  );
   margin: 20px -24px 0;
   padding: 0 24px;
   background: rgba(9, 20, 45, 0.95);
@@ -3231,7 +3248,9 @@ th.action-cell {
    and a number guessed here would leave a strip of scrolling rows between the two bars. */
 .list-tools {
   position: sticky;
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px)
+  );
   /* Above the column headings it pins over, below the subhead that takes the pinned row over
      further down the page. */
   z-index: 13;

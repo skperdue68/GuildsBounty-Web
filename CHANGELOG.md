@@ -11,7 +11,9 @@ landed on `main`.
   its own above the list, which left a box nobody looked at and a band of empty space under it.
   It is now the list's own band: air above and below, the three menus centred, RESET lined up
   with the bottom of the dropdowns, and the chips taking room only when there are any, so the
-  empty row shrinks away instead of holding a line open.
+  empty row shrinks away instead of holding a line open. The band pins with the tab strip above
+  it and the search row below it, so the whole strip - tabs, filters, applied chips, search -
+  stays in place while a long list scrolls under it, and the column headings clear all three.
 
 - **Every number that counts rows follows the rows on the page.** The tab's count and the number
   beside each type are read back from the rows themselves after a search as well as after a
