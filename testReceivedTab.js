@@ -364,11 +364,11 @@ t('all four tables sort by their own headings and remember it in their own cooki
   });
   const mine = html.slice(html.indexOf('data-panel="mine"'), html.indexOf('data-panel="offer"'));
 
-  assert.match(mine, /data-sort-cookie="itemshare_basket_sort"/);
+  assert.match(mine, /data-sort-cookie="guildsbounty_basket_sort"/);
   assert.match(mine, /data-sort-fields="name,from,qty,status"/);
-  assert.match(mine, /data-sort-cookie="itemshare_sent_sort"/);
+  assert.match(mine, /data-sort-cookie="guildsbounty_sent_sort"/);
   assert.match(mine, /data-sort-fields="name,from,qty,sent,status"/);
-  assert.match(html, /data-sort-cookie="itemshare_answered_sort"/);
+  assert.match(html, /data-sort-cookie="guildsbounty_answered_sort"/);
   assert.match(html, /data-sort-fields="name,mail,requested,amount,answered,when"/);
   assert.match(html, /data-owner-requests/, 'the waiting table keeps the sorts it already had');
   assert.match(mine, /data-sort-name="Soul Gem"/);
