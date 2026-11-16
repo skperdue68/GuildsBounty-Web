@@ -403,8 +403,13 @@ t('a refused ask reads 0 on both tables, old rows and new', () => {
   const answered = panel(html, 'received');
   const oldRow = answered.slice(answered.indexOf('Hunting Bow'));
 
-  assert.match(mine, /<td class="num">0 of 2<\/td>/, 'the requester sees that nothing arrived');
-  assert.match(mine, /<td class="num">0 of 4<\/td>/, 'and how many were asked for');
+  const cell = (name) => {
+    const found = mine.split('<tr data-my-request').find((part) => part.includes(name));
+    return found.match(/<td class="num">([^<]*)<\/td>/)[1];
+  };
+
+  assert.equal(cell('Hunting Bow'), '0', 'the old row reads nothing, not "0 of 2"');
+  assert.equal(cell('Ancient Silk'), '0', 'and the new one too: a refusal has no ask beside it');
   assert.equal(
     (mine.match(/data-sort-qty="0"/g) || []).length,
     2,
@@ -466,7 +471,42 @@ t('a short handover is confirmed with both numbers, and a whole one with one', (
   );
 });
 
-t('a count like "0 of 10" is never broken over two lines', () => {
+t('a count says both numbers only when a fulfilled ask came up short', () => {
+  const row = (id, name, quantity, asked, status) => ({
+    id,
+    item_name: name,
+    item_type_name: 'Weapons',
+    quality: 2,
+    owner_account_name: '@Eva',
+    requester_account_name: '@Dee',
+    quantity,
+    quantity_requested: asked,
+    status,
+    closed_at: '2026-11-12T10:00:00Z',
+  });
+  const mine = panel(
+    render({
+      requests: [
+        row(21, 'Hunting Bow', 1, 2, 'fulfilled'),
+        row(22, 'Ancient Silk', 2, 2, 'fulfilled'),
+        row(23, 'Soul Gem', 0, 5, 'cancelled'),
+      ],
+      receivedHistory: [],
+      requestHistory: { page: 1, totalPages: 1 },
+    }),
+    'mine'
+  );
+  const cell = (name) => {
+    const found = mine.split('<tr data-my-request').find((part) => part.includes(name));
+    return found.match(/<td class="num">([^<]*)<\/td>/)[1];
+  };
+
+  assert.equal(cell('Hunting Bow'), '1 of 2', 'one of two says both');
+  assert.equal(cell('Ancient Silk'), '2', 'a whole ask is just the one number');
+  assert.equal(cell('Soul Gem'), '0', 'and a refusal is 0, whatever was asked for');
+});
+
+t('a count like "9 of 10" is never broken over two lines', () => {
   const css = read('public/styles.css');
 
   assert.match(

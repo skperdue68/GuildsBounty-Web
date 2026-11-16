@@ -7,16 +7,18 @@ landed on `main`.
 
 ### Fixed
 
-- **A count as `0 of 10` stays on one line.** The Qty cell is 58px wide with its padding counted
-  in, so `0 of 10` had 38px for eight characters and folded onto two lines in the middle of the
+- **A count as `9 of 10` stays on one line.** The Qty cell is 58px wide with its padding counted
+  in, so `8 of 10` had 38px for seven characters and folded onto two lines in the middle of the
   row. A numeric cell is never wrapped now, and an auto-laid-out table gives the column at least
   70px, so `10 of 10` has room to spare rather than fitting by a pixel.
 
 - **Not fulfilled records nothing as sent.** An ask the owner could not fill was closed with the
   number that had been asked for written into the handover, so a one-copy ask refused on the
   owner's list read "1" on the requester's history and in the answer email, as though a copy had
-  gone out. The handover is now 0 and the ask is kept, so the row reads "0 of 4" and the column
-  sorts by the number it shows. An answer can still close several asks at once - one row on the
+  gone out. The handover is now 0 and the ask is kept, so the row reads a bare "0" and the column
+  sorts by the number it shows. Both numbers are kept for the one case that needs them: a fulfilled
+  ask that came up short reads "1 of 2", while a whole handover reads just its number, because
+  there the ask is already the count. An answer can still close several asks at once - one row on the
   owner's list stands for every pending ask for that item - and each of them keeps its own line of
   history, because each asker is told separately what became of what they asked for. Rows
   already in the database from before the fix read the same way: both tables take a refused ask as
@@ -173,7 +175,7 @@ landed on `main`.
 
 - **The demo answers an ask three ways now.** Its guildmates always handed over the whole ask,
   so the two other rows a history can hold could not be seen without a database of one's own. A
-  third of the answers is "nothing to send", which cancels the request and reads `0 of 2`; a third
+  third of the answers is "nothing to send", which cancels the request and reads `0`; a third
   of the asks for two or more come back one short, which reads `1 of 2`; the rest hand over the
   whole ask. The owner's Completed table says Not fulfilled, `1 of 2` or the ask itself to match.
 
