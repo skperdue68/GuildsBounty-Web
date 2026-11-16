@@ -990,20 +990,25 @@ check('a guildmate sometimes gains a piece and sometimes loses one', () => {
   );
 });
 
-check('a guildmate sometimes sends nothing back, so a refusal is seen too', () => {
+check('a guildmate sometimes sends nothing back, and sometimes sends short', () => {
   assert(demoAnswerAmount(2, { random: () => 0 }) === 0, 'the low third is a refusal');
+  assert(demoAnswerAmount(2, { random: () => 0.5 }) === 1, 'the middle third is one short');
   assert(demoAnswerAmount(2, { random: () => 0.9 }) === 2, 'the rest hands over the whole ask');
   assert(demoAnswerAmount(0, { random: () => 0.9 }) === 1, 'an ask with no number is one copy');
   assert(demoAnswerAmount('3', { random: () => 0.9 }) === 3, 'and a posted number is read');
 
-  // Both answers, within a third of the wheel: a refusal has to turn up in an afternoon of the
-  // demo, and a handover has to keep turning up beside it.
+  // One copy cannot be sent short: "0 of 1" is a refusal, and a handover of none is not one.
+  assert(demoAnswerAmount(1, { random: () => 0.5 }) === 1, 'a single copy is still handed over');
+  assert(demoAnswerAmount(10, { random: () => 0.5 }) === 9, 'a stack of ten arrives as nine');
+
+  // All three answers, inside one wheel: each has to turn up in an afternoon of the demo.
   const answers = [0, 0.2, 0.5, 0.8, 0.99].map((value) =>
     demoAnswerAmount(2, { random: () => value })
   );
 
   assert(answers.includes(0), 'a refusal happens');
-  assert(answers.includes(2), 'and so does a handover');
+  assert(answers.includes(1), 'and so does a handover one short');
+  assert(answers.includes(2), 'and the whole ask');
 });
 
 await checkAsync('a shelf that changes is written the way a file is written', async () => {
@@ -1124,6 +1129,25 @@ await checkAsync('once in three the guildmate has nothing to send, and the ask i
     connection.calls(/SET status = 'fulfilled'/).length === 0,
     'nothing may be handed over on that answer'
   );
+});
+
+await checkAsync('once in three it is one short, and the row reads 1 of 2', async () => {
+  const connection = fakeConnection({ pendingRows: pendingAsk(2) });
+  const outcome = await runDemoActivity(connection, {
+    cast: [
+      { userId: 5, account: '@SomebodyElse', character: 'Somebody-Else', items: [], offers: [] },
+    ],
+    random: sequence([0, 0, 0.5]),
+  });
+
+  assert(outcome && outcome.kind === 'answer', `expected an answer, got ${outcome && outcome.kind}`);
+  assert(/1 copy/.test(outcome.summary), `the message should say one copy, got "${outcome.summary}"`);
+
+  const fulfilled = connection.calls(/SET status = 'fulfilled'/);
+  const [, sent, asked, reason] = [null, ...fulfilled[0].params];
+
+  assert(Number(sent) === 1 && Number(asked) === 2, `expected 1 of 2, got ${sent} of ${asked}`);
+  assert(reason === '1 of 2 sent', `the row carries the short handover, got "${reason}"`);
 });
 
 await checkAsync('and the rest of the time the whole ask is handed over', async () => {

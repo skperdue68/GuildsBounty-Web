@@ -446,6 +446,16 @@ t('the one-off backfill zeroes what old cancellations recorded as sent', () => {
   assert.match(sql, /AND quantity > 0/, 'leaving a basket row its copies, and a fixed row alone');
 });
 
+t('a count like "0 of 10" is never broken over two lines', () => {
+  const css = read('public/styles.css');
+
+  assert.match(
+    css,
+    /td\.num,\s*th\.num \{[^}]*white-space: nowrap;/,
+    'a numeric column takes the width the value needs instead of folding it'
+  );
+});
+
 t('each table carries the words its search box looks through', () => {
   const html = render({
     requests: [],

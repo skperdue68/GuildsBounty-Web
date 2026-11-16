@@ -928,10 +928,18 @@ tbody tr:hover {
   background: rgba(37, 99, 235, 0.08);
 }
 
+/* A count is read at a glance, so it is never broken over two lines: the width is a hint to
+   an auto-laid-out table, not a ceiling, and "0 of 10" in a 38px content box used to fold in
+   the middle of the row. The column takes what the value needs. */
 td.num,
 th.num {
   text-align: right;
   width: 58px;
+  /* The floor, not the width: an auto-laid-out table gives the column at least this much, so
+     "10 of 10" has room beyond the 45px it measures, and the item list's fixed layout keeps
+     the 58px above unchanged. */
+  min-width: 70px;
+  white-space: nowrap;
 }
 
 .account-block {
