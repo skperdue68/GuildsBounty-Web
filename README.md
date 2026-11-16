@@ -1520,6 +1520,11 @@ GRANT ALL PRIVILEGES ON guildsbounty.* TO 'guildsbounty'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
+That is the only grant needed: when the site creates `guildsbounty-demo` it grants this same
+account what it needs on it, provided the account has `GRANT OPTION` (add
+`WITH GRANT OPTION` to the statement above for that). Without it the demo log prints the
+second `GRANT` to run by hand.
+
 **3. Settings.**
 
 ```bash
@@ -1787,9 +1792,19 @@ visitor always gets the curated demo rather than the leftovers of somebody's ses
 restart is also how you reset it. A demo session reads that copy instead of the live
 rows, and nothing it does can reach them; signing in as anybody else switches back to
 `GUILDSBOUNTY_DATABASE` on the next request. Sessions stay in the real database, because a
-session has to be read before the site knows who is asking. The database account needs
-CREATE and DROP on `guildsbounty-demo`, the privilege it already uses to make the real
-database.
+session has to be read before the site knows who is asking.
+
+**The demo's database is granted as it is made.** MariaDB grants per database name, so the
+account the site runs as can create `guildsbounty-demo` on its CREATE privilege and then be
+refused every table inside it: an operator who granted `guildsbounty.*` never granted the
+demo's name as well. So whenever the site creates a database (the demo copy on every start,
+the real one on a first boot) it grants the account it connected as, host included, what it
+needs on that one database: SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, ALTER, INDEX,
+REFERENCES and LOCK TABLES. `GRANT` itself needs the `GRANT OPTION` privilege, which an
+application account normally does not have; when it is refused, the boot log names the
+account and prints the one statement to run as an administrator, and the demo reports itself
+not ready until that has been run. The install's single
+`GRANT ALL PRIVILEGES ON guildsbounty.*` therefore covers both databases.
 
 The demo is a sandbox rather than a preview: reserving, cancelling, sending a basket,
 answering a request and adding or removing accounts all really happen, inside the copy,
