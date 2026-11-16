@@ -3793,20 +3793,16 @@ a.history-page:hover, .history-page.is-current {
   color: var(--muted);
 }
 
-/* ========================================== what a form control comes with from the browser
-   A select, a checkbox, a number box and a focus ring are drawn by the browser until the site
-   says otherwise, and each one arrives in the browser's own colours: a black chevron on a dark
-   box, a white tick box, a light dropdown list, a focus ring that follows the operating
-   system's accent. Those are the pieces that read as "not from this site", so they are dealt
-   with here, in one place, rather than three lines at a time beside each control. It has to sit
-   after the controls' own rules: what is written here wins on equal footing, and nothing here
-   is more specific than the rule above it. */
+/* ========================= the parts of a control the browser paints for the site
+   A select's arrow, a tick box, a number box's stepper, a disclosure's triangle and the focus
+   ring arrive in the browser's own colours, which on this page read as "not from here". One
+   block, after the controls' own rules so it wins on equal footing, and nothing in it more
+   specific than what it overrides. */
 
-/* Every select on the site - the filter bar's, the account picker over the tabs, the avatar
-   menu's person picker, the sign-up account picker and the guild code's - gets the same
-   chevron, drawn rather than left to the browser, and asks for its open list to be drawn dark.
-   The options themselves belong to the operating system; `color-scheme` is the only say the
-   page has over them. */
+/* Every select - the filter bar's, the account picker over the tabs, the avatar menu's person
+   picker, the sign-up account picker and the guild code's - gets one drawn chevron, and asks
+   for its open list to be dark. The options are the operating system's; `color-scheme` is the
+   only say a page has over them. */
 .filter select,
 .browsing-picker select,
 .account-menu-select,
@@ -3821,18 +3817,16 @@ a.history-page:hover, .history-page.is-current {
   background-size: 10px 6px;
 }
 
-/* The tick in a filter menu's checkbox is the palette's blue instead of the browser's default,
-   and the empty box is drawn dark so it does not read as a white hole in a dark menu. The
-   radios under the same menus keep the colour too, though their dot is never shown. */
+/* The palette's blue for a tick, and a dark empty box rather than a white hole in a dark menu.
+   The filter menus' radios are clipped, so their dot is never seen. */
 input[type='checkbox'],
 input[type='radio'] {
   accent-color: #3b82f6;
   color-scheme: dark;
 }
 
-/* A number box here is read and typed into, never stepped: the little arrows are grey on this
-   background and eat the width the number needs. Both boxes that hold a count - how many were
-   sent, how many are kept back - get this. */
+/* A number box here is typed into, never stepped: the arrows are grey on this background and
+   eat the width the number needs. */
 input[type='number'] {
   -moz-appearance: textfield;
   appearance: textfield;
@@ -3844,8 +3838,8 @@ input[type='number']::-webkit-inner-spin-button {
   margin: 0;
 }
 
-/* "New here? Create an account" is a disclosure, and a disclosure comes with a black triangle
-   in the margin. It gets the chevron the guide drawer uses, in the same blue. */
+/* The sign-up disclosure gets the guide drawer's caret instead of the browser's black
+   triangle. */
 .auth-signup summary {
   list-style: none;
 }
@@ -3862,10 +3856,9 @@ input[type='number']::-webkit-inner-spin-button {
   color: #8fb4ff;
 }
 
-/* Most controls on the site do not write a focus ring of their own, so a keyboard walk draws
-   the browser's - a white halo that changes with the operating system's accent. One ring for
-   the whole site, in the blue the links use. A control that writes its own ring near its own
-   rules is more specific than this and keeps it. */
+/* Most controls write no focus ring of their own, so a keyboard walk drew the browser's white
+   halo, in whatever accent the operating system uses. One ring for the site; a control that
+   writes its own is more specific and keeps it. */
 :focus-visible {
   outline: 2px solid rgba(148, 197, 255, 0.85);
   outline-offset: 2px;

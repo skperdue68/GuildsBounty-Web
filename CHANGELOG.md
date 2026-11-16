@@ -16,7 +16,10 @@ landed on `main`.
   history, because each asker is told separately what became of what they asked for. Rows
   already in the database from before the fix read the same way: both tables take a refused ask as
   0 whatever number it stored, so the owner's Completed table and the requester's Sent table agree
-  on the old rows as well as the new ones.
+  on the old rows as well as the new ones. Those rows are put right in the database too:
+  `migrations/031_guildsbounty_cancelled_quantity.sql` records 0 copies against every cancelled
+  ask that was sent, leaving the ask in `quantity_requested` (and leaving a basket row the copies
+  it was holding), so the next start makes the table agree with what the site shows.
 
 ### Changed
 

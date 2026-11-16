@@ -379,31 +379,44 @@ t('all four tables sort by their own headings and remember it in their own cooki
   assert.match(html, /data-sort-amount="1"/, 'and how many arrived');
 });
 
-t('an ask answered with nothing reads 0 of what was asked, and sorts as 0', () => {
+t('a refused ask reads 0 on both tables, old rows and new', () => {
+  // A cancellation from before the fix still holds the ask in `quantity`; one answered since
+  // holds 0, and the table has to read both the same way.
+  const cancelled = (id, name, quantity, asked) => ({
+    id,
+    item_name: name,
+    item_type_name: 'Weapons',
+    quality: 2,
+    owner_account_name: '@Eva',
+    requester_account_name: '@Dee',
+    quantity,
+    quantity_requested: asked,
+    status: 'cancelled',
+    closed_at: '2026-11-12T10:00:00Z',
+  });
   const html = render({
-    requests: [
-      {
-        id: 8,
-        item_name: 'Hunting Bow',
-        item_type_name: 'Weapons',
-        quality: 2,
-        owner_account_name: '@Owner',
-        requester_account_name: '@Eva',
-        quantity: 0,
-        quantity_requested: 4,
-        status: 'cancelled',
-        status_reason: '@Owner had nothing to send, so the request was cancelled.',
-        submitted_at: '2026-11-12T10:00:00Z',
-        submitted_at_iso: '2026-11-12T10:00:00Z',
-      },
-    ],
+    requests: [cancelled(11, 'Hunting Bow', 2, 2), cancelled(12, 'Ancient Silk', 0, 4)],
+    receivedHistory: [cancelled(11, 'Hunting Bow', 2, 2), cancelled(12, 'Ancient Silk', 0, 1)],
     requestHistory: { page: 1, totalPages: 1 },
   });
   const mine = panel(html, 'mine');
+  const answered = panel(html, 'received');
+  const oldRow = answered.slice(answered.indexOf('Hunting Bow'));
 
-  assert.match(mine, /<td class="num">0 of 4<\/td>/, 'nothing arrived, and the row says so');
-  assert.match(mine, /data-sort-qty="0"/, 'the column sorts the 0 it shows');
-  assert.match(mine, /Cancelled/);
+  assert.match(mine, /<td class="num">0 of 2<\/td>/, 'the requester sees that nothing arrived');
+  assert.match(mine, /<td class="num">0 of 4<\/td>/, 'and how many were asked for');
+  assert.equal(
+    (mine.match(/data-sort-qty="0"/g) || []).length,
+    2,
+    'both sort as the 0 they show'
+  );
+  assert.match(
+    oldRow,
+    /<td class="num">2<\/td>\s*<td class="num">0<\/td>\s*<td>Not fulfilled<\/td>/,
+    'asked 2, sent 0, on the owner\u2019s own table'
+  );
+  assert.match(oldRow, /data-sort-amount="0"/, 'and its Amount column sorts as nothing');
+  assert.match(oldRow, /data-sort-requested="2"/, 'while the ask stays what it was');
 });
 
 t('a craft taken back out of the basket keeps the copies it was holding', () => {
@@ -420,37 +433,17 @@ t('a craft taken back out of the basket keeps the copies it was holding', () => 
   assert.match(mine, /data-sort-qty="2"/);
 });
 
-t('a cancellation recorded before the fix reads 0 on both tables', () => {
-  const legacy = {
-    id: 11,
-    item_name: 'Hunting Bow',
-    item_type_name: 'Weapons',
-    quality: 2,
-    owner_account_name: '@Eva',
-    requester_account_name: '@Dee',
-    quantity: 2,
-    quantity_requested: 2,
-    status: 'cancelled',
-    fulfilled_at: null,
-    closed_at: '2026-11-12T10:00:00Z',
-  };
-  const html = render({
-    requests: [legacy],
-    receivedHistory: [legacy],
-    requestHistory: { page: 1, totalPages: 1 },
-  });
-  const mine = panel(html, 'mine');
-  const answered = panel(html, 'received');
-  const row = answered.slice(answered.indexOf('Hunting Bow'));
+t('the one-off backfill zeroes what old cancellations recorded as sent', () => {
+  const sql = read('migrations/031_guildsbounty_cancelled_quantity.sql');
 
-  assert.match(mine, /<td class="num">0 of 2<\/td>/, 'the requester sees that nothing arrived');
+  assert.match(sql, /SET quantity = 0/, 'the handover becomes nothing');
   assert.match(
-    row,
-    /<td class="num">2<\/td>\s*<td class="num">0<\/td>\s*<td>Not fulfilled<\/td>/,
-    'asked 2, sent 0, on the owner\u2019s own table'
+    sql,
+    /WHERE status IN \('cancelled', 'declined'\)/,
+    'only refused asks - the ask itself is in quantity_requested'
   );
-  assert.match(row, /data-sort-amount="0"/, 'and its Amount column sorts as nothing');
-  assert.match(row, /data-sort-requested="2"/, 'while the ask stays what it was');
+  assert.match(sql, /AND submitted_at IS NOT NULL/, 'and only the ones that were sent');
+  assert.match(sql, /AND quantity > 0/, 'leaving a basket row its copies, and a fixed row alone');
 });
 
 t('each table carries the words its search box looks through', () => {
