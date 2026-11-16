@@ -145,7 +145,7 @@ t('the card belongs to the two item lists and leaves the two request tabs', () =
 });
 
 t('a tab change and a live refresh both decide it again', () => {
-  const setTab = app.slice(app.indexOf('function setTab('), app.indexOf('function setTab(') + 1600);
+  const setTab = app.slice(app.indexOf('function setTab('), app.indexOf('function setTab(') + 2800);
   const region = app.slice(app.indexOf('function applyRegion('), app.indexOf('async function refresh()'));
 
   assert.match(setTab, /syncFilterCard\(\);/, 'switching tabs moves the card');
@@ -292,8 +292,13 @@ t('the counts are read back off the page, not from what it was first sent', () =
   assert.doesNotMatch(app, /drawFilterCard/, 'the card is not rebuilt from a template any more');
   assert.match(
     app,
-    /syncCounts\(\);\n    syncFilterCard\(\);/,
-    'and an applied page is recounted before the card is decided'
+    /syncFilterCard\(\);\n    applyListSearch\(\);/,
+    'and an applied page picks its row before it narrows anything'
+  );
+  assert.match(
+    app,
+    /applyListSearch\(\);\n    \/\/ The rows are new[\s\S]{0,200}syncCounts\(\);/,
+    'then counts the rows it just drew'
   );
 });
 
@@ -731,6 +736,49 @@ t('the band pins between the tabs and the search, and neither covers it', () => 
   );
 
   assert.match(toolsHeading, /--list-tools-h/, 'the headings under a search row clear it too');
+});
+
+
+// -------------------------------------------------- what the page reads before it draws
+
+// The page puts the remembered tab on screen as it loads, and that already counts a menu and
+// narrows a list. A `const` that a name like FILTER_PARAMS lives in has to be declared above
+// that call: inside a function it is hoisted, but its value is not, and reading it first
+// threw `Cannot access 'FILTER_PARAMS' before initialization` - which stopped the load before
+// the tab handlers were wired, left both lists' filter rows on screen, and made the type
+// headings stop opening.
+
+t('the names the first render reads are declared above it', () => {
+  const app = read('public/app.js');
+  const firstRender = app.indexOf('\n  setTab(activeTab);');
+
+  assert.ok(firstRender > -1, 'the page draws its first tab as it loads');
+
+  for (const name of ['const FILTER_PARAMS', 'const TAB_KEY']) {
+    assert.ok(
+      app.indexOf(name) > -1 && app.indexOf(name) < firstRender,
+      `${name} is declared above the first tab render`
+    );
+  }
+});
+
+t('a tab shows its own filter row before it narrows or counts anything', () => {
+  const app = read('public/app.js');
+  const tab = app.slice(app.indexOf('  function setTab('), app.indexOf('  function setTab(') + 2600);
+
+  assert.ok(
+    tab.indexOf('syncFilterCard();') > -1 &&
+      tab.indexOf('syncFilterCard();') < tab.indexOf('applyListSearch();'),
+    'the row comes first, so a failure below cannot leave both rows on the page'
+  );
+
+  const push = app.slice(app.indexOf('  function applyRegion('), app.indexOf('  function applyRegion(') + 6000);
+
+  assert.ok(
+    push.indexOf('syncFilterCard();') < push.indexOf('applyListSearch();') &&
+      push.indexOf('applyListSearch();') < push.indexOf('syncCounts();'),
+    'and a pushed page does the same, then counts the rows it just drew'
+  );
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

@@ -93,6 +93,14 @@ landed on `main`.
   the chip under the bar goes with the option instead of leaving a filter the reader cannot see
   or switch off.
 
+- **The page no longer stops before it has wired itself up.** The names each list's filters
+  travel under were declared below the line that draws the first tab, and that line now counts
+  a menu - so reading them threw `Cannot access 'FILTER_PARAMS' before initialization`, the load
+  stopped halfway, both lists' filter rows stayed on screen and the type headings stopped
+  opening. The names are declared with the rest of the page's state now, above anything that
+  runs at load, and a tab shows its own row before it narrows or counts anything, so one failure
+  there cannot leave two rows on the page.
+
 - **Every count beside a type now comes from the rows on the page.** The number in the Type menu
   was whatever the page was first sent, so after a live push - somebody uploading, an offer
   running out - it kept counting rows that were no longer there until the page was reloaded.
