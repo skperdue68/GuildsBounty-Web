@@ -16,6 +16,18 @@ landed on `main`.
   a browser - or anything between it and the server - still holding yesterday's copy: reload,
   and the stamp plus every file it loads should be the new one.
 
+### Changed
+
+- **A chip is removed by its ×, not by clicking the word.** The whole chip was a button, so a
+  click anywhere on it - or a stray one while reaching for a menu above - threw the choice
+  away. The chip is a label now and the × inside it is the button, with the red hover on the ×
+  alone, so the word can be read and clicked without losing the filter.
+
+- **A little more air above the search row.** The band under the menus had 18px below it and
+  the search row started straight after, so the top of the search box read as if the border had
+  cut it off. The band's bottom padding is 24px and the search row has 10px above it; both are
+  measured into the pinned stack, so the headings still clear all three bars.
+
 ### Fixed
 
 - **The demo takes away the piece it named.** The shelf-change scenario picked the last of a

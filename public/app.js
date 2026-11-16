@@ -1316,19 +1316,26 @@ if (listRegion) {
 
     [names.type, names.owner].forEach((name) => {
       chosenValues(form, name).forEach((value) => {
-        const chip = document.createElement('button');
-        chip.type = 'button';
+        // The chip is a label; only the × beside it is a button, so the word cannot be
+        // clicked away by accident.
+        const chip = document.createElement('span');
         chip.className = 'filter-chip';
-        chip.dataset.chipFilter = name;
-        chip.dataset.chipValue = value;
-        chip.title = `Remove the ${value} filter`;
-        chip.setAttribute('aria-label', `Remove the ${value} filter`);
         chip.append(document.createTextNode(value));
+
+        const remove = document.createElement('button');
+        remove.type = 'button';
+        remove.className = 'filter-chip-remove';
+        remove.dataset.chipFilter = name;
+        remove.dataset.chipValue = value;
+        remove.title = `Remove the ${value} filter`;
+        remove.setAttribute('aria-label', `Remove the ${value} filter`);
 
         const cross = document.createElement('span');
         cross.setAttribute('aria-hidden', 'true');
         cross.textContent = '\u00d7';
-        chip.appendChild(cross);
+        remove.appendChild(cross);
+
+        chip.appendChild(remove);
         row.appendChild(chip);
       });
     });
