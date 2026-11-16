@@ -34,6 +34,7 @@ import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer } from './lib/de
 import {
   DEMO_ACTIVITY_SCENARIOS,
   demoActivityPause,
+  demoAnswerAmount,
   pickScenario,
   runDemoActivity,
   shelfChange,
@@ -101,7 +102,7 @@ function assertMatch(text, pattern, message) {
  * rows that statement returns, so one stub can serve the demo lookup and the writes
  * that follow it.
  */
-function fakeConnection({ userRow = null, sharedCount = 0 } = {}) {
+function fakeConnection({ userRow = null, sharedCount = 0, pendingRows = null } = {}) {
   const statements = [];
 
   return {
@@ -120,6 +121,9 @@ function fakeConnection({ userRow = null, sharedCount = 0 } = {}) {
         }
         if (/COUNT\(\*\) AS n FROM guildsbounty_shared_items/.test(sql)) {
           return [[{ n: sharedCount }], {}];
+        }
+        if (pendingRows && /FROM guildsbounty_requests/.test(sql)) {
+          return [pendingRows, {}];
         }
         return [[], {}];
       }
@@ -986,6 +990,22 @@ check('a guildmate sometimes gains a piece and sometimes loses one', () => {
   );
 });
 
+check('a guildmate sometimes sends nothing back, so a refusal is seen too', () => {
+  assert(demoAnswerAmount(2, { random: () => 0 }) === 0, 'the low third is a refusal');
+  assert(demoAnswerAmount(2, { random: () => 0.9 }) === 2, 'the rest hands over the whole ask');
+  assert(demoAnswerAmount(0, { random: () => 0.9 }) === 1, 'an ask with no number is one copy');
+  assert(demoAnswerAmount('3', { random: () => 0.9 }) === 3, 'and a posted number is read');
+
+  // Both answers, within a third of the wheel: a refusal has to turn up in an afternoon of the
+  // demo, and a handover has to keep turning up beside it.
+  const answers = [0, 0.2, 0.5, 0.8, 0.99].map((value) =>
+    demoAnswerAmount(2, { random: () => value })
+  );
+
+  assert(answers.includes(0), 'a refusal happens');
+  assert(answers.includes(2), 'and so does a handover');
+});
+
 await checkAsync('a shelf that changes is written the way a file is written', async () => {
   const connection = fakeConnection();
   // 0.9 lands on the last scenario in the rotation, the shelf change, and a guildmate holding
@@ -1051,6 +1071,77 @@ await checkAsync('the piece that leaves is the one the message names', async () 
 
   assert(!written.includes(ITEMS[alone].name), 'the piece the message names is not written back');
   assert(written.includes(ITEMS[twin].name), 'and the pieces behind it on the shelf stay');
+});
+
+// What the answer scenario reads: one ask waiting on a guildmate's shelf, aimed at the demo
+// account. `random` is spent in a fixed order - the person, the scenario, then the amount - so
+// a run of it can be scripted.
+const sequence = (values) => () => (values.length > 0 ? values.shift() : 0);
+
+const pendingAsk = (asked) => [
+  {
+    id: 31,
+    item_kind: 'inventory',
+    item_name: ITEMS[0].name,
+    item_id: 1001,
+    icon_key: '',
+    quality: ITEMS[0].quality,
+    item_type_name: ITEMS[0].typeName,
+    trait: '',
+    enchant_name: '',
+    style_name: '',
+    required_level: 0,
+    required_cp: 0,
+    location_label: 'Bank',
+    owner_account_name: '@SomebodyElse',
+    requester_account_name: DEMO_ACCOUNT,
+    quantity: asked,
+    quantity_requested: asked,
+    submitted_at: '2026-11-10T10:00:00Z',
+  },
+];
+
+await checkAsync('once in three the guildmate has nothing to send, and the ask is cancelled', async () => {
+  const connection = fakeConnection({ pendingRows: pendingAsk(2) });
+  const outcome = await runDemoActivity(connection, {
+    cast: [
+      { userId: 5, account: '@SomebodyElse', character: 'Somebody-Else', items: [], offers: [] },
+    ],
+    random: sequence([0, 0, 0]),
+  });
+
+  assert(outcome && outcome.kind === 'answer', `expected an answer, got ${outcome && outcome.kind}`);
+  assert(
+    /nothing to send/.test(outcome.summary),
+    `the message should say nothing was sent, got "${outcome.summary}"`
+  );
+
+  const cancelled = connection.calls(/SET status = 'cancelled'/);
+
+  assert(cancelled.length === 1, `expected one cancellation, got ${cancelled.length}`);
+  assert(/quantity = 0/.test(cancelled[0].sql), 'and nothing recorded as sent');
+  assert(
+    connection.calls(/SET status = 'fulfilled'/).length === 0,
+    'nothing may be handed over on that answer'
+  );
+});
+
+await checkAsync('and the rest of the time the whole ask is handed over', async () => {
+  const connection = fakeConnection({ pendingRows: pendingAsk(2) });
+  const outcome = await runDemoActivity(connection, {
+    cast: [
+      { userId: 5, account: '@SomebodyElse', character: 'Somebody-Else', items: [], offers: [] },
+    ],
+    random: sequence([0, 0, 0.9]),
+  });
+
+  assert(outcome && outcome.kind === 'answer', `expected an answer, got ${outcome && outcome.kind}`);
+  assert(/2 copies/.test(outcome.summary), `expected two copies, got "${outcome.summary}"`);
+
+  const fulfilled = connection.calls(/SET status = 'fulfilled'/);
+
+  assert(fulfilled.length === 1, `expected one handover, got ${fulfilled.length}`);
+  assert(Number(fulfilled[0].params[0]) === 2, 'two copies, which is what was asked for');
 });
 
 check('a piece leaving is the last of its type when there is one', () => {

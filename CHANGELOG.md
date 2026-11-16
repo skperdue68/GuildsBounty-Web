@@ -32,6 +32,10 @@ landed on `main`.
   arrows, the sign-up disclosure gets the guide drawer's caret, and anything without a ring of its
   own gets one. Tooltips are unchanged: the browser draws those and no page can style them - the
   item cards on the list are the site's own already.
+- **The demo refuses an ask now and then.** Its guildmates always handed over the whole ask, so
+  the one answer that writes a 0 into the history could not be seen without a database of one's
+  own. One ask in three now comes back as "nothing to send", which cancels the request: the
+  requester's Sent table reads `0 of 2` and the owner's Completed table says Not fulfilled.
 
 ### Changed
 
