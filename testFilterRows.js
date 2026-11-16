@@ -154,12 +154,18 @@ t('a tab change and a live refresh both decide it again', () => {
 
 t('filtering one list leaves the other list\u2019s names alone', () => {
   assert.match(app, /const FILTER_PARAMS = \{/, 'both lists\u2019 names in one place');
-  assert.match(app, /Object\.values\(names\)\.forEach\(\(name\) => params\.delete\(name\)\);/, 'only its own are rewritten');
-  assert.match(
-    app,
-    /const params = new URLSearchParams\(window\.location\.search\);/,
-    'built from the address bar rather than from scratch, so the other list survives'
+
+  const apply = app.slice(
+    app.indexOf('function applyFilters('),
+    app.indexOf('// Every row is handled from the document')
   );
+
+  assert.match(
+    apply,
+    /const want = new URLSearchParams\(liveSearch\);/,
+    'built from the query the page already holds rather than from scratch, so the other list survives'
+  );
+  assert.match(apply, /own\.forEach\(\(name\) => want\.delete\(name\)\);/, 'only its own are rewritten');
 });
 
 // ---------------------------------------------------------------- and the server reads them
@@ -854,6 +860,58 @@ t('Escape closes the open filter menu, and no other key does', () => {
     source,
     /document\.addEventListener\('keydown', \(event\) => \{\s*escapeClosesFilterMenu\(event\);\s*\}\);/,
     'and the page listens for the key'
+  );
+});
+
+t('a chosen filter is kept in the page, not in the address bar', () => {
+  const source = read('public/app.js');
+  const cleanBarQuery = new Function(
+    'URLSearchParams',
+    `${functionSource(source, 'cleanBarQuery')}; return cleanBarQuery;`
+  )(URLSearchParams);
+
+  assert.equal(cleanBarQuery('?type=Weapon&demo=1', ['type']), 'demo=1', 'the filter goes, the rest stays');
+  assert.equal(cleanBarQuery('?type=Weapon&owner=@A', ['type', 'owner']), '', 'nothing left means no query at all');
+  assert.equal(cleanBarQuery('?demo=1', ['type']), 'demo=1', 'a page with no filters keeps its address');
+  assert.equal(cleanBarQuery('', ['type']), '', 'and an empty bar stays empty');
+
+  // The list is drawn from the page's own query; the bar is cleaned instead of written to.
+  assert.match(source, /let liveSearch = /, 'the page keeps the query the list is drawn from');
+  assert.match(
+    source,
+    /function listQuery\(\)[\s\S]{0,200}new URLSearchParams\(liveSearch\)/,
+    'a refresh asks for that query'
+  );
+  assert.match(
+    source,
+    /function listHasFilter\(list\)[\s\S]{0,400}new URLSearchParams\(liveSearch\)/,
+    'and so do the counts that hang off it'
+  );
+
+  const apply = source.slice(
+    source.indexOf('function applyFilters('),
+    source.indexOf('// Every row is handled from the document')
+  );
+
+  assert.doesNotMatch(
+    apply,
+    /replaceState\(null, '', query/,
+    'the choice is never written into the bar'
+  );
+  assert.match(apply, /liveSearch = want\.toString\(\)/, 'the choice becomes the list\u2019s query');
+  assert.match(apply, /cleanAddressBar\(\);/, 'and the bar is cleaned of any filter names on it');
+
+  // The names that only lead into the page are listed and taken back out.
+  assert.match(source, /const TRANSIENT_PARAMS = \[/, 'the names that only lead in are listed');
+
+  for (const name of ['tab', 'answered', 'waiting', 'historyPage']) {
+    assert.ok(source.includes(`'${name}',`), `${name} is cleaned out of the bar`);
+  }
+
+  assert.match(
+    source,
+    /syncFilterCard\(\);[\s\S]{0,300}cleanAddressBar\(\);/,
+    'and a link that arrives with filters is cleaned as the page draws itself'
   );
 });
 
