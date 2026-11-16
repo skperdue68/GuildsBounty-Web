@@ -1630,7 +1630,7 @@ function signedOutOwnerPage(req, res) {
 // the fragment means "give me the card, not the page around it".
 function wantsFragment(req) {
   return (
-    String(req.get('x-guildsbounty-fragment') || req.get('x-itemshare-fragment') || '') === '1' ||
+    String(req.get('x-guildsbounty-fragment') || '') === '1' ||
     String(req.query.fragment || '') === '1'
   );
 }
@@ -3498,7 +3498,7 @@ app.post(
     const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
     const given =
       bearer ||
-      String(req.get('x-guildsbounty-token') || req.get('x-itemshare-token') || '').trim();
+      String(req.get('x-guildsbounty-token') || '').trim();
 
     if (!ingestTokenMatches(given)) {
       res.status(401).json({ error: 'That ingest token is not accepted here.' });
@@ -3517,7 +3517,7 @@ app.post(
     // The watcher knows the real file name; record it so an upload can be traced to
     // the file it came from. Anything longer is trimmed rather than refused.
     const sourceFile = String(
-      req.get('x-guildsbounty-file') || req.get('x-itemshare-file') || 'GuildsBountySavedVars.lua'
+      req.get('x-guildsbounty-file') || 'GuildsBountySavedVars.lua'
     ).slice(0, 200);
 
     try {
@@ -3687,7 +3687,7 @@ function refuseSimulate(res, token) {
 // 404 per action ten minutes in.
 app.post('/simulate/check', (req, res) => {
   const token = String(
-    req.get('x-guildsbounty-simulate') || req.get('x-itemshare-simulate') || ''
+    req.get('x-guildsbounty-simulate') || ''
   ).trim();
 
   if (!simulateTokenMatches(token)) {
@@ -3700,7 +3700,7 @@ app.post('/simulate/check', (req, res) => {
 
 app.post('/simulate/nudge', (req, res) => {
   const token = String(
-    req.get('x-guildsbounty-simulate') || req.get('x-itemshare-simulate') || ''
+    req.get('x-guildsbounty-simulate') || ''
   ).trim();
 
   if (!simulateTokenMatches(token)) {

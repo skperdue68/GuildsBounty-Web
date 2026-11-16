@@ -103,39 +103,22 @@ name, `localhost` or an IP means the proxy is rewriting `Host` without saying wh
 the answer is `proxy_set_header Host $host;` plus `proxy_set_header X-Forwarded-Host $host;`
 (or Caddy's `header_up Host {host}`).
 
-### What still answers to the old name
+### The name
 
-Everything this repository owns says **GuildsBounty** (`guildsbounty` inside an identifier): the
-package name, the filter and sort cookies (`guildsbounty_sort`, `guildsbounty_group`,
-`guildsbounty_group_mine`, `guildsbounty_collapsed`, `guildsbounty_collapsed_mine`,
-`guildsbounty_basket_sort`, `guildsbounty_sent_sort`, `guildsbounty_owner_sort`,
-`guildsbounty_answered_sort`), the keys the browser keeps for itself (`guildsbounty:tab` and
-its neighbours), the `X-GuildsBounty-*` headers, the mail boundary and `Message-ID` domain, the
-fallback session-secret prefix, the tables, the database and the wordmark.
+There is one name in this repository, everywhere: **GuildsBounty**, and `guildsbounty` inside an
+identifier. That is the package, the filter and sort cookies (`guildsbounty_sort`,
+`guildsbounty_group`, `guildsbounty_group_mine`, `guildsbounty_collapsed`,
+`guildsbounty_collapsed_mine`, `guildsbounty_basket_sort`, `guildsbounty_sent_sort`,
+`guildsbounty_owner_sort`, `guildsbounty_answered_sort`), the keys the browser keeps for itself
+(`guildsbounty:tab` and its neighbours), the `X-GuildsBounty-*` headers, the mail boundary and
+`Message-ID` domain, the fallback session-secret prefix, the tables, the database, the uploaded
+file the instructions ask for (`GuildsBountySavedVars.lua`), the addon files those instructions
+name (`GuildsBounty.lua`, `GuildsBountyExport.lua`), the in-game `/guildsbounty` command, the
+demo account and the wordmark.
 
-What is left of the old name is *read*, never shown and never sent, so that nothing already in
-somebody's hands breaks on the day it changed:
-
-- **The uploaded file's table.** `GuildsBountySavedVars` is what the instructions ask for and
-  what every message names. A file still written as `ItemShareSavedVars` holds the same table
-  and is read the same way, so an addon that has not been updated keeps uploading.
-- **The request headers.** `X-ItemShare-Token`, `X-ItemShare-File`, `X-ItemShare-Fragment` and
-  `x-itemshare-simulate` are still read. Nothing sends them: every response and every script
-  uses the `X-GuildsBounty-*` names.
-- **The old table and database names.** A database still on `itemshare_*` tables is adopted on
-  the first boot, and `ITEMSHARE_DATABASE` is still read when `GUILDSBOUNTY_DATABASE` is blank -
-  see *Startup and migrations*.
-- **`CHANGELOG.md` before those entries.** It is a record of what happened under the old name;
-  rewriting it would make the history wrong.
-
-The addon's own files (`GuildsBounty.lua`, `GuildsBountySavedVars.lua`, `GuildsBountyExport.lua`)
-and the in-game `/guildsbounty` command are named here the way the addon names them: the site
-reads whatever the uploaded file calls itself, so the two only have to agree on the table name.
-
-The database is renamed as well: the tables are `guildsbounty_*`, the ledger is
-`guildsbounty_schema_migrations`, and the database is `guildsbounty` (`guildsbounty-demo` for the
-demo). An existing database on the old names is taken over on the first boot - see *Startup and
-migrations* - so there is nothing to rename by hand.
+Nothing is read, accepted or sent under any other name: a request with the old headers, a file
+whose table is called anything but `GuildsBountySavedVars`, or a database on the old table names
+is simply not this application's.
 
 One deliberate oddity: **`MARIADB_DATABASE` is ignored.** Guild's Bounty always uses its
 own database (`GUILDSBOUNTY_DATABASE`, default `guildsbounty`), so it cannot write into
@@ -147,23 +130,13 @@ On boot the site:
 
 1. connects to MariaDB without selecting a database, so it can create one;
 2. runs `CREATE DATABASE IF NOT EXISTS` for `GUILDSBOUNTY_DATABASE`;
-3. adopts a database that still carries the old names, if there is one;
-4. applies every `.sql` file in `migrations/` that has not been applied before.
+3. applies every `.sql` file in `migrations/` that has not been applied before.
 
 Applied files are recorded in `guildsbounty_schema_migrations`, so each runs exactly
 once. To add a migration, drop a new sortable file in `migrations/`
 (`018_something.sql`) and restart: it is applied on that boot and never again.
 Recorded migrations are not re-run, so they no longer have to be idempotent, though
 `CREATE TABLE IF NOT EXISTS` remains a good habit.
-
-**Adopting the old names.** Before anything else, startup looks for tables still called
-`itemshare_*` and renames every one of them to `guildsbounty_*` in a single atomic
-`RENAME TABLE` - there is never a moment with half a schema - and then rewrites the filenames
-recorded in the ledger, because the migration files were renamed with the tables and the ledger
-remembers files by name. A table that already exists under its new name is left alone, so a
-half-finished manual rename still ends in the right place. Point `GUILDSBOUNTY_DATABASE` (or the
-old `ITEMSHARE_DATABASE`, still read as a fallback) at the database you mean and the first boot
-does the rest; a second boot finds nothing old and does nothing.
 
 If the database is unreachable at startup the site still boots, logs the reason, and
 shows the error on the page instead of crashing. Connections made per request connect
@@ -483,8 +456,7 @@ gzip -c GuildsBountySavedVars.lua | curl -X POST https://your-site.example/inges
 
 `X-GuildsBounty-Token` is accepted as an alternative to the `Bearer` header, and
 `X-GuildsBounty-File` names the file for the upload log (it defaults to
-`GuildsBountySavedVars.lua`). The old `X-ItemShare-Token` and `X-ItemShare-File` are still read, so
-a watcher that has not been updated keeps uploading.
+`GuildsBountySavedVars.lua`).
 
 | Reply | Meaning |
 | --- | --- |

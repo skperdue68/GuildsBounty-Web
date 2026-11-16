@@ -7,41 +7,29 @@ landed on `main`.
 
 ### Changed
 
-- **The name is finished on everything this application owns.** The package, the cookies that
-  remember sorting, grouping and folded types (`guildsbounty_sort`, `guildsbounty_group`,
-  `guildsbounty_collapsed` and the rest, one per list), the keys the browser keeps to itself,
-  the `X-GuildsBounty-*` headers, the mail boundary and `Message-ID` domain, the fallback
-  session-secret prefix and the wordmark all read **GuildsBounty** now. The old `X-ItemShare-*`
-  headers are still accepted, so an uploader that has not been updated - or a browser holding an
-  old copy of the script - keeps working; nothing sends them any more.
+- **The site has one name, everywhere.** The package, the cookies that remember sorting,
+  grouping and folded types (`guildsbounty_sort`, `guildsbounty_group`, `guildsbounty_collapsed`
+  and the rest, one per list), the keys the browser keeps to itself, the `X-GuildsBounty-*`
+  headers, the mail boundary and `Message-ID` domain, the fallback session-secret prefix, the
+  tables, the database, the wordmark, the uploaded file the instructions ask for
+  (`GuildsBountySavedVars.lua`), the addon files those instructions name (`GuildsBounty.lua`,
+  `GuildsBountyExport.lua`), the in-game `/guildsbounty` command and the demo account
+  (`@GuildsBountyDemo`) all read **GuildsBounty** now. The database is `guildsbounty` (and
+  `guildsbounty-demo` for the demo, whose anonymised addresses are `@guildsbounty.invalid`), its
+  bookkeeping table is `guildsbounty_schema_migrations`, and the setting is
+  `GUILDSBOUNTY_DATABASE`; the migration files were renamed to `NNN_guildsbounty_*.sql` to match.
+  The notice for an old address reads *Guild's Bounty answers here now*, and no address counts
+  as an old one until it is listed in `LEGACY_HOSTS`.
 
-  Rebranding the cookies means one visit starts with the defaults again: the grouping, the
-  folded types, the sort queues and the remembered tab are read from the new names, and the old
-  cookies are simply never looked at.
+  Nothing is read or accepted under the old name any more: a request with the old headers, a
+  file whose table is called anything but `GuildsBountySavedVars`, or a database on the old
+  table names is simply not this site's. The addon has to agree with the site on the table name
+  it writes.
 
-- **The database has the new name too.** The tables are `guildsbounty_*`, the bookkeeping table
-  is `guildsbounty_schema_migrations`, the database is `guildsbounty` (and `guildsbounty-demo`
-  for the demo, whose anonymised addresses are now `@guildsbounty.invalid`), and the setting is
-  `GUILDSBOUNTY_DATABASE`; the old `ITEMSHARE_DATABASE` is still read when the new one is
-  blank, so an existing `.env` keeps working. Nothing has to be renamed by hand: on its first
-  boot the site renames any `itemshare_*` table it finds to `guildsbounty_*` in one atomic
-  `RENAME TABLE` and rewrites the migration filenames recorded in the ledger, so no migration is
-  re-applied against a schema that already has it. A table already under its new name is left
-  alone, and a second boot finds nothing to do. The migration files themselves were renamed
-  (`019_guildsbounty_request_fulfillment.sql` and so on) to match.
-
-- **The last of the old name is gone from everything you can read.** The upload instructions, the
-  error messages, the guide, the README and the demo account say **GuildsBounty** now -
-  `GuildsBountySavedVars.lua`, `GuildsBounty.lua`, the in-game `/guildsbounty` command and
-  `@GuildsBountyDemo` - and the notice for an old address reads *Guild's Bounty answers here now*
-  rather than naming the old site. What is left of the old name is only ever read, never shown:
-  a file still written as `ItemShareSavedVars` uploads exactly as before, the old
-  `X-ItemShare-*` headers are still accepted, and a database on the old table names is still
-  adopted. The card itself is now opt-in: no address counts as an old one until it is listed in
-  `LEGACY_HOSTS`, so a fresh install never shows it.
-
-  The addon has to agree with the site on one thing: the table name it writes. Everything else
-  about the file is unchanged, so an addon that has not been updated keeps working.
+  Two consequences worth knowing before it is deployed: rebranding the cookies means one visit
+  starts from the defaults again, and the database has to exist as `guildsbounty` with
+  `guildsbounty_*` tables before the first boot, because the site no longer moves anything into
+  place for you.
 
 - **The filter card belongs to Browse Offers and My Inventory, and the two now keep their own
   filters.** It used to sit above every tab and narrow one shared idea of the list, so a type
@@ -90,9 +78,9 @@ landed on `main`.
 
 ### Added
 
-- **Arriving by the old address says the site has a new name.** `itemshare.perdues.me` still
-  works, and a visit by it opens a short card - *ItemShare is now Guild's Bounty*, with
-  `guildsbounty.perdues.me` linked - that closes itself after ten seconds or on the cross. It
+- **Arriving by an old address says the site has a new one.** An address listed in
+  `LEGACY_HOSTS` still works, and a visit by it opens a short card - *Guild's Bounty answers here
+  now*, with `NEW_SITE_URL` linked - that closes itself after ten seconds or on the cross. It
   appears only on the page somebody lands on, only for the old name: a visit by the new one has
   nothing to read, and a live refresh does not bring it back. Which names count is
   `LEGACY_HOSTS`, and where it points is `NEW_SITE_URL`. The name is read from `Forwarded`
@@ -256,8 +244,8 @@ landed on `main`.
 - **A type heading folds its own rows away.** A press on the heading (not only on its count)
   closes that type, and the count stays beside the name so a folded type reads as folded
   rather than empty; a caret on the row points right while the rows are away and down when
-  they are back. Which types are folded is remembered per list, in `itemshare_collapsed` for
-  **Browse Offers** and `itemshare_collapsed_mine` for **My Inventory**, so it survives a
+  they are back. Which types are folded is remembered per list, in `guildsbounty_collapsed` for
+  **Browse Offers** and `guildsbounty_collapsed_mine` for **My Inventory**, so it survives a
   reload and the two lists fold independently. A search word does not reopen a folded type:
   its heading keeps the count of what matched, and opening it shows those rows.
 - **One press folds the whole list, or opens all of it.** Beside **Grouped by type** is a
@@ -272,7 +260,7 @@ landed on `main`.
   were accepted and then dropped by the handler that whitelisted the older two tabs, so a word
   in either box waited for a reload; all four now narrow on the same delay as each other.
 - **Grouping is per list.** **Browse Offers** and **My Inventory** each remember whether they
-  are cut up by type or shown as one flat list (`itemshare_group` and `itemshare_group_mine`),
+  are cut up by type or shown as one flat list (`guildsbounty_group` and `guildsbounty_group_mine`),
   so one can be grouped while the other is not, and the switch on each tab reports its own
   list. Turning the headings off on one no longer turns them off on the other.
 - **The search boxes on My Requests and Requests Received span the card.** They sit in the
@@ -288,8 +276,8 @@ landed on `main`.
   it is the instruction on that tab rather than a caption.
 - **All four of those tables sort, and each remembers its own order.** Basket, sent, waiting
   and answered each cycle a heading through ascending, descending and off, several at once,
-  under their own cookie (`itemshare_basket_sort`, `itemshare_sent_sort`,
-  `itemshare_owner_sort`, `itemshare_answered_sort`), so an order read in the basket says
+  under their own cookie (`guildsbounty_basket_sort`, `guildsbounty_sent_sort`,
+  `guildsbounty_owner_sort`, `guildsbounty_answered_sort`), so an order read in the basket says
   nothing about the log.
 - **My Requests and Requests Received have a search box.** *Search this list* narrows both
   tables on the tab at once, and each tab keeps its own word.
@@ -331,9 +319,9 @@ landed on `main`.
   left of a field with a value: two seconds old still reads `02s`, not `00d 00h 00m 02s`. A
   field no longer disappears when it is zero, so nothing drops out and comes back as the count
   rolls over.
-- **The upload card names the file the addon writes.** It reads *Upload your ItemShare.lua File
+- **The upload card names the file the addon writes.** It reads *Upload your GuildsBounty.lua File
   from your Saved Variables Folder Here*, rather than naming the saved-variables file. The file
-  it accepts is unchanged: the addon writes `ItemShare.lua` into the Saved Variables folder, and
+  it accepts is unchanged: the addon writes `GuildsBounty.lua` into the Saved Variables folder, and
   that is the one to drop on the card.
 - **The demo and the simulator build rows the same shape as an upload.** Their fixtures still
   filled in the thirteen fields the tables no longer have, so a demo item and a simulated item
@@ -347,7 +335,7 @@ landed on `main`.
   and never read: the numeric item type, the quality's own name, the trait type, the apparel
   and weapon descriptors, the furniture data id, the flavour text, the raw dump of every ESO
   getter and the row's own last-dumped stamp. The addon no longer sends them, so
-  `itemshare_shared_items` and `itemshare_always_share` no longer create them, migration 030
+  `guildsbounty_shared_items` and `guildsbounty_always_share` no longer create them, migration 030
   drops them once, and the parser stops reading them. Everything the list draws - type name,
   quality, trait, set, enchantment, style, level and champion points, location, counts and
   dates - is unchanged.
@@ -362,11 +350,9 @@ landed on `main`.
   the guide, the sign-in card, the demo banner, the header's download button, the request,
   fulfilment and password reset emails, the site's own User-Agent strings, the boot log line,
   the systemd description and the README all name it that way. The addon is Guild's Bounty in
-  that copy too: the sign-in hero, the guide and the upload gate all call it that. What a
-  machine on the other end reads stays as it is until the addon itself is renamed -
-  `ItemShareSavedVars.lua`, the `X-ItemShare-*` headers, `ItemShareExport.lua`, the
-  `itemshare_*` tables and the in-game `/itemshare` command - and the download button still
-  points at the addon's ESOUI page, which is where the file the site reads comes from.
+  that copy too: the sign-in hero, the guide and the upload gate all call it that. The download
+  button still points at the addon's ESOUI page, which is where the file the site reads comes
+  from.
 
 - **ADDED means the day the item was added, not the day it reached this site.** The column,
   the countdown under it, the day filters, the LAST CHANCE pill and the ADDED sort are all
@@ -449,7 +435,7 @@ landed on `main`.
   column, rather than stretched to its full width: the narrow right-click menu stays as sharp
   as it was captured instead of being blown up, and a picture wider than the column is still
   held to it rather than making the page scroll sideways.
-- **How to use ItemShare** is two sections now: *Been given a guild code?* for anybody who
+- **How to use GuildsBounty** is two sections now: *Been given a guild code?* for anybody who
   was handed one - sign in, choose **Use Guild Code** at the top of the next screen, and that
   guild's offerings are there, with no addon and no file - and *Adding your own items* for
   people who want their own spares on the site, which is the guide as it was. The same two
@@ -462,7 +448,7 @@ landed on `main`.
   the line was telling invited guildmates to do a step they do not need.
 - The **Add or remove ESO accounts** dialog only reports until a file has been uploaded.
   Attaching a name by hand, removing one, and the platform and server choices wait for the
-  first `ItemShareSavedVars.lua`: a name typed by hand carries a platform and a world nobody
+  first `GuildsBountySavedVars.lua`: a name typed by hand carries a platform and a world nobody
   has confirmed, and a sign-in with nothing uploaded has no account to record them against.
   Until then the dialog lists the accounts, their guilds and any code-opened slot, and says
   that an upload is what attaches them.

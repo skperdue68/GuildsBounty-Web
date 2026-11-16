@@ -134,15 +134,6 @@ t('a file with no world says nothing rather than guessing', () => {
   assert.equal(parsed.alwaysShare.length, 1);
 });
 
-t('a file written before the rename is read the same way', () => {
-  // The addon used to write this table under the old name. Same table, same rows, so an
-  // upload from somebody who has not updated the addon cannot be rejected over a name.
-  const legacy = twoWorlds.replace('GuildsBountySavedVars', 'ItemShareSavedVars');
-
-  assert.equal(extractShareData(legacy).items.length, extractShareData(twoWorlds).items.length);
-  assert.deepEqual(extractShareData(legacy).accounts, extractShareData(twoWorlds).accounts);
-});
-
 t('a file with neither name is refused, saying which table it wanted', () => {
   assert.throws(
     () => extractShareData('SomethingElseSavedVars = { }'),

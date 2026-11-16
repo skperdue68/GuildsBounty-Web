@@ -562,7 +562,7 @@ check('the addon links live in the header, once, signed out and signed in', () =
 
     assert(header.includes('esoui.com/downloads/dl4533'), `${name}: the addon must sit in the top bar`);
     assert(!header.includes('www.minion.gg'), `${name}: the Minion link is gone`);
-    assert(!page.includes('downloads/info4533-ItemShare.html'), `${name}: the ESOUI page link is gone`);
+    assert(!/downloads\/info\d+\.html/.test(page), `${name}: the ESOUI page link is gone`);
 
     // Brand and addon line share one left-hand group, so the line sits in the same place
     // whether or not somebody is signed in and whatever width the account area takes.
