@@ -684,8 +684,10 @@ their own three choices, under their own names in the address bar: `type`, `owne
 both at once (`/?type=Weapon&madded=7` is a valid link). Switching tabs therefore shows that
 tab's filters as they were left, and a type narrowed on the guild's offers never hides a row
 inside your own inventory - which is exactly what one shared row used to do. The menus on each
-row are built from that list's own rows: Browse Offers from what the viewer may see, My
-Inventory from their own accounts. **RESET** clears the row it belongs to and leaves the other
+row are built from that list's own rows: Browse Offers from what other people share with the
+viewer - never their own rows, which that list does not show - and My Inventory from their own
+accounts. A chosen value whose last row has gone leaves the menu, the chip under the row, the
+count on its box and the query together, so a choice can never outlive the thing it named. **RESET** clears the row it belongs to and leaves the other
 one alone. My Requests and Requests Received have no filter card at all: those tables are
 requests, not a view of the item list, and no type or owner filter speaks for them - the card
 is taken off the page on both tabs.

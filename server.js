@@ -980,6 +980,23 @@ const FOLDED_COOKIE = 'guildsbounty_collapsed';
 const FOLDED_COOKIE_MINE = 'guildsbounty_collapsed_mine';
 
 
+/**
+ * The chosen values that are still in a list's menu.
+ *
+ * The menus are built from the rows their list holds, so an option goes when its last row does.
+ * A filter still naming it would narrow the list to nothing while the menu no longer offered
+ * the value - and the only sign of that choice would be a chip the reader has to press RESET to
+ * be rid of. Pruning here keeps the menu, the chips under it and the query saying the same
+ * thing: what the list actually has to offer.
+ */
+function chosenThatExist(chosen, options) {
+  const available = new Set(
+    (options || []).map((option) => (typeof option === 'string' ? option : option.name))
+  );
+
+  return (Array.isArray(chosen) ? chosen : []).filter((value) => available.has(value));
+}
+
 function readFilters(query, cookieHeader = '') {
   const added = readParam(query.added);
   // My Inventory's own three, so one list's filters never narrow the other: a type chosen on
@@ -1112,15 +1129,36 @@ async function viewerAccountNames(req, connection, user) {
         // headings (see `tableFilters` in lib/views.js), so the numbers and the rows agree.
         const sharedOrder = drawnQueue(filters.order, SHARED_SORT_FIELDS);
 
-        data.facets = await getViewerFacets(connection, requestScope);
+        // Browse Offers leaves the viewer's own rows out - it shows what somebody else is
+        // offering - so its menus are built without them too.
+        data.facets = await getViewerFacets(connection, requestScope, accountNames);
         data.facetsMine = await getOwnItemFacets(connection, accountNames);
+
+        // A choice that is no longer one of its list's options is dropped before anything reads
+        // it, so a type whose last row went takes its chip, its count and its place in the query
+        // with it instead of hiding the whole list behind a value nobody can switch off.
+        const requestFilters = {
+          ...filters,
+          type: chosenThatExist(filters.type, data.facets.types),
+          owner: chosenThatExist(filters.owner, data.facets.owners),
+        };
         // My Inventory reads its own three filters: the six names never meet, so narrowing the
         // offers somebody else shares cannot hide a row inside the viewer's own bag.
         const mineFilters = {
           ...filters,
-          type: filters.typeMine,
-          owner: filters.ownerMine,
+          type: chosenThatExist(filters.typeMine, data.facetsMine.types),
+          owner: chosenThatExist(filters.ownerMine, data.facetsMine.owners),
           added: filters.addedMine,
+        };
+
+        // The page draws both rows, their summaries and their chips from this, so the pruned
+        // pair is what goes down to it rather than the raw pair the address bar asked for.
+        data.filters = {
+          ...filters,
+          type: requestFilters.type,
+          owner: requestFilters.owner,
+          typeMine: mineFilters.type,
+          ownerMine: mineFilters.owner,
         };
 
         data.sharedItems = await getSharedItemsForViewer(connection, accountNames, {
@@ -1128,7 +1166,7 @@ async function viewerAccountNames(req, connection, user) {
           viewerUserId,
         });
         data.requestItems = await getSharedItemsForViewer(connection, requestScope, {
-          ...filters,
+          ...requestFilters,
           order: sharedOrder,
           viewerUserId,
         });
@@ -1143,7 +1181,7 @@ async function viewerAccountNames(req, connection, user) {
           data.answered = readAnsweredCounts(req.query.answered);
         }
         data.requestOffers = await getAlwaysShareForViewer(connection, requestScope, {
-          ...filters,
+          ...requestFilters,
           order: sharedOrder,
         });
       // A hold follows the account it was asked from. Reading the basket without this

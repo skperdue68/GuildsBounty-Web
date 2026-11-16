@@ -157,17 +157,50 @@ t('the server reads My Inventory\u2019s three under their own names', () => {
 t('My Inventory is queried with its own set, and Browse Offers with the first', () => {
   const fn = server.slice(server.indexOf('const mineFilters = {'));
 
-  assert.match(fn.slice(0, 700), /type: filters\.typeMine/, 'its type');
-  assert.match(fn.slice(0, 700), /owner: filters\.ownerMine/, 'its owner');
-  assert.match(fn.slice(0, 700), /added: filters\.addedMine/, 'its window');
+  assert.match(fn.slice(0, 900), /type: chosenThatExist\(filters\.typeMine, data\.facetsMine\.types\)/, 'its type');
+  assert.match(fn.slice(0, 900), /owner: chosenThatExist\(filters\.ownerMine, data\.facetsMine\.owners\)/, 'its owner');
+  assert.match(fn.slice(0, 900), /added: filters\.addedMine/, 'its window');
   assert.match(server, /data\.sharedItems = await getSharedItemsForViewer\(connection, accountNames, \{\s*\.\.\.mineFilters,/, 'the own bag reads them');
-  assert.match(server, /data\.requestItems = await getSharedItemsForViewer\(connection, requestScope, \{\s*\.\.\.filters,/, 'and Browse Offers keeps its own');
+  assert.match(server, /data\.requestItems = await getSharedItemsForViewer\(connection, requestScope, \{\s*\.\.\.requestFilters,/, 'and Browse Offers keeps its own');
 });
 
 t('each list\u2019s menus come from its own rows', () => {
   assert.match(server, /data\.facetsMine = await getOwnItemFacets\(connection, accountNames\)/, 'the own bag counts its own');
   assert.match(store, /export async function getOwnItemFacets\(connection, accountNames\)/, 'which the store answers');
   assert.match(store, /WHERE account_name IN \(\$\{inClause\(names\)\}\) AND item_type_name <> ''/, 'from the viewer\u2019s rows only');
+});
+
+t('Browse Offers counts only what somebody else is offering', () => {
+  assert.match(
+    server,
+    /data\.facets = await getViewerFacets\(connection, requestScope, accountNames\)/,
+    'its menus are told whose rows to leave out'
+  );
+  assert.match(
+    store,
+    /export async function getViewerFacets\(connection, accountNames, ownAccountNames = \[\]\)/,
+    'which the store can do'
+  );
+  assert.match(store, /AND i\.account_name NOT IN/, 'by leaving the viewer\u2019s own rows out');
+});
+
+t('a choice whose option has gone leaves the row with it', () => {
+  assert.match(server, /function chosenThatExist\(chosen, options\)/, 'the prune exists');
+  assert.match(
+    server,
+    /type: chosenThatExist\(filters\.type, data\.facets\.types\)/,
+    'Browse Offers\u2019 type is pruned'
+  );
+  assert.match(
+    server,
+    /type: chosenThatExist\(filters\.typeMine, data\.facetsMine\.types\)/,
+    'so is My Inventory\u2019s'
+  );
+  assert.match(
+    server,
+    /data\.filters = \{\s*\.\.\.filters,\s*type: requestFilters\.type,\s*owner: requestFilters\.owner,\s*typeMine: mineFilters\.type,/,
+    'and the page is drawn from the pruned pair'
+  );
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

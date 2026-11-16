@@ -72,6 +72,16 @@ landed on `main`.
 
 ### Fixed
 
+- **Browse Offers only offers the types and owners it actually lists.** Its menus were built
+  from every row the viewer could see, which included their own bag and bank - so the Type menu
+  offered Apparel, Recipe, Weapon and the rest from My Inventory even when the guild was only
+  sharing Collectibles, and choosing one could only return an empty list. The menus now leave
+  out rows the viewer owns, exactly as the list does. A chosen type or owner whose last row has
+  gone is dropped from the row as well: it leaves the menu, the chip under it, the count on the
+  Type box and the query together, instead of narrowing the list to nothing behind a value
+  nobody can see any more. The menus' scrollbar is drawn in the site's blues rather than the
+  browser's grey.
+
 - **The link in a request email now lands on the site signed in, on Requests Received.** It used
   to offer two ways in and neither worked from an inbox: the **Answer these requests** button
   opened a plain quantity-and-Save page whose Save was refused with *sign in*, because every
