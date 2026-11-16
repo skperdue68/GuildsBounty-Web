@@ -25,6 +25,7 @@
     "test:visibility": "node testVisibility.js",
     "test:view-as": "node testViewAs.js",
     "test:upload-summary": "node testUploadSummary.js",
+    "test:item-scope": "node testItemScope.js",
     "test:demo-mode": "node testDemoMode.js",
     "test:guild-codes": "node testGuildCodes.js",
     "test:requests-sort": "node testRequestsSort.js",
