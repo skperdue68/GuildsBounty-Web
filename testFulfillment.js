@@ -392,12 +392,17 @@ try {
 
   const cancelledHistory = await getRequesterRequests(connection, askerId);
   ok('the requester sees it cancelled', cancelledHistory[0].status, 'cancelled');
+  ok(
+    'and with nothing recorded as sent, while the ask is kept',
+    [Number(cancelledHistory[0].quantity), Number(cancelledHistory[0].quantity_requested)],
+    [0, 4]
+  );
 
   const cancelledNotices = await getRequesterNotifications(connection, [cancelledId]);
   ok(
-    'a cancellation is addressed to the asker as well',
+    'a cancellation is addressed to the asker as well, and says nothing was sent',
     cancelledNotices.map((row) => [row.status, row.sent, row.asked]),
-    [['cancelled', 4, 4]]
+    [['cancelled', 0, 4]]
   );
   ok(
     'with the owner\'s reason on it',
@@ -627,6 +632,16 @@ try {
     'and the cancelled row names the item and the asker too',
     [notFulfilled.rows[0].itemName.length > 0, notFulfilled.rows[0].requesterAccount],
     [true, ASKER]
+  );
+
+  const [notFulfilledRow] = await connection.execute(
+    'SELECT quantity, quantity_requested FROM guildsbounty_requests WHERE id = ?',
+    [thirdAsk]
+  );
+  ok(
+    'Not fulfilled records no copies against the ask it kept',
+    [Number(notFulfilledRow[0].quantity), Number(notFulfilledRow[0].quantity_requested)],
+    [0, 1]
   );
   ok('and the list is empty again', (await getOwnerRequests(connection, [OWNER])).length, 0);
 

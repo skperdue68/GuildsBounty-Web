@@ -5,6 +5,28 @@ landed on `main`.
 
 ## Unreleased
 
+### Fixed
+
+- **Not fulfilled records nothing as sent.** An ask the owner could not fill was closed with the
+  number that had been asked for written into the handover, so a one-copy ask refused on the
+  owner's list read "1" on the requester's history and in the answer email, as though a copy had
+  gone out. The handover is now 0 and the ask is kept, so the row reads "0 of 4" and the column
+  sorts by the number it shows. An answer can still close several asks at once - one row on the
+  owner's list stands for every pending ask for that item - and each of them keeps its own line of
+  history, because each asker is told separately what became of what they asked for.
+
+### Changed
+
+- **The controls the browser draws are the site's too.** A select's black chevron on a dark box, a
+  white tick box, a light dropdown list, the stepper arrows in a number box and a focus ring that
+  followed the operating system's accent were the last pieces of the page that came from the
+  browser rather than from here. They are dealt with in one section at the end of
+  `public/styles.css`: every select gets the same drawn chevron and asks for its open list to be
+  dark, filter menus take the palette's blue for a ticked box, the two count boxes lose their
+  arrows, the sign-up disclosure gets the guide drawer's caret, and anything without a ring of its
+  own gets one. Tooltips are unchanged: the browser draws those and no page can style them - the
+  item cards on the list are the site's own already.
+
 ### Changed
 
 ### Added

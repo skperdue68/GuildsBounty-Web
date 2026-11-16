@@ -85,7 +85,7 @@ const history = [
     quality: 2,
     owner_account_name: '@Eva',
     requester_account_name: '@Dee',
-    quantity: 2,
+    quantity: 0,
     quantity_requested: 2,
     status: 'cancelled',
     fulfilled_at: null,
@@ -375,6 +375,47 @@ t('all four tables sort by their own headings and remember it in their own cooki
   assert.match(mine, /data-sort-status="Not requested"/);
   assert.match(html, /data-sort-requested="3"/, 'asked for, on the answered row');
   assert.match(html, /data-sort-amount="1"/, 'and how many arrived');
+});
+
+t('an ask answered with nothing reads 0 of what was asked, and sorts as 0', () => {
+  const html = render({
+    requests: [
+      {
+        id: 8,
+        item_name: 'Hunting Bow',
+        item_type_name: 'Weapons',
+        quality: 2,
+        owner_account_name: '@Owner',
+        requester_account_name: '@Eva',
+        quantity: 0,
+        quantity_requested: 4,
+        status: 'cancelled',
+        status_reason: '@Owner had nothing to send, so the request was cancelled.',
+        submitted_at: '2026-11-12T10:00:00Z',
+        submitted_at_iso: '2026-11-12T10:00:00Z',
+      },
+    ],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = panel(html, 'mine');
+
+  assert.match(mine, /<td class="num">0 of 4<\/td>/, 'nothing arrived, and the row says so');
+  assert.match(mine, /data-sort-qty="0"/, 'the column sorts the 0 it shows');
+  assert.match(mine, /Cancelled/);
+});
+
+t('a craft taken back out of the basket keeps the copies it was holding', () => {
+  const html = render({
+    requests: [],
+    basketRows: [
+      { id: 9, item_name: 'Soul Gem', owner_account_name: '@Owner', quantity: 2, status: 'cancelled' },
+    ],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = panel(html, 'mine');
+
+  assert.match(mine, /<td class="num">2<\/td>/, 'a basket row is not an answer: it still holds two');
+  assert.match(mine, /data-sort-qty="2"/);
 });
 
 t('each table carries the words its search box looks through', () => {

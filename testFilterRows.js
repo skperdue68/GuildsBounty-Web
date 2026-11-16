@@ -949,6 +949,58 @@ t('a chosen filter is kept in the page, not in the address bar', () => {
   );
 });
 
+t('the controls the browser draws itself are drawn the site\u2019s way', () => {
+  const css = read('public/styles.css');
+
+  // Every select, named by the control it sits under: one chevron drawn here rather than a
+  // black one from the browser on a dark box, and `color-scheme` so the open list is dark.
+  assert.match(
+    css,
+    /\.filter select,\n\.browsing-picker select,\n\.account-menu-select,\n\.auth-field select,\n\.guild-code-form select \{[^}]*appearance: none;[^}]*color-scheme: dark;[^}]*background-image: url\(\"data:image\/svg\+xml/,
+    'one chevron for every select, and the list asked to be dark'
+  );
+
+  assert.match(
+    css,
+    /input\[type='checkbox'\],\ninput\[type='radio'\] \{[^}]*accent-color: #3b82f6;[^}]*color-scheme: dark;/,
+    'a tick box takes the palette\u2019s blue and a dark empty box'
+  );
+
+  // The count boxes are typed into, never stepped: the arrows go once, for both of them.
+  assert.match(
+    css,
+    /input\[type='number'\] \{[^}]*appearance: textfield;/,
+    'a number box carries no stepper'
+  );
+  assert.match(
+    css,
+    /input\[type='number'\]::-webkit-inner-spin-button \{[^}]*margin: 0;/,
+    'and none in Chromium either'
+  );
+  assert.doesNotMatch(
+    css,
+    /\.reserve-amount::-webkit-inner-spin-button/,
+    'the count box no longer carries a copy of its own'
+  );
+
+  assert.match(
+    css,
+    /\.auth-signup summary \{[^}]*list-style: none;/,
+    'the sign-up disclosure drops the browser\u2019s triangle'
+  );
+  assert.match(
+    css,
+    /\.auth-signup summary::before \{[^}]*content: \"\\25b8\";/,
+    'and gets the caret the guide drawer uses'
+  );
+
+  assert.match(
+    css,
+    /^:focus-visible \{[^}]*outline: 2px solid rgba\(148, 197, 255, 0\.85\);/m,
+    'one focus ring for everything that does not write its own'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {
