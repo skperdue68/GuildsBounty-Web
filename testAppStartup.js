@@ -173,21 +173,59 @@ function fakePage() {
   // The cookie jar the folds and the grouping are remembered in.
   let jar = '';
 
+  // The toast, and the overlay the whole-page drop draws on itself the first time a file is
+  // carried over the page.
+  const toast = makeElement({});
+  const appended = [];
+  const pageListeners = [];
+  const body = makeElement({});
+
+  body.appendChild = (node) => {
+    appended.push(node);
+    return node;
+  };
+
   const document = {
-    getElementById: (id) =>
-      id === 'itemLists' ? listRegion : id === 'itemFilters' ? filterCard : makeElement({}),
+    getElementById: (id) => {
+      if (id === 'itemLists') return listRegion;
+      if (id === 'itemFilters') return filterCard;
+      if (id === 'toast') return toast;
+      return null;
+    },
     querySelector: (selector) =>
       selector === '.top-bar' || selector === '.list-head' ? makeElement({}) : null,
     querySelectorAll: (selector) => (selector === '[data-filters]' ? [filterForm] : []),
-    addEventListener: noop,
+    addEventListener: (type, handler) => pageListeners.push({ type, handler }),
     removeEventListener: noop,
     createElement: () => makeElement({}),
     createDocumentFragment: () => makeElement({}),
-    body: makeElement({}),
+    body,
     head: makeElement({}),
     documentElement: makeElement({}),
     hidden: false,
   };
+
+  // A file dragged over the page, and the drop that follows it: the two events the page-wide
+  // upload listens for.
+  function dragEvent(type, file) {
+    const event = {
+      type,
+      target: body,
+      defaultPrevented: false,
+      prevented: false,
+      preventDefault: () => {
+        event.prevented = true;
+        event.defaultPrevented = true;
+      },
+      dataTransfer: { types: file === null ? ['text/plain'] : ['Files'], files: file ? [file] : [], dropEffect: '' },
+    };
+
+    for (const listener of pageListeners.filter((entry) => entry.type === type)) {
+      listener.handler(event);
+    }
+
+    return event;
+  }
 
   Object.defineProperty(document, 'cookie', {
     configurable: true,
@@ -229,6 +267,10 @@ function fakePage() {
     typeToggle,
     rows: [firstRow, secondRow],
     press,
+    toast,
+    appended,
+    carriedOver: (file) => dragEvent('dragenter', file),
+    dropped: (file) => dragEvent('drop', file),
     cookie: (name) => {
       const match = jar.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
       return match ? decodeURIComponent(match[1]) : '';
@@ -251,6 +293,9 @@ function t(label, run) {
   }
 }
 
+// Every upload the page sends, in the order it sent them.
+const uploads = [];
+
 const page = fakePage();
 
 for (const [name, value] of Object.entries({
@@ -269,7 +314,10 @@ for (const [name, value] of Object.entries({
     disconnect() {}
   },
   io: () => ({ on: noop, emit: noop, connected: false, disconnect: noop }),
-  fetch: async () => ({ ok: false, status: 404, json: async () => ({}), text: async () => '' }),
+  fetch: async (url, options = {}) => {
+    uploads.push({ url, options });
+    return { ok: false, status: 400, json: async () => ({ error: 'that file was refused' }), text: async () => '' };
+  },
   requestAnimationFrame: page.window.requestAnimationFrame,
 })) {
   globalThis[name] = value;
@@ -313,6 +361,45 @@ t('pressing it again brings the rows back', () => {
   assert.equal(page.heading.classList.contains('is-collapsed'), false);
   assert.ok(page.rows.every((row) => row.hidden === false), 'the rows are on screen again');
   assert.equal(page.cookie('guildsbounty_collapsed'), '', 'and nothing is remembered as folded');
+});
+
+t('a saved variables file dropped anywhere on the page is uploaded', () => {
+  const file = new File(['# saved vars'], 'GuildsBountySavedVars.lua', { type: 'text/plain' });
+
+  // Carried over the page first: the whole page is the target, so the overlay is what tells
+  // the reader that letting go here will do something.
+  page.carriedOver(file);
+
+  const overlay = page.appended.find((node) => node.id === 'dropOverlay');
+
+  assert.ok(overlay, 'the page says where the file will go');
+  assert.equal(overlay.hidden, false, 'and says it while the file is over the page');
+
+  page.dropped(file);
+
+  assert.equal(uploads.length, 1, 'the drop is an upload');
+  assert.equal(uploads[0].url, '/upload', 'to the one upload route the card uses');
+  assert.equal(overlay.hidden, true, 'and the overlay is taken away again');
+});
+
+t('dropping something else says so and sends nothing', () => {
+  const sent = uploads.length;
+
+  page.dropped(new File(['x'], 'notes.pdf', { type: 'application/pdf' }));
+
+  assert.equal(uploads.length, sent, 'nothing leaves the page');
+  assert.match(page.toast.textContent, /is not a saved variables file/, 'and the toast says why');
+});
+
+t('a guest is told to sign in rather than shown an upload error', () => {
+  const sent = uploads.length;
+
+  page.document.body.dataset.guestRequest = '1';
+  page.dropped(new File(['x'], 'GuildsBountySavedVars.lua'));
+  delete page.document.body.dataset.guestRequest;
+
+  assert.equal(uploads.length, sent, 'nothing is sent without a sign-in');
+  assert.match(page.toast.textContent, /Sign in with Discord or Google/, 'and the toast asks for one');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

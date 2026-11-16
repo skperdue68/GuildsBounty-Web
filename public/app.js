@@ -278,6 +278,120 @@ if (dropZone && fileInput) {
   });
 }
 
+// A file can be dropped anywhere on the site, not only on the card that asks for it.
+//
+// The card is drawn on two pages; the file is the same file wherever the reader happens to
+// be, and walking back to the card to hand it over is a step with nothing behind it. Two
+// things have to be true for it to work anywhere: the browser's own reaction is stopped
+// (left alone it leaves the page and shows the .lua as text), and the drop is handed to the
+// same uploadFile the card uses, so there is one upload path and one set of answers.
+//
+// The card's zone keeps its own listeners: it stops the browser itself, so the page-wide
+// handler sees a drop it has already dealt with and leaves it alone.
+const dropOverlayCard = `
+    <span class="drop-overlay-title">Drop to upload</span>
+    <span class="drop-overlay-file">GuildsBountySavedVars.lua</span>`;
+
+let dropOverlay = null;
+let dragDepth = 0;
+
+function carryingFiles(event) {
+  const types = (event.dataTransfer && event.dataTransfer.types) || [];
+
+  return Array.from(types).includes('Files');
+}
+
+// Once, the first time a file is carried over the page: a page that never sees a drag
+// never grows the element.
+function dropOverlayElement() {
+  if (!dropOverlay) {
+    dropOverlay = document.createElement('div');
+    dropOverlay.id = 'dropOverlay';
+    dropOverlay.className = 'drop-overlay';
+    dropOverlay.setAttribute('aria-hidden', 'true');
+    dropOverlay.innerHTML = dropOverlayCard;
+    document.body.appendChild(dropOverlay);
+  }
+
+  return dropOverlay;
+}
+
+function showDropOverlay(show) {
+  dropOverlayElement().hidden = !show;
+
+  if (!show) dragDepth = 0;
+}
+
+document.addEventListener('dragenter', (event) => {
+  if (event.defaultPrevented || !carryingFiles(event)) return;
+
+  event.preventDefault();
+  // Every element the pointer crosses counts its own enter and leave, so the overlay is
+  // taken away when the last of them has been left rather than on the first brush past.
+  dragDepth += 1;
+  showDropOverlay(true);
+});
+
+document.addEventListener('dragover', (event) => {
+  if (!carryingFiles(event)) return;
+
+  event.preventDefault();
+
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+});
+
+document.addEventListener('dragleave', (event) => {
+  if (!carryingFiles(event)) return;
+
+  dragDepth = Math.max(0, dragDepth - 1);
+
+  if (dragDepth === 0) showDropOverlay(false);
+});
+
+document.addEventListener('drop', (event) => {
+  // The upload card's own zone has taken this one already.
+  if (event.defaultPrevented || !carryingFiles(event)) return;
+
+  event.preventDefault();
+  showDropOverlay(false);
+
+  const dropped = event.dataTransfer && event.dataTransfer.files;
+  const file = dropped && dropped[0];
+
+  if (!file) return;
+
+  // The same files the card accepts: the addon writes one .lua, and a .txt copy of it is
+  // just as readable. Anything else is said plainly rather than sent to be refused.
+  if (!/\.(lua|txt)$/i.test(file.name || '')) {
+    showToast(
+      `${file.name || 'That file'} is not a saved variables file - drop GuildsBountySavedVars.lua from your Saved Variables folder.`,
+      'err'
+    );
+    return;
+  }
+
+  // Signing in, and not being a demo account, is what an upload needs. Both are answered
+  // here so a drop on a page that has no card to explain it still says why.
+  if (document.body.dataset.guestRequest === '1') {
+    showToast('Sign in with Discord or Google before uploading.', 'err');
+    return;
+  }
+
+  if (document.body.dataset.demo === '1') {
+    const notice = document.getElementById('demoUploadNotice');
+
+    showToast(
+      notice
+        ? notice.textContent.replace(/\s+/g, ' ').trim()
+        : 'Uploading is switched off on a demo account, so this file would not be read and nothing in it would be saved.',
+      'err'
+    );
+    return;
+  }
+
+  uploadFile(file);
+});
+
 // The avatar menu and the broken-photo fallback are in /header-menu.js: they are the
 // header's own behaviour, and every page needs them, including the ones that do not load
 // this file because they have no item list to script.
@@ -772,11 +886,15 @@ if (listRegion) {
    * What each type's menu entry counts: the rows of that type on the page.
    *
    * Read back from the rows rather than from what the page was first sent, because the rows
-   * are what changed - a live push, a search, an offer fading out - and the number beside a
-   * type has to follow them or it is describing a list the reader is not looking at. A type
-   * with no rows left stops being a choice: it is taken out of the menu, which leaves the menu
-   * listing exactly what its list has. That holds while a word is narrowing the rows too, so
-   * the menu describes the page in front of the reader and nothing else.
+   * are what changed - a live push, a search - and the number beside a type has to follow
+   * them or it is describing a list the reader is not looking at.
+   *
+   * The choices themselves are never touched. A list narrowed by its own filter row is a
+   * slice of the list, not the list, and counting the slice said every type the reader had
+   * not chosen had nothing in it - so choosing one type emptied the menu of all the others
+   * and left no way back to them. What a list can offer is the server's to decide: it draws
+   * these menus from every row the list has, whatever the filters are, so a type really has
+   * to be gone from the list before it leaves the box.
    */
   function syncTypeCounts() {
     for (const form of filterForms()) {
@@ -784,6 +902,10 @@ if (listRegion) {
       const name = (FILTER_PARAMS[list] || {}).type;
 
       if (!name) continue;
+
+      // A filtered list is a slice, so its rows cannot speak for the menu: the numbers stay
+      // the ones the server drew from the whole list.
+      if (listHasFilter(list)) continue;
 
       const menu = Array.from(form.querySelectorAll('[data-filter-menu]')).find((entry) =>
         entry.querySelector(`input[data-filter][name="${name}"]`)
@@ -810,33 +932,27 @@ if (listRegion) {
       // exactly as the server drew them.
       if (counts.size === 0) continue;
 
-      // A type whose last row has gone leaves the menu, and if it was one of the list's
-      // choices its chip under the bar leaves with it: leaving the box ticked would keep the
-      // list narrowed by a value that no menu offers and no chip shows.
-      let dropped = false;
-
       for (const box of menu.querySelectorAll(`input[data-filter][name="${name}"]`)) {
         const option = box.closest('.filter-option');
         const count = option ? option.querySelector('.filter-option-count') : null;
-        const total = counts.get(box.value) || 0;
 
-        if (count) count.textContent = `(${total})`;
-
-        // A type the list is not drawing any more is not a choice any more: it leaves the
-        // menu, so what is left is exactly the list in front of the reader.
-        if (option) option.hidden = total === 0;
-
-        if (total === 0 && box.checked) {
-          box.checked = false;
-          dropped = true;
-        }
+        if (count) count.textContent = `(${counts.get(box.value) || 0})`;
       }
-
-      // The choice has gone, so the query and the chips are drawn again without it: one
-      // request for the list the reader can actually see, rather than a page still narrowed by
-      // a value that is no longer offered.
-      if (dropped) applyFilters(form);
     }
+  }
+
+  /**
+   * Whether the list is narrowed by its own filter row right now.
+   *
+   * Read from the address bar, because that is where the filters travel and what a refresh is
+   * drawn from: a value that is not there is narrowing nothing. An empty value is the "any"
+   * end of a menu, which is the same as having made no choice at all.
+   */
+  function listHasFilter(list) {
+    const names = Object.values(FILTER_PARAMS[list] || {});
+    const params = new URLSearchParams(window.location.search);
+
+    return names.some((name) => params.getAll(name).some((value) => String(value).trim() !== ''));
   }
 
   function updateSearchClear(tab) {

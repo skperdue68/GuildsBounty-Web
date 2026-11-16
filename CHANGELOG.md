@@ -7,6 +7,22 @@ landed on `main`.
 
 ### Changed
 
+- **The standing-offers heading is a heading again, not a bar as deep as the whole pinned
+  strip.** It was given the height of the tabs, the filter band and the search row together so
+  that it could cover the tabs while a long list scrolled under it - which left roughly 90px of
+  empty colour above the words *and* 90px below them, in the middle of the list, on every page
+  that has standing offers. It is now as tall as the tab row it replaces: 52px here instead of
+  202px, measured in a stand-in page with the real stylesheet, with the words 18px from either
+  edge. The gaps around it shrink with it.
+
+- **A filter can no longer empty its own menu.** The type menu was recounted from the rows on
+  the page, and a filtered list only holds the chosen slice - so choosing *Apparel* said every
+  other type had nothing in it and took them out of the box, leaving one choice and no way
+  back. The menus are the list's, not the slice's: the server already draws them from every
+  row it has for that list, whatever the filters are, so the page now leaves their options
+  alone and only moves the numbers. That holds for both rows - *Type* and *Offered by* - and
+  for each list separately.
+
 - **The filter row sits inside the list card, between the tabs and the search.** It was a card of
   its own above the list, which left a box nobody looked at and a band of empty space under it.
   It is now the list's own band: air above and below, the three menus centred, RESET lined up
@@ -18,7 +34,8 @@ landed on `main`.
 - **Every number that counts rows follows the rows on the page.** The tab's count and the number
   beside each type are read back from the rows themselves after a search as well as after a
   push: type "dagger" and Browse Offers counts the rows that are left rather than the list's
-  total, and a type with nothing left stops being an option. Folding a type still counts its
+  total, and a type with nothing left counts (0) until the server draws the list again. Folding
+  a type still counts its
   rows - a folded row is one the list holds - so the numbers only move when the rows do.
 
 - **An upload writes down every item it added or removed.** The count under the file drop says
@@ -86,6 +103,13 @@ landed on `main`.
 
 ### Fixed
 
+- **An open filter menu is drawn over the search row, not behind it.** The menu is a child of
+  the filter band, so its own layer was capped by the band's: at z-index 12 the band sat below
+  the search row (13) and the bottom of a long list of types was painted behind the search box.
+  The band moves to 15, above the search row, and the subhead that takes the pinned row over
+  moves to 16 so it still covers both. Checked in the browser: a point inside the open menu
+  that also sits over the search row reports the menu at 15 and the search row at 12.
+
 - **A type whose last row has gone leaves the menu, and its chip with it.** The option was
   marked hidden, but `display: flex` on `.filter-option` outranked the browser's `[hidden]`
   rule, so the type stayed in the list with `(0)` beside it. The menu now restates the rule,
@@ -141,6 +165,14 @@ landed on `main`.
   Request list's order.
 
 ### Added
+
+- **Drop the saved variables file anywhere on the site.** The drop target was one card on two
+  pages, so a file dragged over any other page made the browser leave the site and show the
+  .lua as text. The whole page is the target now: carrying a file over it draws an overlay
+  saying where it will go, and letting go hands it to the same upload the card uses. Anything
+  that is not a `.lua` or `.txt` is said plainly instead of being sent to be refused, a visitor
+  is asked to sign in, and a demo account is told uploading is off - the same three answers the
+  card gives, so a drop cannot behave differently from the box it duplicates.
 
 - **Arriving by an old address says the site has a new one.** An address listed in
   `LEGACY_HOSTS` still works, and a visit by it opens a short card - *Guild's Bounty answers here

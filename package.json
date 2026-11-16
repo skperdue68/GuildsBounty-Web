@@ -43,6 +43,7 @@
     "test:email-link": "node testEmailLink.js",
     "test:filter-rows": "node testFilterRows.js",
     "test:app-startup": "node testAppStartup.js",
+    "test:live-push": "node testLivePush.js",
     "test:db-names": "node testDatabaseNames.js"
   },
   "dependencies": {
