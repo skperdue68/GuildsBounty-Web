@@ -733,15 +733,17 @@ t('the band pins between the tabs and the search, and neither covers it', () => 
   assert.match(css, /\.filter-band \{[^}]*position: sticky;/, 'the band pins');
   assert.match(
     css,
-    /\.filter-band \{[^}]*top: calc\(var\(--sticky-top, 0px\) \+ var\(--list-head-h, 0px\)\);/,
-    'under the tab row'
+    /\.filter-band \{[^}]*top: calc\(var\(--sticky-top, 0px\) \+ var\(--list-top-h, 0px\) \+ var\(--list-head-h, 0px\)\);/,
+    'under the tab row, and under the header block those hang off'
   );
-  // Layer order, bottom to top: column headings 11, search row 13, filter band 15, the
-  // subhead that takes the pinned row over 16. The band has to be above the search row,
-  // because an open dropdown is its child and cannot climb out of the band's layer: at 12 the
-  // bottom of a long type menu was drawn behind the search row.
+  // Layer order, bottom to top: column headings 11, tab row 12, search row 13, the count and
+  // guilds above them 14, filter band 15, the subhead that takes the pinned row over 16. The
+  // band has to be above the search row, because an open dropdown is its child and cannot
+  // climb out of the band's layer: at 12 the bottom of a long type menu was drawn behind the
+  // search row.
   assert.match(css, /\.filter-band \{[^}]*z-index: 15;/, 'the band sits above the search row');
   assert.match(css, /\.list-tools \{[^}]*z-index: 13;/, 'which is 13');
+  assert.match(css, /\.list-top \{[^}]*z-index: 14;/, 'and the header block above both');
   assert.match(
     css,
     /\.filter-menu-list \{[^}]*z-index: 20;/,

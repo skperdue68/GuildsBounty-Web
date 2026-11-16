@@ -22,13 +22,14 @@ function refreshAfterChange() {
 }
 
 // ------------------------------------------------------------------ sticky bars
-// The line of tabs, the search row under it and the column headings under that pin to the
-// top of the window as one block, so a long list keeps which list it is, what is in it and
-// what each column is. None of the three offsets can live in the stylesheet: the site header
-// is as tall as the account line and the basket bar make it, the tab row is as tall as the
-// tabs in it, and the search row is as tall as the box in it (and is not there at all on a
-// table that carries no search). All three are measured here and published as custom
-// properties for the stylesheet to add up.
+// The block above the tabs, the line of tabs, the filter band, the search row and the column
+// headings pin to the top of the window one under another, so a long list keeps what there is
+// to browse, whose guilds it comes from, which list is open, what is in it and what each column
+// is. None of the offsets can live in the stylesheet: the site header is as tall as the account
+// line and the basket bar make it, the block above the tabs is as tall as its three lines, the
+// tab row is as tall as the tabs in it, and the search row is as tall as the box in it (and is
+// not there at all on a table that carries no search). All of them are measured here and
+// published as custom properties for the stylesheet to add up.
 function measureStickyBars() {
   const root = document.documentElement;
 
@@ -37,12 +38,14 @@ function measureStickyBars() {
     if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value);
   };
 
+  // A bar that is not on the page is 0px tall, not the height it had on the last page or in
+  // the last state: a stale offset would push everything below it down into empty space.
   const publish = (name, element) => {
-    if (!element) return;
-    publishPixels(name, element.getBoundingClientRect().height);
+    publishPixels(name, element ? element.getBoundingClientRect().height : 0);
   };
 
   publish('--sticky-top', document.querySelector('.top-bar'));
+  publish('--list-top-h', document.querySelector('.list-top'));
   publish('--list-head-h', document.querySelector('.list-head'));
 
   // The filter band sits between the two: a tab with no row of its own - My Requests,

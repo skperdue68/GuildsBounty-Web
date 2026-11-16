@@ -159,6 +159,16 @@ landed on `main`.
 
 ### Changed
 
+- **The guilds you are browsing are named under the count.** The line above the tabs says how many
+  items are shared by "members of @X's guilds" and left you to remember which guilds those were;
+  each one now has a pill under it, in the pill the accounts card already uses, so a guild reads
+  the same in both places. The slot a code opened is one of them, because its items are in this
+  list, and the line counts the guilds it names - so an account with two of them says "guilds" and
+  one says "guild". The whole block - that line, the pills and the account being asked as - now
+  pins as one piece under the site header, its card edge with it, so a list long enough to scroll
+  never takes away whose guild it is or who you are asking as. The tabs, the filter band, the
+  search row and the column headings all hang off its measured height.
+
 - **A short handover is confirmed as "1 of 2".** Answering a request for two with one copy said
   "Fulfilled 1 × Item", which read as though one had been asked for. The confirmation carries both
   numbers whenever they differ, and stays the single number when the whole ask went.
