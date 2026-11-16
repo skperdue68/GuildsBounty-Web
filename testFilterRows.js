@@ -824,6 +824,39 @@ t('a ticked box leaves the menu open, and a click outside closes it', () => {
   );
 });
 
+t('Escape closes the open filter menu, and no other key does', () => {
+  const source = read('public/app.js');
+  const escapeClosesFilterMenu = new Function(
+    'document',
+    `${functionSource(source, 'escapeClosesFilterMenu')}; return escapeClosesFilterMenu;`
+  )(undefined);
+
+  const menu = { open: true };
+  const root = (target) => ({
+    querySelector: (selector) => (selector === '[data-filters] details[open]' ? target : null),
+  });
+
+  assert.equal(escapeClosesFilterMenu({ key: 'Escape' }, root(menu)), true, 'Escape is taken');
+  assert.equal(menu.open, false, 'and the menu it was pressed in is shut');
+
+  const untouched = { open: true };
+  assert.equal(escapeClosesFilterMenu({ key: 'Enter' }, root(untouched)), false, 'Enter is not its business');
+  assert.equal(escapeClosesFilterMenu({ key: 'Escape' }, root(untouched)), true, 'Escape still works after');
+  assert.equal(escapeClosesFilterMenu({ key: 'a' }, root(untouched)), false, 'a letter does nothing');
+  assert.equal(
+    escapeClosesFilterMenu({ key: 'Escape' }, root(null)),
+    false,
+    'nothing open means nothing to close'
+  );
+
+  // The key has to be listened for, or the function is never called.
+  assert.match(
+    source,
+    /document\.addEventListener\('keydown', \(event\) => \{\s*escapeClosesFilterMenu\(event\);\s*\}\);/,
+    'and the page listens for the key'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {

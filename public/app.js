@@ -3660,6 +3660,29 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
+// Escape puts an open filter menu away, the way a click outside it does: the summary opens the
+// box from the keyboard, so the keyboard should be able to shut it too. Kept as a plain
+// function taking its own root, so the key can be tried on its own - see test:filter-rows.
+function escapeClosesFilterMenu(event, root = document) {
+  if (!event || event.key !== 'Escape') {
+    return false;
+  }
+
+  const open = root.querySelector('[data-filters] details[open]');
+
+  if (!open) {
+    return false;
+  }
+
+  open.open = false;
+
+  return true;
+}
+
+document.addEventListener('keydown', (event) => {
+  escapeClosesFilterMenu(event);
+});
+
 // -------------------------------------------------------------- item tooltips
 // A name says what the item is without leaving the page. The card starts with what
 // the row already knows (name, type, trait, level), then /item-tip adds the game's

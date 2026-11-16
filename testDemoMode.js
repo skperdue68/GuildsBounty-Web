@@ -35,6 +35,8 @@ import {
   DEMO_ACTIVITY_SCENARIOS,
   demoActivityPause,
   pickScenario,
+  runDemoActivity,
+  shelfChange,
 } from './lib/demoActivity.js';
 import { DEMO_VIEWER_TTL_MS, activeDemoViewers, noteViewer } from './lib/demoPresence.js';
 import {
@@ -950,12 +952,113 @@ await checkAsync('a guildmate who already shares is left alone', async () => {
 
 // ----------------------------------------------------------------- the activity
 check('every action is reachable, and a request is seen from both sides', () => {
+  // One draw from the middle of each scenario's slice of the range, so a scenario added to the
+  // rotation has to be reachable here as well.
   const seen = new Set(
-    [0.05, 0.3, 0.55, 0.85].map((value) => pickScenario(() => value))
+    DEMO_ACTIVITY_SCENARIOS.map((_name, index) =>
+      pickScenario(() => (index + 0.5) / DEMO_ACTIVITY_SCENARIOS.length)
+    )
   );
 
   assert(seen.size === DEMO_ACTIVITY_SCENARIOS.length, `expected every scenario, got ${[...seen]}`);
   assert(seen.has('ask') && seen.has('answer'), 'asking and answering must both happen');
+  assert(seen.has('stock'), 'and a shelf has to be able to change under a watching page');
+});
+
+check('a guildmate sometimes gains a piece and sometimes loses one', () => {
+  const gained = shelfChange([], { random: () => 0 });
+  assert(gained && gained.add, 'a shelf with nothing on it takes a piece');
+
+  const lost = shelfChange([0, 1, 2], { random: () => 0.9 });
+  assert(lost && lost.add === false, 'a shelf with pieces to spare can let one go');
+  assert([0, 1, 2].includes(lost.index), 'the piece that goes is one it was sharing');
+
+  assert(
+    shelfChange([0, 1], { random: () => 0.9 }) === null,
+    'a shelf is never taken below two pieces, so the demo cannot run itself empty'
+  );
+  const everything = ITEMS.map((_item, index) => index);
+  const fromFull = shelfChange(everything, { random: () => 0.9 });
+
+  assert(
+    fromFull && fromFull.add === false,
+    'a shelf holding the whole catalogue cannot add, so it lets a piece go instead'
+  );
+});
+
+await checkAsync('a shelf that changes is written the way a file is written', async () => {
+  const connection = fakeConnection();
+  // 0.9 lands on the last scenario in the rotation, the shelf change, and a guildmate holding
+  // three pieces has one to let go of.
+  const outcome = await runDemoActivity(connection, {
+    cast: [{ account: '@SomebodyElse', character: 'Somebody-Else', items: [0, 1, 2], offers: [] }],
+    random: () => 0.9,
+  });
+
+  assert(
+    outcome && outcome.kind === 'stock',
+    `expected a shelf change, got ${outcome && outcome.kind}`
+  );
+  assert(
+    connection.calls(/INSERT INTO guildsbounty_shared_items/).length > 0,
+    'the piece goes in through replaceAccounts, the call an upload makes'
+  );
+  assert(
+    connection.calls(/DELETE FROM guildsbounty_shared_items/).length > 0,
+    'and the shelf is pruned by the same call, so a piece that left really leaves the list'
+  );
+  assert(
+    /put|let/.test(outcome.summary),
+    `the summary should say what moved, got "${outcome.summary}"`
+  );
+});
+
+check('a piece leaving is the last of its type when there is one', () => {
+  // Two pieces of one type and a third of another, so only the third can empty a type out of
+  // the menus. It is first on the shelf, so "the last piece" and "the last of its type" give
+  // different answers - and the second is the one that shows an open page the change.
+  const first = ITEMS.findIndex((spec, index) =>
+    ITEMS.some((other, otherIndex) => otherIndex !== index && other.typeName === spec.typeName)
+  );
+  const twin = ITEMS.findIndex(
+    (spec, index) => index !== first && spec.typeName === ITEMS[first].typeName
+  );
+  const alone = ITEMS.findIndex(
+    (spec, index) => index !== first && index !== twin && spec.typeName !== ITEMS[first].typeName
+  );
+
+  assert(
+    first > -1 && twin > -1 && alone > -1,
+    'MISSING ANCHOR: three catalogue pieces, two of a type and one of another'
+  );
+
+  const shelf = [alone, first, twin];
+  const change = shelfChange(shelf, {
+    cast: [{ account: '@Somebody', items: shelf }],
+    random: () => 0.9,
+  });
+
+  assert(change && change.add === false, 'the shelf lets a piece go');
+  assert(change.index === alone, 'and it is the piece whose type nobody else shares');
+});
+
+check('a piece arriving prefers a type nobody is sharing yet', () => {
+  const shared = 'Weapon';
+  const onShelf = ITEMS.findIndex((item) => item.typeName === shared);
+  const candidate = ITEMS.findIndex((item, index) => index !== onShelf && item.typeName !== shared);
+
+  assert(onShelf > -1 && candidate > -1, 'MISSING ANCHOR: two catalogue pieces of different types');
+
+  const change = shelfChange([], {
+    cast: [{ account: '@Somebody', items: [onShelf] }],
+    random: () => 0,
+  });
+
+  assert(change && change.add, 'the shelf takes a piece');
+  assert(
+    ITEMS[change.index].typeName !== shared,
+    `expected a type that is not shared yet, got ${ITEMS[change.index].typeName}`
+  );
 });
 
 check('the pause between actions is drawn fresh rather than fixed', () => {

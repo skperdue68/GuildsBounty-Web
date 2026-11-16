@@ -16,6 +16,19 @@ landed on `main`.
   a browser - or anything between it and the server - still holding yesterday's copy: reload,
   and the stamp plus every file it loads should be the new one.
 
+### Added
+
+- **Escape closes an open filter menu.** The summary opens the box from the keyboard, so the
+  keyboard can put it away again: the menu shuts on Escape exactly as it does on a click
+  outside it, and on nothing else.
+
+- **The demo's guildmates now change their shelves, so the menus move while you watch.** One
+  of the demo's actions puts a piece in somebody's bags or takes one away through the ordinary
+  upload path - and an arriving piece prefers a type nobody is sharing yet - so the filter
+  options, their numbers and any chip for a type that has just left all move on the next push
+  without a reload. A shelf is never taken below two pieces, so an open demo cannot run itself
+  empty.
+
 ### Changed
 
 - **A filter menu stays open while you fill it in.** Ticking a type closed the box, so two
