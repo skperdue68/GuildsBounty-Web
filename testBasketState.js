@@ -73,7 +73,7 @@ await test('successful cancellation applies the returned basket before refreshin
 
 await test('browsing account changes bypass unload warnings but closing a held basket still warns', () => {
   const handlers={};
-  const window={location:{href:'https://itemshare.test/',origin:'https://itemshare.test'},addEventListener:(type,fn)=>{handlers[type]=fn;}};
+  const window={location:{href:'https://guildsbounty.test/',origin:'https://guildsbounty.test'},addEventListener:(type,fn)=>{handlers[type]=fn;}};
   const document={addEventListener:(type,fn)=>{handlers[type]=fn;},removeEventListener(){}};
   const context={window,document,URL,basketHeldItems:()=>1};
   vm.runInNewContext(between('let leavePrompt = null;', '// ------------------------------------------------------------------ row motion'),context);

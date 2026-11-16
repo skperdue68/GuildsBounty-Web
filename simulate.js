@@ -782,7 +782,7 @@ async function checkLivePushes(token) {
   try {
     const response = await fetch(`${SITE_URL}/simulate/check`, {
       method: 'POST',
-      headers: { 'x-itemshare-simulate': token },
+      headers: { 'x-guildsbounty-simulate': token },
     });
 
     if (response.ok) {
@@ -822,7 +822,7 @@ async function nudge(summary) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
-        'x-itemshare-simulate': token,
+        'x-guildsbounty-simulate': token,
       },
       body: new URLSearchParams({ summary }).toString(),
     });

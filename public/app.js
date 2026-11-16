@@ -386,8 +386,8 @@ if (listRegion) {
   // reading, and a word is usually several keystrokes, so a second lets the word finish
   // before the table redraws underneath it.
   const LIST_SEARCH_DELAY_MS = 1000;
-  const RELOAD_ANCHOR_KEY = 'itemshare:scroll-anchor';
-  const TAB_KEY = 'itemshare:tab';
+  const RELOAD_ANCHOR_KEY = 'guildsbounty:scroll-anchor';
+  const TAB_KEY = 'guildsbounty:tab';
 
   let liveState = 'wait';
   let refreshing = false;
@@ -834,7 +834,7 @@ if (listRegion) {
   // Keyed by the tab's own name: `request` is Browse Offers, `offer` is My Inventory. Not
   // `mine`, which is the My Requests tab, draws no type headings, and answers to a different
   // panel - the mistake that made opening a folded type leave its rows hidden.
-  const GROUP_COOKIES = { request: 'itemshare_group', offer: 'itemshare_group_mine' };
+  const GROUP_COOKIES = { request: 'guildsbounty_group', offer: 'guildsbounty_group_mine' };
 
   function writeGroupCookie(list, value) {
     const name = GROUP_COOKIES[list] || GROUP_COOKIES.request;
@@ -846,7 +846,7 @@ if (listRegion) {
 
   // Which types are folded away, one cookie per list, for the same reason the grouping has
   // two: Browse Offers and My Inventory are read separately and must not move each other.
-  const FOLDED_COOKIES = { request: 'itemshare_collapsed', offer: 'itemshare_collapsed_mine' };
+  const FOLDED_COOKIES = { request: 'guildsbounty_collapsed', offer: 'guildsbounty_collapsed_mine' };
 
   // The names are written escaped and split on the commas between them, so a blank cookie
   // means nothing is folded - which is how every list starts.
@@ -940,7 +940,7 @@ if (listRegion) {
   }
 
   function writeSortCookie(value) {
-    document.cookie = `itemshare_sort=${encodeURIComponent(
+    document.cookie = `guildsbounty_sort=${encodeURIComponent(
       value
     )}; Path=/; Max-Age=31536000; SameSite=Lax`;
   }
@@ -959,7 +959,7 @@ if (listRegion) {
   function readSortQueue() {
     const order = [];
 
-    for (const part of readCookieValue('itemshare_sort').split(',')) {
+    for (const part of readCookieValue('guildsbounty_sort').split(',')) {
       const [field, dir] = part.split(':').map((piece) => piece.trim());
 
       if (!SORT_FIELDS.includes(field) || (dir !== 'asc' && dir !== 'desc')) continue;
@@ -2465,7 +2465,7 @@ async function fetchOwnerRequests(url, options = {}) {
     credentials: 'same-origin',
     ...options,
     headers: {
-      'X-ItemShare-Fragment': '1',
+      'X-GuildsBounty-Fragment': '1',
       Accept: 'text/html',
       ...(options.headers || {}),
     },
@@ -2610,7 +2610,7 @@ document.addEventListener('submit', (event) => {
 // many copies have been picked up since. Answering one is therefore a handover whose
 // other half happens in the game, and the count of what is left has to come from a new
 // scan. The first answer of a session for a placed item says so, once, not once per row.
-const HOUSE_RESCAN_KEY = 'itemshare:house-rescan-notice';
+const HOUSE_RESCAN_KEY = 'guildsbounty:house-rescan-notice';
 let houseRescanNotice = null;
 
 function closeHouseRescanNotice() {
@@ -3207,7 +3207,7 @@ window.setInterval(() => relativeTick(document), RELATIVE_TICK_MS);
 const CLOSED_ROW_LINGER_MS = 5000;
 // Long enough to read as a fade rather than a blink: the row dims and then goes.
 const CLOSED_ROW_FADE_MS = 1200;
-const REMOVED_ROW_KEY = 'itemshare.dismissed-requests';
+const REMOVED_ROW_KEY = 'guildsbounty.dismissed-requests';
 
 // Dismissals outlive a reload. Otherwise a refresh rebuilds the table, the request
 // this browser has already seen out comes back, and its few seconds start again.

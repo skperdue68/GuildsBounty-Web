@@ -7,6 +7,22 @@ landed on `main`.
 
 ### Changed
 
+- **The name is finished on everything this application owns.** The package, the cookies that
+  remember sorting, grouping and folded types (`guildsbounty_sort`, `guildsbounty_group`,
+  `guildsbounty_collapsed` and the rest, one per list), the keys the browser keeps to itself,
+  the `X-GuildsBounty-*` headers, the mail boundary and `Message-ID` domain, the fallback
+  session-secret prefix and the wordmark all read **GuildsBounty** now. The old `X-ItemShare-*`
+  headers are still accepted, so an uploader that has not been updated - or a browser holding an
+  old copy of the script - keeps working; nothing sends them any more.
+
+  Rebranding the cookies means one visit starts with the defaults again: the grouping, the
+  folded types, the sort queues and the remembered tab are read from the new names, and the old
+  cookies are simply never looked at. The addon's own files (`ItemShareSavedVars.lua`,
+  `ItemShareExport.lua`, the in-game `/itemshare` command), the old `itemshare.perdues.me`
+  address, the earlier entries in this file and the database - the `itemshare_*` tables, the
+  `itemshare`/`itemshare-demo` databases and `ITEMSHARE_DATABASE` - keep the old name on
+  purpose. The database is the one left to do, and it needs its own migration.
+
 - **The filter card belongs to Browse Offers and My Inventory, and the two now keep their own
   filters.** It used to sit above every tab and narrow one shared idea of the list, so a type
   chosen on what the guild shares also hid rows inside your own bag, and carrying the card

@@ -146,12 +146,12 @@ t('only a deliberate zero turns grouping off', () => {
 });
 
 t('one cookie can be read out of a header without the others', () => {
-  const header = 'a=1; itemshare_group=0; itemshare_sort=name%3Adesc';
+  const header = 'a=1; guildsbounty_group=0; guildsbounty_sort=name%3Adesc';
 
-  assert.equal(readCookie(header, 'itemshare_group'), '0');
-  assert.equal(readCookie(header, 'itemshare_sort'), 'name:desc');
+  assert.equal(readCookie(header, 'guildsbounty_group'), '0');
+  assert.equal(readCookie(header, 'guildsbounty_sort'), 'name:desc');
   assert.equal(readCookie(header, 'missing'), '');
-  assert.equal(readCookie('', 'itemshare_group'), '');
+  assert.equal(readCookie('', 'guildsbounty_group'), '');
 });
 
 // ------------------------------------------------- sorting with the groups kept on
@@ -286,14 +286,14 @@ const cookieHeader = (cookies) =>
     .join('; ');
 
 t('choosing a sort leaves grouping alone', () => {
-  const filters = readFilters({}, cookieHeader({ itemshare_sort: 'name:asc' }));
+  const filters = readFilters({}, cookieHeader({ guildsbounty_sort: 'name:asc' }));
 
   assert.deepEqual(filters.order, [{ field: 'name', dir: 'asc' }], 'the queue is what was asked for');
   assert.equal(filters.group, true, 'and the headings stay on');
 });
 
 t('grouping off survives a sort being chosen', () => {
-  const filters = readFilters({}, cookieHeader({ itemshare_sort: 'added:desc', itemshare_group: '0' }));
+  const filters = readFilters({}, cookieHeader({ guildsbounty_sort: 'added:desc', guildsbounty_group: '0' }));
 
   assert.deepEqual(filters.order, [{ field: 'added', dir: 'desc' }]);
   assert.equal(filters.group, false, 'off stays off');
@@ -307,7 +307,7 @@ t('with neither chosen the list is grouped and ordered by type', () => {
 });
 
 t('a second heading joins the end of the queue', () => {
-  const filters = readFilters({}, cookieHeader({ itemshare_sort: 'name:asc,type:desc' }));
+  const filters = readFilters({}, cookieHeader({ guildsbounty_sort: 'name:asc,type:desc' }));
 
   assert.deepEqual(filters.order, [
     { field: 'name', dir: 'asc' },
@@ -316,13 +316,13 @@ t('a second heading joins the end of the queue', () => {
 });
 
 t('a ?sort= bookmark is still a queue of one', () => {
-  const filters = readFilters({ sort: 'added', dir: 'desc' }, cookieHeader({ itemshare_sort: 'name:asc' }));
+  const filters = readFilters({ sort: 'added', dir: 'desc' }, cookieHeader({ guildsbounty_sort: 'name:asc' }));
 
   assert.deepEqual(filters.order, [{ field: 'added', dir: 'desc' }], 'the address bar wins');
 });
 
 t('a nonsense grouping cookie does not ungroup the list', () => {
-  assert.equal(readFilters({}, cookieHeader({ itemshare_sort: 'type:asc', itemshare_group: 'nonsense' })).group, true);
+  assert.equal(readFilters({}, cookieHeader({ guildsbounty_sort: 'type:asc', guildsbounty_group: 'nonsense' })).group, true);
 });
 
 t('both list routes hand over the cookies', () => {
@@ -426,9 +426,9 @@ t('each switch writes the cookie for the list it sits on', () => {
   const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
   const server = fs.readFileSync(new URL('./server.js', import.meta.url), 'utf8');
 
-  assert.match(app, /const GROUP_COOKIES = \{ request: 'itemshare_group', offer: 'itemshare_group_mine' \}/);
+  assert.match(app, /const GROUP_COOKIES = \{ request: 'guildsbounty_group', offer: 'guildsbounty_group_mine' \}/);
   assert.match(app, /writeGroupCookie\(\s*groupButton\.getAttribute\('data-group-list'\) \|\| 'request'/);
-  assert.match(server, /const GROUP_COOKIE_MINE = 'itemshare_group_mine'/);
+  assert.match(server, /const GROUP_COOKIE_MINE = 'guildsbounty_group_mine'/);
   assert.match(server, /groupMine: readGrouping\(readCookie\(cookieHeader, GROUP_COOKIE_MINE\)\)/);
   assert.equal(
     (server.match(/readFilters\(req\.query, req\.headers\.cookie\)/g) || []).length,
@@ -471,8 +471,8 @@ t('the server reads the folded headings from their own cookies', () => {
   const filters = readFilters(
     {},
     cookieHeader({
-      itemshare_collapsed: 'Weapons,Apparel',
-      itemshare_collapsed_mine: 'Style',
+      guildsbounty_collapsed: 'Weapons,Apparel',
+      guildsbounty_collapsed_mine: 'Style',
     })
   );
 
@@ -487,7 +487,7 @@ t('the browser folds into the cookie for the list it is on, and every box filter
 
   assert.match(
     app,
-    /const FOLDED_COOKIES = \{ request: 'itemshare_collapsed', offer: 'itemshare_collapsed_mine' \}/
+    /const FOLDED_COOKIES = \{ request: 'guildsbounty_collapsed', offer: 'guildsbounty_collapsed_mine' \}/
   );
   assert.match(app, /setTypeFolded\(list, type, shut\)/);
   assert.match(app, /typeToggle\.getAttribute\('data-group-list'\) \|\| 'request'/);
