@@ -190,6 +190,19 @@ landed on `main`.
 
 ### Fixed
 
+- **A stack in the bank is one row, whoever scanned it.** A row was identified by the account,
+  the character and the item, so every account-wide stack - the bank, house storage, the
+  furnishing vault - became a new row each time a different character ran a scan: the old row
+  was pruned and an identical one inserted, which is what made an upload report hundreds of
+  items removed while the total stayed exactly right, and why the same file uploaded twice
+  looked clean. Identity now follows the storage: a character's own bags belong to that
+  character, everything account-wide belongs to the account, and a guild bank belongs to the
+  guild - no account in its key at all, because every member looks at the same shelves. The
+  first member to record a guild bank stack stays the owner of the row, so a second member's
+  scan refreshes the count without taking it away from their open requests, and an upload only
+  prunes the guild banks its own file names. Migration 031 re-keys the existing rows, keeping
+  the newest copy of each and moving requests and guild links onto it.
+
 - **Your own items can no longer disappear behind a guild.** The list lets you see a row
   through a guild you belong to, and separately lets you see your own rows - but that second
   branch only covered rows with *no* guild link at all. An item stamped with a guild the join
