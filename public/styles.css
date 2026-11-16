@@ -1260,8 +1260,15 @@ a.primary-button {
 
 /* Tabs and the filter card. The filter row lives outside #itemLists on purpose: a
    live update must never wipe out what someone is typing there. */
-.card-filters {
-  padding: 14px 18px;
+/* The filter row lives inside the list card, between the tabs and the search, so it is
+   a band rather than a card of its own: air above, air below, and no border to make it look
+   like a second panel. */
+.filter-band {
+  padding: 16px 0 18px;
+}
+
+.filter-band[hidden] {
+  display: none;
 }
 
 /* One row per list, and only one of them belongs to the tab being read. The form is laid out
@@ -1270,7 +1277,7 @@ a.primary-button {
   display: none;
 }
 
-.card-filters .filters {
+.filter-band .filters {
   margin: 0;
 }
 
@@ -2185,7 +2192,7 @@ tr.row-fading td {
 /* ------------------------------------------------------------------ filters */
 
 /* The filter controls and the chips under them are centred as one row. */
-.card-filters .filters {
+.filter-band .filters {
   justify-content: center;
 }
 
@@ -2353,15 +2360,13 @@ tr.row-fading td {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  /* Room for a line of chips, taken only when there is one: with nothing chosen the row
+     collapses and the filter band is just the three menus and RESET. */
+  margin-top: 10px;
 }
 
-/* The chip row keeps the height of one line even when nothing is chosen, so the filter
-   card does not jump the moment the first chip appears. It is a floor, not a fixed
-   size: more chips still wrap and push the card taller. */
 .filter-chips:empty {
-  display: flex;
-  min-height: 28px;
-  align-content: flex-start;
+  display: none;
 }
 
 .filter-chip {
@@ -2386,7 +2391,7 @@ tr.row-fading td {
 
 /* Clearing throws the whole filter row away, so it is coloured like the destructive
    action it is and lines up with the bottom of the controls beside it. */
-.card-filters .filter-clear {
+.filter-band .filter-clear {
   align-self: flex-end;
   height: 34px;
   border-color: rgba(248, 113, 113, 0.55);
@@ -2394,7 +2399,7 @@ tr.row-fading td {
   color: #fecaca;
 }
 
-.card-filters .filter-clear:hover {
+.filter-band .filter-clear:hover {
   border-color: rgba(248, 113, 113, 0.85);
   background: rgba(153, 27, 27, 0.55);
   color: #fff;

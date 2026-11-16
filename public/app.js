@@ -334,49 +334,12 @@ function reconcileLiveNode(current, next) {
   reconcileLiveChildren(current, next);
 }
 
-/**
- * The filter card, drawn again from the render that just arrived.
- *
- * The menus, their options and the counts beside those options are the server's answer for
- * the rows it just sent, so keeping the old ones around is how a closed menu ended up showing
- * yesterday's numbers. Only the open menus are carried across: they are the reader's place,
- * not the server's.
- */
-function drawFilterCard(card, content) {
-  const open = new Set();
-
-  for (const form of card.querySelectorAll('[data-filters]')) {
-    const list = form.dataset.filterList === 'offer' ? 'offer' : 'request';
-
-    Array.from(form.querySelectorAll('details')).forEach((details, index) => {
-      if (details.open) open.add(`${list}:${index}`);
-    });
-  }
-
-  card.textContent = '';
-  card.appendChild(content.cloneNode(true));
-
-  for (const form of card.querySelectorAll('[data-filters]')) {
-    const list = form.dataset.filterList === 'offer' ? 'offer' : 'request';
-
-    Array.from(form.querySelectorAll('details')).forEach((details, index) => {
-      details.open = open.has(`${list}:${index}`);
-    });
-  }
-}
-
 function reconcileLiveChildren(current, next) {
   const oldChildren = Array.from(current.childNodes);
   const keyed = new Map(oldChildren.map(node => [liveNodeKey(node), node]).filter(([key]) => key));
   const used = new Set();
   let cursor = current.firstChild;
   for (const incoming of Array.from(next.childNodes)) {
-    // Metadata templates are not visible DOM and do not need to be redrawn.
-    if (incoming.nodeType === 1 && incoming.matches('template[data-live-filters]')) {
-      const metadata = oldChildren.find(node => node.nodeType === 1 && node.matches('template[data-live-filters]'));
-      if (metadata) { used.add(metadata); if (cursor === metadata) cursor = metadata.nextSibling; }
-      continue;
-    }
     // A dismissed basket row must never be resurrected by a later refresh.
     if (incoming.nodeType === 1 && incoming.matches('[data-basket-row]') &&
         removedRequestRows.has(incoming.dataset.requestId) &&
@@ -746,6 +709,14 @@ if (listRegion) {
           term === '' || row.getAttribute('data-search').toLowerCase().includes(term);
 
         row.hidden = !matches || Boolean(group && group.shut);
+        // A fold hides a row without taking it out of the list; a word the row does not
+        // contain does. The mark is what tells a count which of the two happened, so folding
+        // a type still counts its rows and searching does not.
+        if (matches) {
+          row.removeAttribute('data-search-miss');
+        } else {
+          row.setAttribute('data-search-miss', '');
+        }
 
         if (!group) continue;
 
@@ -759,18 +730,20 @@ if (listRegion) {
         entry.row.hidden = !entry.shut && entry.shown === 0;
 
         // The number beside a type is the server's count of the whole group, and while a
-        // search is narrowing the rows under it that number is a lie. It becomes the two
-        // numbers that are true instead - how many matched, and how many there are - and
-        // goes back to the plain total once the search is cleared.
+        // search is narrowing the rows under it that number is a lie. While a word is on, it
+        // counts the rows that survived the word - what is on screen - and goes back to the
+        // plain total once the word is cleared.
         const count = entry.row.querySelector('.type-count');
 
         if (count) {
-          count.textContent =
-            term === '' ? `(${entry.total})` : `(${entry.shown} of ${entry.total})`;
+          count.textContent = term === '' ? `(${entry.total})` : `(${entry.shown})`;
         }
       }
     }
 
+    // The word changed which rows are on the page, so every number that counts them is read
+    // again: the tabs, the menu beside the search, and the headings above the rows.
+    syncCounts();
   }
 
   /**
@@ -780,8 +753,8 @@ if (listRegion) {
    * are what changed - a live push, a search, an offer fading out - and the number beside a
    * type has to follow them or it is describing a list the reader is not looking at. A type
    * with no rows left stops being a choice: it is taken out of the menu, which leaves the menu
-   * listing exactly what its list has. While a word is being searched for, the options stay
-   * where they are and only the counts narrow, so clearing the word brings them back.
+   * listing exactly what its list has. That holds while a word is narrowing the rows too, so
+   * the menu describes the page in front of the reader and nothing else.
    */
   function syncTypeCounts() {
     for (const form of filterForms()) {
@@ -798,11 +771,14 @@ if (listRegion) {
 
       const counts = new Map();
 
-      // A folded row is still a row, so folding a type does not change its number; a row
-      // that has left the page - a push, a search, an offer that ran out - is simply gone.
+      // A folded row is still a row, so folding a type does not change its number; a row a
+      // word has hidden, or one that has left the page - a push, an offer that ran out - is
+      // not counting towards anything the reader can see.
       for (const row of listRegion.querySelectorAll(
         `table[data-list="${list}"] tbody tr[data-type-name]`
       )) {
+        if (row.hasAttribute('data-search-miss')) continue;
+
         const type = row.getAttribute('data-type-name');
 
         if (type) counts.set(type, (counts.get(type) || 0) + 1);
@@ -846,6 +822,40 @@ if (listRegion) {
     const clear = (panel || listRegion).querySelector('[data-list-search-clear]');
 
     if (clear) clear.hidden = (listSearchByTab[tab] || '') === '';
+  }
+
+  /**
+   * The number on each tab: the rows that tab is showing right now.
+   *
+   * Read from the rows rather than from what the page was first sent, so the number moves
+   * with the list - a push that adds or drops a row, a word that hides some - and goes back
+   * to the whole list when the word is cleared. A folded row is still a row the tab holds, so
+   * folding a type does not move its tab's number.
+   */
+  function syncTabCounts() {
+    for (const tab of Array.from(listRegion.querySelectorAll('[data-tab]'))) {
+      const name = tab.dataset.tab;
+      const count = tab.querySelector('.tab-count');
+      const rows = listRegion.querySelectorAll(`[data-counts-tab="${name}"]`);
+
+      // A tab with nothing of its own - the requests tabs on somebody who has none - keeps
+      // the number the server sent rather than being told it has none by a count of zero.
+      if (!count || rows.length === 0) continue;
+
+      let shown = 0;
+
+      for (const row of rows) {
+        if (!row.hasAttribute('data-search-miss')) shown += 1;
+      }
+
+      count.textContent = String(shown);
+    }
+  }
+
+  /** Every number that counts rows, in one pass. */
+  function syncCounts() {
+    syncTabCounts();
+    syncTypeCounts();
   }
 
   listRegion.addEventListener('input', (event) => {
@@ -1496,17 +1506,6 @@ if (listRegion) {
       holdMinutes: Number(next.dataset.holdMinutes) || 5,
     });
 
-    const filterTemplate = next.querySelector('template[data-live-filters]');
-    const filterCard = document.getElementById('itemFilters');
-
-    if (filterCard && filterTemplate && filterTemplate.content.childElementCount) {
-      // Drawn again rather than merged. A menu keeps its numbers inside its own options, and a
-      // merge that matched those options by position could leave a type counting the rows it
-      // had before an upload. Which menus were open is the one thing worth carrying over; the
-      // rest is what the server has just worked out.
-      drawFilterCard(filterCard, filterTemplate.content);
-    }
-
     const rowTops = captureRowTops(listRegion);
     const panelHeights = Array.from(listRegion.querySelectorAll('[data-panel]')).map((panel) =>
       panel.getBoundingClientRect().height
@@ -1524,7 +1523,7 @@ if (listRegion) {
     applyListSearch();
     // The rows are new, so the numbers that count them are read back off the page: a menu
     // that still says what it said before the push is the one thing a reader cannot check.
-    syncTypeCounts();
+    syncCounts();
     syncFilterCard();
   }
 

@@ -7,6 +7,18 @@ landed on `main`.
 
 ### Changed
 
+- **The filter row sits inside the list card, between the tabs and the search.** It was a card of
+  its own above the list, which left a box nobody looked at and a band of empty space under it.
+  It is now the list's own band: air above and below, the three menus centred, RESET lined up
+  with the bottom of the dropdowns, and the chips taking room only when there are any, so the
+  empty row shrinks away instead of holding a line open.
+
+- **Every number that counts rows follows the rows on the page.** The tab's count and the number
+  beside each type are read back from the rows themselves after a search as well as after a
+  push: type "dagger" and Browse Offers counts the rows that are left rather than the list's
+  total, and a type with nothing left stops being an option. Folding a type still counts its
+  rows - a folded row is one the list holds - so the numbers only move when the rows do.
+
 - **An upload writes down every item it added or removed.** The count under the file drop says
   how many rows moved, but not which ones - so the log now gets a line per item, with its name,
   the place it sat (*Bank*, *Housing Storage (MISC)*) and the character whose scan it was filed

@@ -270,7 +270,11 @@ t('every row says its type and its list, so a menu can count its own', () => {
   });
 
   assert.match(region, /<table class="list-table" data-list="request"/, 'the table names its list');
-  assert.match(region, /data-type-name="Weapons"/, 'and its rows name their type');
+  assert.match(
+    region,
+    /data-item-key="inv:[^"]+" data-counts-tab="request" data-type-name="Weapons"/,
+    'and its rows name the tab they count for and their type'
+  );
   assert.match(region, /<table class="list-table" data-list="offer"/, 'so does the own-bag table');
 });
 
@@ -285,10 +289,10 @@ t('the counts are read back off the page, not from what it was first sent', () =
   );
   assert.match(app, /count\.textContent = `\(\$\{total\}\)`/, 'and writes the number beside the type');
   assert.match(app, /option\.hidden = total === 0/, 'a type with no rows stops being a choice');
-  assert.match(app, /function drawFilterCard\(card, content\)/, 'the card is drawn again on a push');
+  assert.doesNotMatch(app, /drawFilterCard/, 'the card is not rebuilt from a template any more');
   assert.match(
     app,
-    /syncTypeCounts\(\);\n    syncFilterCard\(\);/,
+    /syncCounts\(\);\n    syncFilterCard\(\);/,
     'and an applied page is recounted before the card is decided'
   );
 });
@@ -341,8 +345,8 @@ t('the last row of a ticked type takes the tick and the chip with it', () => {
     querySelectorAll: () => [boxes.Weapons, boxes.Apparel],
   };
   const form = { dataset: { filterList: 'request' }, querySelectorAll: () => [menu] };
-  const rowsLeft = [{ getAttribute: () => 'Apparel' }];
-  const asked = []; 
+  const rowsLeft = [{ getAttribute: () => 'Apparel', hasAttribute: () => false }];
+  const asked = [];
 
   const listRegion = { querySelectorAll: () => rowsLeft };
   const sync = new Function(
@@ -394,7 +398,9 @@ return syncTypeCounts;`
     () => [form],
     () => 'request',
     { request: { type: 'type', owner: 'owner', added: 'added' } },
-    { querySelectorAll: () => [{ getAttribute: () => 'Weapons' }] },
+    {
+      querySelectorAll: () => [{ getAttribute: () => 'Weapons', hasAttribute: () => false }],
+    },
     (node) => asked.push(node)
   );
 
@@ -404,6 +410,133 @@ return syncTypeCounts;`
   assert.equal(option.hidden, false, 'and the option is drawn again');
   assert.equal(box.checked, true, 'the reader keeps their choice');
   assert.deepEqual(asked, [], 'with no request in flight');
+});
+
+
+// ------------------------------------------------- the row in its new place, and the numbers
+
+t('the filter row sits inside the list card, between the tabs and the search', () => {
+  const region = renderListRegion({
+    user: { provider: 'discord', username: 'evainefaye', id: 1, accountNames: ['@Eva'] },
+    accounts: [
+      { accountName: '@Eva', guilds: [{ guild_name: 'G' }], platform: 'pc', worldName: 'NA' },
+    ],
+    browsingAccount: '@Eva',
+    sharedItems: [
+      {
+        id: 1,
+        item_key_hash: 'a1',
+        item_name: 'Briarheart Dagger',
+        item_type_name: 'Weapons',
+        item_count: 2,
+        account_name: '@Eva',
+      },
+    ],
+    requestItems: [],
+    requestOffers: [],
+    alwaysShare: [],
+    facets,
+    facetsMine,
+    filters: {},
+    requests: [],
+    basket: [],
+  });
+
+  const head = region.indexOf('class="list-head"');
+  const band = region.indexOf('class="filter-band" id="itemFilters"');
+  const tools = region.indexOf('class="list-tools"');
+
+  assert.ok(head > -1 && band > head, 'the row comes after the tabs');
+  assert.ok(tools > band, 'and before the search');
+  assert.doesNotMatch(
+    read('lib/views.js'),
+    /card card-filters/,
+    'and it is no longer a card of its own above the list'
+  );
+});
+
+t('the band keeps air above and below and loses the empty chip floor', () => {
+  const css = read('public/styles.css');
+
+  assert.match(css, /\.filter-band \{\s*padding: 16px 0 18px;/, 'air above and below');
+  assert.match(css, /\.filter-chips:empty \{\s*display: none;/, 'no chip row when none are chosen');
+  assert.match(css, /\.filter-chips \{[^}]*margin-top: 10px;/, 'and room for one when they are');
+  assert.match(
+    css,
+    /\.filter-band \.filter-clear \{[^}]*align-self: flex-end;[^}]*height: 34px;/,
+    'RESET sits on the bottom of the dropdowns'
+  );
+});
+
+t('a tab counts its own rows, and a word takes them out of its number', () => {
+  const app = read('public/app.js');
+  const source = functionSource(app, 'syncTabCounts');
+  const count = { textContent: '12' };
+  const tab = { dataset: { tab: 'request' }, querySelector: (selector) => (selector === '.tab-count' ? count : null) };
+  const left = [{ hasAttribute: () => false }, { hasAttribute: () => false }];
+  const gone = [{ hasAttribute: (name) => name === 'data-search-miss' }];
+
+  const run = (rows) =>
+    new Function(
+      'listRegion',
+      `${source}
+return syncTabCounts;`
+    )({ querySelectorAll: (selector) => (selector === '[data-tab]' ? [tab] : rows) })();
+
+  run([...left, ...gone]);
+
+  assert.equal(count.textContent, '2', 'the two rows the word leaves are the number');
+
+  run([]);
+
+  assert.equal(count.textContent, '2', 'a tab with no rows of its own keeps what the server sent');
+});
+
+t('the search marks the rows it hides, so a fold and a word are told apart', () => {
+  const app = read('public/app.js');
+  const source = functionSource(app, 'applyListSearch');
+  const marks = new Set();
+  const row = {
+    hidden: false,
+    hasAttribute: (name) => name === 'data-search' || marks.has(name),
+    getAttribute: (name) => (name === 'data-search' ? 'Briarheart Dagger Weapons' : null),
+    setAttribute: (name) => marks.add(name),
+    removeAttribute: (name) => marks.delete(name),
+    classList: { contains: () => false },
+  };
+
+  const run = (term) =>
+    new Function(
+      'listRegion',
+      'listSearchByTab',
+      'activeTab',
+      'syncCounts',
+      `${source}
+return applyListSearch;`
+    )(
+      {
+        querySelector: (selector) =>
+          selector === '[data-list-search]' ? { value: term, hidden: true } : null,
+        querySelectorAll: (selector) => (selector === 'table tbody' ? [{ rows: [row] }] : []),
+      },
+      { request: term },
+      'request',
+      () => {}
+    )();
+
+  run('dagger');
+
+  assert.equal(row.hidden, false, 'the matching row stays');
+  assert.equal(marks.has('data-search-miss'), false, 'and is not marked');
+
+  run('mithril');
+
+  assert.equal(row.hidden, true, 'the row the word does not match is hidden');
+  assert.equal(marks.has('data-search-miss'), true, 'and marked, so no count claims it');
+
+  run('');
+
+  assert.equal(marks.has('data-search-miss'), false, 'clearing the word takes the mark back');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);
