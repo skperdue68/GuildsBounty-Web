@@ -2568,7 +2568,18 @@ if (listRegion) {
 
     socket.on('disconnect', () => setLiveState('wait'));
     socket.on('connect_error', () => setLiveState('wait'));
-    socket.on('items:changed', () => scheduleRefresh());
+    socket.on('items:changed', (payload) => {
+      scheduleRefresh();
+
+      // The demo copy's guildmates act on their own, and until now what they had done was
+      // only in the server's log. It is said here instead, in the same toast a saved file's
+      // result uses - so a visitor sees "@NightMarket re-saved their file: 0 items removed,
+      // 0 items added, 2 items refreshed" the way they would see it after an upload. The
+      // marker is only on demo pushes, so an ordinary page never shows one.
+      if (payload && payload.demo && payload.message) {
+        showToast(payload.message, 'info');
+      }
+    });
     // Addressed to this person only, and carrying the total rather than a change: two tabs
     // and a phone all end up showing the same number.
     socket.on('requests:pending', (payload) => {

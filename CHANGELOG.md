@@ -172,6 +172,8 @@ landed on `main`.
   back with a stack or two re-counted, and the summary reads the way the page under the file drop
   does: "0 items removed, 0 items added, 2 items refreshed (Soul Gem 3 to 4, Dreugh Wax 1 to 2)".
   A stack never goes to zero, because that is the piece leaving the shelf rather than a re-count.
+  The line is shown on the page, in the same toast a saved file's result uses, rather than only
+  in the server's log where nobody browsing the demo would find it.
 
 - **The guilds you are browsing are named under the count.** The line above the tabs says how many
   items are shared by "members of @X's guilds" and left you to remember which guilds those were;

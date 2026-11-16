@@ -1411,6 +1411,20 @@ check('a refresh never counts one row twice', () => {
   }
 });
 
+check('the demo says what its guildmates did, in the page rather than only the log', () => {
+  const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const from = app.indexOf("socket.on('items:changed'");
+  const handler = app.slice(from, from + 700);
+
+  assert(from > 0, 'the list still listens for a change');
+  assertMatch(handler, /payload\.demo/, 'only a push from the demo copy says anything');
+  assertMatch(
+    handler,
+    /showToast\(payload\.message, 'info'\)/,
+    'and it is the same toast an upload result uses'
+  );
+});
+
 check('the refresh summary reads exactly like the upload box does', () => {
   // The browser's half of the same sentence, sliced out of the file it actually loads.
   const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
