@@ -1,5 +1,7 @@
 #!/usr/bin/env node
-// The page's own start-up, run once against a page just real enough to get through it.
+// The page's own start-up, and the two presses a reader makes before anything else: the tab
+// they came for and the type heading they want opened. All three run the real app.js against a
+// page of stand-ins.
 //
 // app.js is a single script that wires the whole list as it loads: it puts the remembered tab
 // on screen, and that already narrows the rows and counts the menu beside the search. A name
@@ -8,9 +10,9 @@
 // halfway: both lists' filter rows stayed on screen and neither the tabs nor the type headings
 // answered, because the handlers below the throw were never attached.
 //
-// No browser is needed to see that. This runs the real file against a page of stand-ins and
-// lets it throw if it is going to, which is the one thing the other suites could not do: they
-// call a function or two out of it, and a startup that never finishes is invisible to them.
+// No browser is needed to see any of that. This runs the whole file, then hands the list
+// region's own click listener the element a reader would have pressed, so a handler that never
+// got attached, or one that throws when it runs, fails here rather than on the site.
 //
 //   npm run test:app-startup
 
@@ -21,85 +23,183 @@ const source = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf
 
 const noop = () => {};
 
-// One tab, one filter row, one list region: enough that the first render reaches the counts.
-function fakePage() {
-  const countSpan = { textContent: '' };
-  const tabButton = {
-    dataset: { tab: 'request' },
-    querySelector: (selector) => (selector === '.tab-count' ? countSpan : null),
-    setAttribute: noop,
-    getAttribute: () => null,
-    tabIndex: -1,
-    focus: noop,
-    classList: { contains: () => false, add: noop, remove: noop },
-    addEventListener: noop,
-  };
-
-  // One row for the tab's number to count, so a start-up that gets all the way through has
-  // written a number rather than merely not thrown.
-  const row = { hasAttribute: () => false };
-  const listRegion = {
-    dataset: {},
-    querySelectorAll: (selector) => {
-      if (selector === '[data-tab]') return [tabButton];
-      if (selector === '[data-counts-tab="request"]') return [row];
-      return [];
-    },
-    querySelector: () => null,
-    addEventListener: noop,
-    getBoundingClientRect: () => ({ height: 0 }),
-  };
-
-  const filterCard = {
-    hidden: true,
-    querySelectorAll: () => [],
-    getBoundingClientRect: () => ({ height: 0 }),
-  };
-
-  const filterForm = {
-    dataset: { filterList: 'request' },
-    hidden: false,
-    querySelectorAll: () => [],
-    querySelector: () => null,
-    getBoundingClientRect: () => ({ height: 0 }),
-  };
+// A stand-in element with just enough of an element about it: the attributes a handler reads
+// back, the class list a fold toggles, the rows a heading covers, and the closest() that
+// tells a delegated click which control it hit.
+function makeElement({ tagName = 'DIV', dataset = {}, attributes = {}, classes = [] } = {}) {
+  const attrs = new Map(Object.entries(attributes));
+  const names = new Set(classes);
 
   const element = {
-    dataset: {},
-    style: { setProperty: noop, getPropertyValue: () => '' },
-    classList: { contains: () => false, add: noop, remove: noop },
+    tagName,
+    dataset,
+    hidden: false,
+    tabIndex: -1,
+    title: '',
+    textContent: '',
+    nextElementSibling: null,
+    focused: false,
+    style: { setProperty: noop, getPropertyValue: () => '', removeProperty: noop },
+    classList: {
+      contains: (name) => names.has(name),
+      add: (name) => names.add(name),
+      remove: (name) => names.delete(name),
+      toggle: (name, force) => {
+        const on = force === undefined ? !names.has(name) : Boolean(force);
+        if (on) names.add(name);
+        else names.delete(name);
+        return on;
+      },
+    },
+    getAttribute: (name) => (attrs.has(name) ? attrs.get(name) : null),
+    setAttribute: (name, value) => attrs.set(name, String(value)),
+    hasAttribute: (name) => attrs.has(name),
+    focus: () => {
+      element.focused = true;
+    },
+    appendChild: (node) => node,
+    insertBefore: (node) => node,
+    removeChild: noop,
+    cloneNode: () => element,
+    remove: noop,
+    childNodes: [],
+    children: [],
+    firstChild: null,
+    addEventListener: noop,
     querySelector: () => null,
     querySelectorAll: () => [],
-    addEventListener: noop,
-    appendChild: (node) => node,
-    insertBefore: noop,
-    setAttribute: noop,
-    getAttribute: () => null,
-    hasAttribute: () => false,
+    closest: () => null,
     getBoundingClientRect: () => ({ height: 0 }),
-    cloneNode: () => element,
-    firstChild: null,
-    childNodes: [],
-    textContent: '',
-    hidden: false,
   };
+
+  return element;
+}
+
+// The page as the list scripts see it: two tabs, their two panels, one row for the tab's
+// number to count, and one type heading over two rows.
+function fakePage() {
+  const tabs = {
+    request: makeElement({
+      tagName: 'BUTTON',
+      dataset: { tab: 'request' },
+      attributes: { 'aria-selected': 'true' },
+    }),
+    offer: makeElement({
+      tagName: 'BUTTON',
+      dataset: { tab: 'offer' },
+      attributes: { 'aria-selected': 'false' },
+    }),
+  };
+
+  for (const tab of Object.values(tabs)) {
+    const count = { textContent: '' };
+
+    tab.closest = (selector) => (selector === '[data-tab]' ? tab : null);
+    tab.querySelector = (selector) => (selector === '.tab-count' ? count : null);
+    tab.count = () => count.textContent;
+  }
+
+  const panels = {
+    request: makeElement({ dataset: { panel: 'request' } }),
+    offer: makeElement({ dataset: { panel: 'offer' } }),
+  };
+
+  panels.offer.hidden = true;
+
+  const countRow = makeElement({ tagName: 'TR' });
+
+  const heading = makeElement({ tagName: 'TR', classes: ['type-row'] });
+  const firstRow = makeElement({ tagName: 'TR' });
+  const secondRow = makeElement({ tagName: 'TR' });
+
+  heading.nextElementSibling = firstRow;
+  firstRow.nextElementSibling = secondRow;
+
+  const typeToggle = makeElement({
+    tagName: 'BUTTON',
+    attributes: {
+      'data-type-toggle': 'Apparel',
+      'data-group-list': 'request',
+      'aria-expanded': 'true',
+    },
+  });
+
+  typeToggle.closest = (selector) => {
+    if (selector === '[data-type-toggle]') return typeToggle;
+    if (selector === '.type-row') return heading;
+    return null;
+  };
+
+  heading.querySelector = (selector) => (selector === '[data-type-toggle]' ? typeToggle : null);
+
+  const listRegion = makeElement({});
+
+  listRegion.querySelectorAll = (selector) => {
+    if (selector === '[data-tab]') return [tabs.request, tabs.offer];
+    if (selector === '[data-panel]') return [panels.request, panels.offer];
+    if (selector === '[data-counts-tab="request"]') return [countRow];
+    return [];
+  };
+
+  listRegion.querySelector = (selector) => {
+    if (selector === '[data-panel="request"]') return panels.request;
+    if (selector === '[data-panel="offer"]') return panels.offer;
+    return null;
+  };
+
+  // The delegated listeners the page attaches to the list region, kept so the test can press
+  // a control the way a reader would.
+  const listeners = [];
+
+  listRegion.addEventListener = (type, handler) => {
+    listeners.push({ type, handler });
+  };
+
+  function press(target) {
+    const event = { target, button: 0, prevented: false, preventDefault: () => (event.prevented = true) };
+
+    for (const listener of listeners.filter((entry) => entry.type === 'click')) {
+      listener.handler(event);
+    }
+
+    return event;
+  }
+
+  const filterCard = makeElement({});
+  filterCard.hidden = true;
+
+  const filterForm = makeElement({ dataset: { filterList: 'request' } });
+
+  // The cookie jar the folds and the grouping are remembered in.
+  let jar = '';
 
   const document = {
     getElementById: (id) =>
-      id === 'itemLists' ? listRegion : id === 'itemFilters' ? filterCard : element,
+      id === 'itemLists' ? listRegion : id === 'itemFilters' ? filterCard : makeElement({}),
     querySelector: (selector) =>
-      selector === '.top-bar' || selector === '.list-head' ? element : null,
+      selector === '.top-bar' || selector === '.list-head' ? makeElement({}) : null,
     querySelectorAll: (selector) => (selector === '[data-filters]' ? [filterForm] : []),
     addEventListener: noop,
     removeEventListener: noop,
-    createElement: () => element,
-    createDocumentFragment: () => element,
-    body: element,
-    head: element,
-    documentElement: element,
+    createElement: () => makeElement({}),
+    createDocumentFragment: () => makeElement({}),
+    body: makeElement({}),
+    head: makeElement({}),
+    documentElement: makeElement({}),
     hidden: false,
-    cookie: '',
   };
+
+  Object.defineProperty(document, 'cookie', {
+    configurable: true,
+    get: () => jar,
+    set: (value) => {
+      const pair = value.split(';')[0];
+      const name = pair.slice(0, pair.indexOf('='));
+      const kept = jar.split('; ').filter((entry) => entry && !entry.startsWith(`${name}=`));
+      kept.push(pair);
+      jar = kept.join('; ');
+    },
+  });
 
   const window = {
     document,
@@ -120,7 +220,20 @@ function fakePage() {
     requestAnimationFrame: () => 0,
   };
 
-  return { document, window, listRegion, tabButton, filterForm };
+  return {
+    document,
+    window,
+    tabs,
+    panels,
+    heading,
+    typeToggle,
+    rows: [firstRow, secondRow],
+    press,
+    cookie: (name) => {
+      const match = jar.match(new RegExp(`(?:^|; )${name}=([^;]*)`));
+      return match ? decodeURIComponent(match[1]) : '';
+    },
+  };
 }
 
 let total = 0;
@@ -170,7 +283,36 @@ t('and gets as far as counting the rows the tab drew', () => {
   // A render that finished counts the page's one row and writes it on the tab. A load that
   // stopped half-way would leave the number blank, which is the second half of what the
   // broken version did: no numbers, and both filter rows still on screen.
-  assert.equal(page.tabButton.querySelector('.tab-count').textContent, '1');
+  assert.equal(page.tabs.request.count(), '1');
+});
+
+t('pressing a tab brings up that tab’s list', () => {
+  // The handler the page attaches to the list region, given the element a reader pressed. A
+  // load that threw before that listener was attached would leave both panels as they were.
+  page.press(page.tabs.offer);
+
+  assert.equal(page.panels.offer.hidden, false, 'the tab that was pressed is the one on screen');
+  assert.equal(page.panels.request.hidden, true, 'and the tab being left is hidden');
+  assert.equal(page.tabs.offer.getAttribute('aria-selected'), 'true', 'and the strip agrees');
+  assert.equal(page.tabs.request.getAttribute('aria-selected'), 'false');
+});
+
+t('pressing a type heading folds its rows away and remembers it', () => {
+  page.press(page.typeToggle);
+
+  assert.equal(page.typeToggle.getAttribute('aria-expanded'), 'false', 'the caret points at shut rows');
+  assert.equal(page.heading.classList.contains('is-collapsed'), true);
+  assert.ok(page.rows.every((row) => row.hidden), 'every row under the heading goes with it');
+  assert.equal(page.cookie('guildsbounty_collapsed'), 'Apparel', 'and a refresh keeps them shut');
+});
+
+t('pressing it again brings the rows back', () => {
+  page.press(page.typeToggle);
+
+  assert.equal(page.typeToggle.getAttribute('aria-expanded'), 'true');
+  assert.equal(page.heading.classList.contains('is-collapsed'), false);
+  assert.ok(page.rows.every((row) => row.hidden === false), 'the rows are on screen again');
+  assert.equal(page.cookie('guildsbounty_collapsed'), '', 'and nothing is remembered as folded');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);
