@@ -13,6 +13,8 @@ CREATE TABLE IF NOT EXISTS guildsbounty_always_share (
   item_key TEXT NOT NULL,
   -- SHA-1 of item_key, so the uniqueness rule stays inside index byte limits.
   item_key_hash CHAR(40) NOT NULL,
+  -- A character's bags, the account's storage, or a guild's bank: see lib/itemScope.js.
+  item_scope VARCHAR(191) NOT NULL DEFAULT '',
   item_link VARCHAR(1024) NOT NULL DEFAULT '',
   item_name VARCHAR(255) NOT NULL DEFAULT '',
   item_id BIGINT UNSIGNED NOT NULL DEFAULT 0,
@@ -32,7 +34,7 @@ CREATE TABLE IF NOT EXISTS guildsbounty_always_share (
   first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uniq_guildsbounty_always_share (account_name, item_key_hash),
+  UNIQUE KEY uniq_guildsbounty_always_share_scope (item_scope, item_key_hash),
   KEY idx_guildsbounty_always_share_name (item_name),
   KEY idx_guildsbounty_always_share_type (item_type_name),
   CONSTRAINT fk_guildsbounty_always_share_upload

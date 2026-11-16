@@ -306,6 +306,27 @@ Two fields the addon is about to drop are already tolerated: a row with no `item
 keyed by its `itemLink` plus the `locationKey` it was found in, and a row with no `count`
 takes `heldCount` minus `reserve`.
 
+### What makes two rows the same item
+
+A row's identity is **what the storage belongs to** plus the item's key, never the character
+who happened to run the scan:
+
+- `char:<account>:<character>` - a character's own bags, which really are theirs. The
+  character stays in the key: two characters holding the same page are two rows, and the
+  second one really is reported as added.
+- `acct:<account>` - the bank, house storage, the furnishing vault, a house, and any other
+  place that is account-wide. The same stack scanned by a different character is the same row,
+  refreshed, not one row removed and another added.
+- `guild:<platform>:<world>:<locationKey>` - a guild bank, whose shelves every member looks at.
+  No account is part of its identity; the account on the row is the member who recorded it
+  first, and another member's scan refreshes the count without taking the row over. An upload
+  never prunes guild rows for a bank its file did not name.
+
+`lib/itemScope.js` decides the scope on every upload and `item_scope` is the first half of the
+unique key on both item tables (`migration 031`). It is lower-cased and trimmed, and the
+migration's backfill has to agree with it exactly, or the next upload would recognise none of
+the existing rows.
+
 ### Which server a guild is on
 
 The addon writes the server it ran on into each account's scope: `worldName` (`NA

@@ -147,6 +147,7 @@ t('a fresh database no longer creates them on the offers table', () => {
 t('the columns the list needs are still created', () => {
   for (const name of [
     'item_key_hash',
+    'item_scope',
     'item_type_name',
     'quality',
     'trait',
@@ -220,7 +221,7 @@ t('the migration is the newest one, so it runs last', () => {
     .sort();
   const last = files[files.length - 1];
 
-  assert.match(last, /^030_guildsbounty_drop_unused_item_columns\.sql$/, `newest is ${last}`);
+  assert.match(last, /^031_guildsbounty_item_scope\.sql$/, `newest is ${last}`);
 });
 
 // --------------------------------------------------------------------- the fixtures

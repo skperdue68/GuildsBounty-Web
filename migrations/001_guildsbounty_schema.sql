@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS guildsbounty_shared_items (
   item_key TEXT NOT NULL,
   -- SHA-1 of item_key so the uniqueness rule stays inside index byte limits.
   item_key_hash CHAR(40) NOT NULL,
+  -- What the row belongs to: a character's bags, the account's storage, or a guild's bank.
+  -- Half of the identity, so a stack in the bank is the same row whichever character scanned
+  -- it. See lib/itemScope.js and migration 031.
+  item_scope VARCHAR(191) NOT NULL DEFAULT '',
   item_link VARCHAR(1024) NOT NULL DEFAULT '',
   item_name VARCHAR(255) NOT NULL DEFAULT '',
   item_type_name VARCHAR(64) NOT NULL DEFAULT '',
@@ -44,7 +48,7 @@ CREATE TABLE IF NOT EXISTS guildsbounty_shared_items (
   first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uniq_guildsbounty_shared_item (account_name, character_name, item_key_hash),
+  UNIQUE KEY uniq_guildsbounty_shared_item_scope (item_scope, item_key_hash),
   KEY idx_guildsbounty_shared_items_name (item_name),
   KEY idx_guildsbounty_shared_items_location (location_key),
   CONSTRAINT fk_guildsbounty_shared_items_upload
