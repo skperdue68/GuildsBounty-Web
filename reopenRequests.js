@@ -64,7 +64,7 @@ Options:
   --help, -h      This text
 
 Reads the same .env as the site, from this folder: MARIADB_HOST, MARIADB_PORT,
-MARIADB_USER, MARIADB_PASSWORD and ITEMSHARE_DATABASE.
+MARIADB_USER, MARIADB_PASSWORD and GUILDSBOUNTY_DATABASE.
 
 Exit codes: 0 reopened (or a dry run that found something), 1 nothing matched or
 everything was skipped, 2 usage.`;

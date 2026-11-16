@@ -24,9 +24,9 @@ const demoItems = read('lib/demoItems.js');
 const simulate = read('simulate.js');
 const fulfillment = read('testFulfillment.js');
 const savedVars = read('lib/savedVars.js');
-const schema = read('migrations/001_itemshare_schema.sql');
-const offers = read('migrations/008_itemshare_always_share.sql');
-const drop = read('migrations/030_itemshare_drop_unused_item_columns.sql');
+const schema = read('migrations/001_guildsbounty_schema.sql');
+const offers = read('migrations/008_guildsbounty_always_share.sql');
+const drop = read('migrations/030_guildsbounty_drop_unused_item_columns.sql');
 
 // What the addon stopped sending, and the site never read.
 const DROPPED = [
@@ -220,7 +220,7 @@ t('the migration is the newest one, so it runs last', () => {
     .sort();
   const last = files[files.length - 1];
 
-  assert.match(last, /^030_itemshare_drop_unused_item_columns\.sql$/, `newest is ${last}`);
+  assert.match(last, /^030_guildsbounty_drop_unused_item_columns\.sql$/, `newest is ${last}`);
 });
 
 // --------------------------------------------------------------------- the fixtures

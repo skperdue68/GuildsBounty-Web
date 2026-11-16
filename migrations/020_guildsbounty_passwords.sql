@@ -13,13 +13,13 @@
 -- The hash is one string in the form scrypt$N$r$p$salt$hash, so the parameters that
 -- made it travel with it and a future change of cost cannot invalidate older rows.
 
-CREATE TABLE IF NOT EXISTS itemshare_passwords (
+CREATE TABLE IF NOT EXISTS guildsbounty_passwords (
   user_id BIGINT UNSIGNED NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   last_used_at TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (user_id),
-  CONSTRAINT fk_itemshare_passwords_user
-    FOREIGN KEY (user_id) REFERENCES itemshare_users (id) ON DELETE CASCADE
+  CONSTRAINT fk_guildsbounty_passwords_user
+    FOREIGN KEY (user_id) REFERENCES guildsbounty_users (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

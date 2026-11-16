@@ -5,11 +5,11 @@
 -- through the live row would therefore make the history lose pictures over time.
 -- Copying the two fields at the moment of asking keeps the record readable forever.
 --
--- icon_key is the same hash used by itemshare_shared_items, so the icon endpoint and
+-- icon_key is the same hash used by guildsbounty_shared_items, so the icon endpoint and
 -- the cached image table work unchanged.
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS icon_key CHAR(40) NOT NULL DEFAULT '' AFTER item_name;
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS trait VARCHAR(64) NOT NULL DEFAULT '' AFTER item_type_name;

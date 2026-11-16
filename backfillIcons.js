@@ -161,7 +161,7 @@ main().catch((error) => {
   try {
     config = readConfig();
   } catch {
-    // A malformed ITEMSHARE_DATABASE is reported by the error itself.
+    // A malformed GUILDSBOUNTY_DATABASE is reported by the error itself.
   }
 
   const message = String((error && error.message) || error);

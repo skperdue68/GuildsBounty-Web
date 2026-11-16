@@ -12,11 +12,11 @@
 -- a request made when the addon did not record these pieces has nothing to say about
 -- them, and the detail line drops both.
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS style_name VARCHAR(128) NOT NULL DEFAULT '' AFTER enchant_name;
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS required_level INT NOT NULL DEFAULT 0 AFTER style_name;
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS required_cp INT NOT NULL DEFAULT 0 AFTER required_level;

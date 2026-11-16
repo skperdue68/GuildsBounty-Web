@@ -13,29 +13,29 @@
 --
 -- The primary keys keep the id first, so `guild_id = ?` still uses the key it always did.
 
-ALTER TABLE itemshare_accounts
+ALTER TABLE guildsbounty_accounts
   ADD COLUMN IF NOT EXISTS platform SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS world_name VARCHAR(64) NOT NULL DEFAULT '';
 
-ALTER TABLE itemshare_guilds
+ALTER TABLE guildsbounty_guilds
   ADD COLUMN IF NOT EXISTS platform SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS world_name VARCHAR(64) NOT NULL DEFAULT '',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY (guild_id, platform, world_name);
 
-ALTER TABLE itemshare_account_guilds
+ALTER TABLE guildsbounty_account_guilds
   ADD COLUMN IF NOT EXISTS platform SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS world_name VARCHAR(64) NOT NULL DEFAULT '',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY (account_name, guild_id, platform, world_name);
 
-ALTER TABLE itemshare_shared_item_guilds
+ALTER TABLE guildsbounty_shared_item_guilds
   ADD COLUMN IF NOT EXISTS platform SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS world_name VARCHAR(64) NOT NULL DEFAULT '',
   DROP PRIMARY KEY,
   ADD PRIMARY KEY (item_id, guild_id, platform, world_name);
 
-ALTER TABLE itemshare_always_share_guilds
+ALTER TABLE guildsbounty_always_share_guilds
   ADD COLUMN IF NOT EXISTS platform SMALLINT UNSIGNED NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS world_name VARCHAR(64) NOT NULL DEFAULT '',
   DROP PRIMARY KEY,

@@ -39,10 +39,10 @@ function valueAfter(flag) {
 }
 
 async function removeDemo(connection) {
-  await connection.execute('DELETE FROM itemshare_shared_items WHERE account_name = ?', [DEMO_ACCOUNT]);
-  await connection.execute('DELETE FROM itemshare_always_share WHERE account_name = ?', [DEMO_ACCOUNT]);
-  await connection.execute('DELETE FROM itemshare_account_guilds WHERE account_name = ?', [DEMO_ACCOUNT]);
-  await connection.execute('DELETE FROM itemshare_uploads WHERE account_name = ?', [DEMO_ACCOUNT]);
+  await connection.execute('DELETE FROM guildsbounty_shared_items WHERE account_name = ?', [DEMO_ACCOUNT]);
+  await connection.execute('DELETE FROM guildsbounty_always_share WHERE account_name = ?', [DEMO_ACCOUNT]);
+  await connection.execute('DELETE FROM guildsbounty_account_guilds WHERE account_name = ?', [DEMO_ACCOUNT]);
+  await connection.execute('DELETE FROM guildsbounty_uploads WHERE account_name = ?', [DEMO_ACCOUNT]);
 }
 
 const removeOnly = process.argv.includes('--remove');
@@ -77,8 +77,8 @@ try {
   }
 
   const [rows] = await connection.execute(      `SELECT ag.guild_id, COALESCE(g.guild_name, '') AS guild_name
-       FROM itemshare_account_guilds ag
-       LEFT JOIN itemshare_guilds g
+       FROM guildsbounty_account_guilds ag
+       LEFT JOIN guildsbounty_guilds g
               ON g.guild_id = ag.guild_id
              AND g.platform = ag.platform
              AND g.world_name = ag.world_name

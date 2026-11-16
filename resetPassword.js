@@ -9,7 +9,7 @@
 // The address is the identity (`provider = 'password'`), which is what the sign-in form
 // looks up, so the reset needs nothing but the address. The new password is stored with
 // the same function the sign-up form uses (`lib/passwords.js`): one row in
-// `itemshare_passwords`, scrypt with a per-password salt and the cost inside the string.
+// `guildsbounty_passwords`, scrypt with a per-password salt and the cost inside the string.
 // Nothing about the stored format changes, and no password is ever printed or logged.
 //
 // Sessions already signed in are left alone: the site keeps them in the session store,
@@ -40,7 +40,7 @@ The password is typed twice without being echoed. In a script, pipe it in instea
   printf '%s\\n' "$NEW_PASSWORD" | ./resetPassword.js someone@example.com
 
 Reads the same .env as the server, from this folder: MARIADB_HOST, MARIADB_PORT,
-MARIADB_USER, MARIADB_PASSWORD and ITEMSHARE_DATABASE.
+MARIADB_USER, MARIADB_PASSWORD and GUILDSBOUNTY_DATABASE.
 
 Exit codes: 0 changed (or a dry run), 1 nothing changed, 2 usage.`;
 
@@ -56,9 +56,9 @@ export async function findPasswordAccount(connection, email) {
   const [rows] = await connection.execute(
     `SELECT u.id AS user_id, u.display_name, u.email,
             p.password_hash IS NOT NULL AS has_password
-       FROM itemshare_user_identities i
-       JOIN itemshare_users u ON u.id = i.user_id
-       LEFT JOIN itemshare_passwords p ON p.user_id = u.id
+       FROM guildsbounty_user_identities i
+       JOIN guildsbounty_users u ON u.id = i.user_id
+       LEFT JOIN guildsbounty_passwords p ON p.user_id = u.id
       WHERE i.provider = 'password' AND i.provider_user_id = ?
       LIMIT 1`,
     [address]
@@ -71,7 +71,7 @@ export async function findPasswordAccount(connection, email) {
     // the password themselves, so there is nothing here to reset and saying which
     // provider it is answers the question the operator actually has.
     const [others] = await connection.execute(
-      `SELECT DISTINCT provider FROM itemshare_user_identities
+      `SELECT DISTINCT provider FROM guildsbounty_user_identities
         WHERE provider_email = ? AND provider <> 'password'
         LIMIT 5`,
       [address]
@@ -85,7 +85,7 @@ export async function findPasswordAccount(connection, email) {
   }
 
   const [accounts] = await connection.execute(
-    'SELECT eso_account_name FROM itemshare_accounts WHERE user_id = ? ORDER BY eso_account_name',
+    'SELECT eso_account_name FROM guildsbounty_accounts WHERE user_id = ? ORDER BY eso_account_name',
     [Number(row.user_id)]
   );
 
@@ -102,7 +102,7 @@ export async function findPasswordAccount(connection, email) {
 /**
  * Ends every signed-in session this person has.
  *
- * Sessions are JSON rows in itemshare_sessions with the person under `user.id`, so the id
+ * Sessions are JSON rows in guildsbounty_sessions with the person under `user.id`, so the id
  * is read out of the JSON rather than kept in a column of its own: no migration, and no
  * second copy of the answer to disagree with the session itself. A password reset is how
  * somebody takes an account back, so a session that was already open must not stay open -
@@ -121,7 +121,7 @@ export async function signOutEverywhere(connection, userId) {
   }
 
   const [result] = await connection.execute(
-    `DELETE FROM itemshare_sessions
+    `DELETE FROM guildsbounty_sessions
       WHERE CAST(JSON_EXTRACT(session_data, '$.user.id') AS UNSIGNED) = ?`,
     [id]
   );
@@ -136,7 +136,7 @@ export async function signOutEverywhere(connection, userId) {
 export async function setPassword(connection, userId, passwordHash) {
   const id = Number(userId);
   const [result] = await connection.execute(
-    `INSERT INTO itemshare_passwords (user_id, password_hash) VALUES (?, ?)
+    `INSERT INTO guildsbounty_passwords (user_id, password_hash) VALUES (?, ?)
      ON DUPLICATE KEY UPDATE password_hash = VALUES(password_hash)`,
     [id, String(passwordHash)]
   );

@@ -12,7 +12,7 @@
 -- NULL means "the game said so". A code lives until the site's owner removes it; the row
 -- of redemptions is what tells one code from another afterwards.
 
-CREATE TABLE IF NOT EXISTS itemshare_guild_codes (
+CREATE TABLE IF NOT EXISTS guildsbounty_guild_codes (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   -- Eight characters, no I, L, O, 0 or 1, shown as two groups of four.
   code VARCHAR(24) NOT NULL,
@@ -23,11 +23,11 @@ CREATE TABLE IF NOT EXISTS itemshare_guild_codes (
   created_by_user_id BIGINT UNSIGNED NOT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uniq_itemshare_guild_codes_code (code),
-  KEY idx_itemshare_guild_codes_creator (created_by_user_id)
+  UNIQUE KEY uniq_guildsbounty_guild_codes_code (code),
+  KEY idx_guildsbounty_guild_codes_creator (created_by_user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS itemshare_guild_code_redemptions (
+CREATE TABLE IF NOT EXISTS guildsbounty_guild_code_redemptions (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   code_id BIGINT UNSIGNED NOT NULL,
   user_id BIGINT UNSIGNED NOT NULL,
@@ -35,11 +35,11 @@ CREATE TABLE IF NOT EXISTS itemshare_guild_code_redemptions (
   account_name VARCHAR(96) NOT NULL DEFAULT '',
   redeemed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uniq_itemshare_guild_code_redemption (code_id, user_id),
-  KEY idx_itemshare_guild_code_redemptions_user (user_id)
+  UNIQUE KEY uniq_guildsbounty_guild_code_redemption (code_id, user_id),
+  KEY idx_guildsbounty_guild_code_redemptions_user (user_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Which memberships came from a code, and which from the game.
-ALTER TABLE itemshare_account_guilds
+ALTER TABLE guildsbounty_account_guilds
   ADD COLUMN IF NOT EXISTS granted_code_id BIGINT UNSIGNED NULL DEFAULT NULL,
-  ADD KEY idx_itemshare_account_guilds_granted (granted_code_id);
+  ADD KEY idx_guildsbounty_account_guilds_granted (granted_code_id);

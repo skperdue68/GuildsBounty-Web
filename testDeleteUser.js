@@ -81,16 +81,16 @@ t('everything their accounts held goes with them', () => {
 
 t('the sign-in rows and the person are deleted', () => {
   assert.match(step('signed-in sessions').sql, /JSON_EXTRACT\(session_data, '\$\.user\.id'\)/);
-  assert.match(step('sign-in identities').sql, /DELETE FROM itemshare_user_identities/);
-  assert.match(step('password').sql, /DELETE FROM itemshare_passwords/);
-  assert.match(step('password resets').sql, /DELETE FROM itemshare_password_resets/);
-  assert.match(step('the person').sql, /DELETE FROM itemshare_users WHERE id = \?/);
+  assert.match(step('sign-in identities').sql, /DELETE FROM guildsbounty_user_identities/);
+  assert.match(step('password').sql, /DELETE FROM guildsbounty_passwords/);
+  assert.match(step('password resets').sql, /DELETE FROM guildsbounty_password_resets/);
+  assert.match(step('the person').sql, /DELETE FROM guildsbounty_users WHERE id = \?/);
 });
 
 t('their codes go, and other people keep what a code granted', () => {
   const detach = step('codes their invitations came from');
 
-  assert.match(detach.sql, /UPDATE itemshare_account_guilds SET granted_code_id = NULL/);
+  assert.match(detach.sql, /UPDATE guildsbounty_account_guilds SET granted_code_id = NULL/);
   assert.deepEqual(detach.params, [7]);
 
   const redemptions = step('redemptions of their codes');
@@ -156,7 +156,7 @@ t('the leftovers check covers everything the plan deletes', () => {
   }
 
   for (const entry of checks) {
-    assert.match(entry.sql, /^SELECT COUNT\(\*\) AS found FROM itemshare_/, entry.label);
+    assert.match(entry.sql, /^SELECT COUNT\(\*\) AS found FROM guildsbounty_/, entry.label);
   }
 });
 

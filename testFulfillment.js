@@ -7,7 +7,7 @@
 //   npm run test:fulfillment
 //
 // Settings are read exactly as the site reads them - MARIADB_HOST, MARIADB_PORT,
-// MARIADB_USER, MARIADB_PASSWORD, ITEMSHARE_DATABASE - and the database is DROPPED
+// MARIADB_USER, MARIADB_PASSWORD, GUILDSBOUNTY_DATABASE - and the database is DROPPED
 // before it is rebuilt, which is why the name has to end in _test.
 //
 // The point of the numbers below is the arithmetic that was wrong before: copies that
@@ -37,14 +37,14 @@ import {
   submitDrafts,
 } from './lib/store.js';
 
-process.env.ITEMSHARE_DATABASE = process.env.ITEMSHARE_DATABASE || 'itemshare_test';
+process.env.GUILDSBOUNTY_DATABASE = process.env.GUILDSBOUNTY_DATABASE || 'guildsbounty_test';
 
 const config = readConfig();
 
 if (!config.database.endsWith('_test')) {
   console.error(
-    `Refusing to run: ITEMSHARE_DATABASE is "${config.database}" and this test drops it.\n` +
-      'Use a name ending in _test, for example ITEMSHARE_DATABASE=itemshare_test.'
+    `Refusing to run: GUILDSBOUNTY_DATABASE is "${config.database}" and this test drops it.\n` +
+      'Use a name ending in _test, for example GUILDSBOUNTY_DATABASE=guildsbounty_test.'
   );
   process.exit(2);
 }
@@ -127,7 +127,7 @@ async function upload(connection, accountName, itemCount) {
 async function ageUpload(connection, uploadId, minutes) {
   const safeMinutes = Math.max(1, Math.trunc(Number(minutes) || 1));
   await connection.execute(
-    `UPDATE itemshare_uploads SET uploaded_at = (NOW() - INTERVAL ${safeMinutes} MINUTE) WHERE id = ?`,
+    `UPDATE guildsbounty_uploads SET uploaded_at = (NOW() - INTERVAL ${safeMinutes} MINUTE) WHERE id = ?`,
     [uploadId]
   );
 }
@@ -185,17 +185,17 @@ try {
 
 try {
   const [ledger] = await connection.execute(
-    'SELECT filename FROM itemshare_schema_migrations ORDER BY filename'
+    'SELECT filename FROM guildsbounty_schema_migrations ORDER BY filename'
   );
   const applied = ledger.map((row) => row.filename);
-  ok('migration 019 is applied', applied.includes('019_itemshare_request_fulfillment.sql'), true);
+  ok('migration 019 is applied', applied.includes('019_guildsbounty_request_fulfillment.sql'), true);
 
   const [ownerUser] = await connection.execute(
-    'INSERT INTO itemshare_users (display_name, email, email_verified) VALUES (?, ?, 1)',
+    'INSERT INTO guildsbounty_users (display_name, email, email_verified) VALUES (?, ?, 1)',
     ['Owner', 'owner@test.invalid']
   );
   const [askerUser] = await connection.execute(
-    'INSERT INTO itemshare_users (display_name, email, email_verified) VALUES (?, ?, 1)',
+    'INSERT INTO guildsbounty_users (display_name, email, email_verified) VALUES (?, ?, 1)',
     ['Asker', 'asker@test.invalid']
   );
 
@@ -264,7 +264,7 @@ try {
   ok('one request left the basket', await submitDrafts(connection, { userId: askerId }), 1);
 
   const [pending] = await connection.execute(
-    'SELECT status, quantity, quantity_requested FROM itemshare_requests WHERE id = ?',
+    'SELECT status, quantity, quantity_requested FROM guildsbounty_requests WHERE id = ?',
     [requestId]
   );
   ok('it is waiting on the owner', pending[0].status, 'pending');
@@ -301,7 +301,7 @@ try {
   ] : null, [1, 0, 2]);
 
   const [answeredRow] = await connection.execute(
-    'SELECT status, quantity, quantity_requested, fulfilled_at, closed_at FROM itemshare_requests WHERE id = ?',
+    'SELECT status, quantity, quantity_requested, fulfilled_at, closed_at FROM guildsbounty_requests WHERE id = ?',
     [requestId]
   );
   ok('the row is closed and stamped', [
@@ -486,7 +486,7 @@ try {
   );
 
   const [savedRows] = await connection.execute(
-    'SELECT id, status, quantity, quantity_requested FROM itemshare_requests WHERE id IN (?, ?)',
+    'SELECT id, status, quantity, quantity_requested FROM guildsbounty_requests WHERE id IN (?, ?)',
     [firstRow, secondRow]
   );
   const byId = new Map(savedRows.map((row) => [Number(row.id), row]));
@@ -592,7 +592,7 @@ try {
   );
 
   const [spreadRows] = await connection.execute(
-    'SELECT id, status, quantity, quantity_requested FROM itemshare_requests WHERE id IN (?, ?, ?) ORDER BY id ASC',
+    'SELECT id, status, quantity, quantity_requested FROM guildsbounty_requests WHERE id IN (?, ?, ?) ORDER BY id ASC',
     [firstAsk, secondAsk, thirdAsk]
   );
   ok(
@@ -867,9 +867,9 @@ ${guildedItems('@TestV3')}
     const [rows] = await connection.execute(
       `SELECT i.item_key, i.item_name, i.item_count,
               GROUP_CONCAT(g.guild_id ORDER BY g.guild_id) AS guild_ids
-         FROM itemshare_shared_items i
-         LEFT JOIN itemshare_shared_item_guilds link ON link.item_id = i.id
-         LEFT JOIN itemshare_guilds g ON g.guild_id = link.guild_id
+         FROM guildsbounty_shared_items i
+         LEFT JOIN guildsbounty_shared_item_guilds link ON link.item_id = i.id
+         LEFT JOIN guildsbounty_guilds g ON g.guild_id = link.guild_id
         WHERE i.account_name = ?
         GROUP BY i.id
         ORDER BY i.item_key`,
@@ -900,7 +900,7 @@ ${guildedItems('@TestV3')}
     'the guild names the UI reads come from the registry',
     (
       await connection.execute(
-        'SELECT guild_id, guild_name FROM itemshare_guilds WHERE guild_id IN (9001, 9002, 9003, 9004, 9005) ORDER BY guild_id'
+        'SELECT guild_id, guild_name FROM guildsbounty_guilds WHERE guild_id IN (9001, 9002, 9003, 9004, 9005) ORDER BY guild_id'
       )
     )[0].map((row) => [Number(row.guild_id), row.guild_name]),
     FIVE_GUILDS
@@ -910,7 +910,7 @@ ${guildedItems('@TestV3')}
     Number(
       (
         await connection.execute(
-          'SELECT COUNT(*) AS guildCount FROM itemshare_account_guilds WHERE account_name = ?',
+          'SELECT COUNT(*) AS guildCount FROM guildsbounty_account_guilds WHERE account_name = ?',
           ['@TestV3']
         )
       )[0][0].guildCount
@@ -984,7 +984,7 @@ ${guildedItems('@TestV3')}
 
   ok(
     'the guild no item names is still upserted with its name',
-    (await connection.execute('SELECT guild_name FROM itemshare_guilds WHERE guild_id = 9102'))[0].map(
+    (await connection.execute('SELECT guild_name FROM guildsbounty_guilds WHERE guild_id = 9102'))[0].map(
       (row) => row.guild_name
     ),
     ['Idle Guild']
@@ -1116,7 +1116,7 @@ ${guildedItems('@TestV3')}
     'the reserve is kept for the note under the item name',
     (
       await connection.execute(
-        'SELECT reserve_quantity FROM itemshare_shared_items WHERE account_name = ?',
+        'SELECT reserve_quantity FROM guildsbounty_shared_items WHERE account_name = ?',
         ['@TestV4']
       )
     )[0].map((row) => Number(row.reserve_quantity)),
@@ -1127,7 +1127,7 @@ ${guildedItems('@TestV3')}
     Number(
       (
         await connection.execute(
-          'SELECT COUNT(*) AS rowCount FROM itemshare_shared_items WHERE account_name = ?',
+          'SELECT COUNT(*) AS rowCount FROM guildsbounty_shared_items WHERE account_name = ?',
           ['@TestV4']
         )
       )[0][0].rowCount
@@ -1225,7 +1225,7 @@ ${guildedItems('@TestV3')}
 
   await storeFile('@TestLoc', extractShareData(soulGemFile('{ }')), 'ItemShareSavedVars.lua');
   const [soulRows] = await connection.execute(
-    'SELECT location_key, item_count, reserve_quantity FROM itemshare_shared_items WHERE account_name = ? ORDER BY location_key',
+    'SELECT location_key, item_count, reserve_quantity FROM guildsbounty_shared_items WHERE account_name = ? ORDER BY location_key',
     ['@TestLoc']
   );
   ok(

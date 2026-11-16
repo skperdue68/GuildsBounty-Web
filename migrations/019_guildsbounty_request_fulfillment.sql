@@ -16,7 +16,7 @@
 -- clears it, and it expires, so a double submit, a resent mail or a link a mail client
 -- prefetched changes nothing the second time.
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS quantity_requested INT NOT NULL DEFAULT 0 AFTER quantity,
   ADD COLUMN IF NOT EXISTS fulfilled_at TIMESTAMP NULL DEFAULT NULL AFTER expires_at,
   ADD COLUMN IF NOT EXISTS email_token_hash CHAR(64) NOT NULL DEFAULT '' AFTER fulfilled_at,
@@ -24,13 +24,13 @@ ALTER TABLE itemshare_requests
 
 -- Rows sent before this migration were asked for once and, since nothing could
 -- answer them, are still outstanding in full.
-UPDATE itemshare_requests
+UPDATE guildsbounty_requests
    SET quantity_requested = quantity
  WHERE quantity_requested = 0;
 
-ALTER TABLE itemshare_requests
-  ADD INDEX IF NOT EXISTS idx_itemshare_requests_token (email_token_hash);
+ALTER TABLE guildsbounty_requests
+  ADD INDEX IF NOT EXISTS idx_guildsbounty_requests_token (email_token_hash);
 
 -- The delivered/count query filters on these two.
-ALTER TABLE itemshare_requests
-  ADD INDEX IF NOT EXISTS idx_itemshare_requests_delivered (status, fulfilled_at);
+ALTER TABLE guildsbounty_requests
+  ADD INDEX IF NOT EXISTS idx_guildsbounty_requests_delivered (status, fulfilled_at);

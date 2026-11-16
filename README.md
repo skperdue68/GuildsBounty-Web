@@ -101,8 +101,13 @@ name, `localhost` or an IP means the proxy is rewriting `Host` without saying wh
 the answer is `proxy_set_header Host $host;` plus `proxy_set_header X-Forwarded-Host $host;`
 (or Caddy's `header_up Host {host}`).
 
+The database is renamed as well: the tables are `guildsbounty_*`, the ledger is
+`guildsbounty_schema_migrations`, and the database is `guildsbounty` (`guildsbounty-demo` for the
+demo). An existing database on the old names is taken over on the first boot - see *Startup and
+migrations* - so there is nothing to rename by hand.
+
 One deliberate oddity: **`MARIADB_DATABASE` is ignored.** Guild's Bounty always uses its
-own database (`ITEMSHARE_DATABASE`, default `itemshare`), so it cannot write into
+own database (`GUILDSBOUNTY_DATABASE`, default `guildsbounty`), so it cannot write into
 another application's schema even when both share a MariaDB server.
 
 ## Startup and migrations
@@ -110,14 +115,24 @@ another application's schema even when both share a MariaDB server.
 On boot the site:
 
 1. connects to MariaDB without selecting a database, so it can create one;
-2. runs `CREATE DATABASE IF NOT EXISTS` for `ITEMSHARE_DATABASE`;
-3. applies every `.sql` file in `migrations/` that has not been applied before.
+2. runs `CREATE DATABASE IF NOT EXISTS` for `GUILDSBOUNTY_DATABASE`;
+3. adopts a database that still carries the old names, if there is one;
+4. applies every `.sql` file in `migrations/` that has not been applied before.
 
-Applied files are recorded in `itemshare_schema_migrations`, so each runs exactly
+Applied files are recorded in `guildsbounty_schema_migrations`, so each runs exactly
 once. To add a migration, drop a new sortable file in `migrations/`
 (`018_something.sql`) and restart: it is applied on that boot and never again.
 Recorded migrations are not re-run, so they no longer have to be idempotent, though
 `CREATE TABLE IF NOT EXISTS` remains a good habit.
+
+**Adopting the old names.** Before anything else, startup looks for tables still called
+`itemshare_*` and renames every one of them to `guildsbounty_*` in a single atomic
+`RENAME TABLE` - there is never a moment with half a schema - and then rewrites the filenames
+recorded in the ledger, because the migration files were renamed with the tables and the ledger
+remembers files by name. A table that already exists under its new name is left alone, so a
+half-finished manual rename still ends in the right place. Point `GUILDSBOUNTY_DATABASE` (or the
+old `ITEMSHARE_DATABASE`, still read as a fallback) at the database you mean and the first boot
+does the rest; a second boot finds nothing old and does nothing.
 
 If the database is unreachable at startup the site still boots, logs the reason, and
 shows the error on the page instead of crashing. Connections made per request connect
@@ -128,7 +143,7 @@ straight to the existing database rather than re-running migrations.
 Signing in does one job: it establishes who someone is, so their ESO accounts can be
 linked to them and requests can be addressed to a real person. There are three ways in -
 an email address with a password, Discord, or Google - and all three end in the same
-place: a row in `itemshare_users`.
+place: a row in `guildsbounty_users`.
 
 **Email and a password.** `POST /auth/email` signs in and `POST /auth/email/signup` makes
 the account. Both are ordinary forms on the sign-in page, so they work with scripts off
@@ -150,7 +165,7 @@ off, and `/auth-panel.js` only takes over the Cancel click so the page is not re
 What the page asks for is the address, because the address is what the site collects: it
 is where a request answer is sent, and it is what ties the sign-in to an ESO account. The
 password is stored as scrypt with a per-password salt (`lib/passwords.js`), one row per
-person in `itemshare_passwords`, and the address itself is the identity
+person in `guildsbounty_passwords`, and the address itself is the identity
 (`provider = 'password'`), so nothing downstream has to know which way somebody came in.
 
 An address typed into a form is stored **unverified** and never merges with an existing
@@ -175,8 +190,8 @@ client id and secret in `.env`. Scopes requested are `identify` and `email`.
 
 Both providers give a stable opaque subject id, which is what identifies a login.
 
-**One person, either button.** Identities live in `itemshare_user_identities` and point
-at a row in `itemshare_users`. When someone signs in with a provider for the first time
+**One person, either button.** Identities live in `guildsbounty_user_identities` and point
+at a row in `guildsbounty_users`. When someone signs in with a provider for the first time
 and that provider reports a *verified* email already known to another identity, the new
 identity joins the existing person instead of creating a second empty one. That way the
 ESO accounts linked through Discord stay visible after signing in with Google.
@@ -237,7 +252,7 @@ prune uses is `upload_id`: everything the file mentions is stamped with the new 
 so a row still holding an older id was not in this file. Every account in the file is
 handled inside one transaction, so either all of them are replaced or none are.
 
-Guild membership is replaced in full as well (`itemshare_account_guilds`), so leaving a
+Guild membership is replaced in full as well (`guildsbounty_account_guilds`), so leaving a
 guild in game removes that guild's visibility after the next upload.
 
 Who may see a row is decided per row. A share reaches somebody through a guild you both
@@ -252,14 +267,14 @@ because a request is still open is none of the three, because its stored count w
 deliberately left alone.
 
 The first upload from a signed-in person links their identity to the ESO account in
-`itemshare_accounts`. An ESO account that is already linked to a different person is never
+`guildsbounty_accounts`. An ESO account that is already linked to a different person is never
 silently reassigned: that account is left exactly as it was and the rest of the file is
 stored, so a file copied from another player still updates the accounts that are yours. The
 upload's answer names the accounts it stored and the ones it skipped, with the reason. A
 file holding nothing but somebody else's account stores nothing and says so, rather than
 reporting an upload that changed nothing.
 
-Item rows keep the account they came from (`itemshare_shared_items.account_name`), so
+Item rows keep the account they came from (`guildsbounty_shared_items.account_name`), so
 someone who plays several ESO accounts can see which account holds each item. Which
 account that is comes from **where the item sits in the file** - the `["@account"]`
 table - and not from the `accountName` the addon copies into the entry. That copy still
@@ -295,7 +310,7 @@ stored on the account, on every guild and on every guild link, because a guild i
 `@handle` are only unique within one megaserver - the same numeric `guild_id` on NA and EU
 is two different guilds, and so is the same id on PC and Xbox.
 
-A guild is therefore identified by its id **and** its world, `itemshare_guilds` is keyed
+A guild is therefore identified by its id **and** its world, `guildsbounty_guilds` is keyed
 by both, and a share is only visible to an account on the same world as the owner.Both halves are shown beside each name, in the **Add or remove ESO accounts** dialog and
 in the account list, as `PC &middot; NA Megaserver`; the browsing picker shows them too, so
 two accounts can be told apart while choosing. Only the value the site knows is spelled
@@ -339,7 +354,7 @@ avatar menu - and that guild's items open to their account.
   does not take it away either.
 - Nothing is granted from the form. The guild is looked up among the guilds the file
   reported for the person's accounts, excluding any that came from a code, and the code is
-  looked up in `itemshare_guild_codes` before anything is written, so a hand-written form
+  looked up in `guildsbounty_guild_codes` before anything is written, so a hand-written form
   can neither make a code for somebody else's guild nor reuse an invitation as a slot.
 - If the site knows no ESO account for them yet, the page asks for the account name only,
   in a box over it: the code already names the platform and the server, so the account is
@@ -489,7 +504,7 @@ port and no extra proxy rule.
 
 You browse as **one** of your ESO accounts. When more than one is linked, a *Browsing
 as* control above the tabs picks it, and the choice is stored on the person
-(`itemshare_users.browsing_eso_account_name`) rather than in the session, so it survives
+(`guildsbounty_users.browsing_eso_account_name`) rather than in the session, so it survives
 signing out and follows you to another device. With a single account it is a label
 instead of a choice.
 
@@ -703,8 +718,8 @@ A reserve never shares anything by itself. It only reduces a stack that is alrea
 file's item list, so a reserve for an item that is not being shared is ignored: setting a
 reserve creates no offer, no row and no request button.
 
-Visibility joins three tables: the item's guilds (`itemshare_shared_item_guilds`), the
-viewer's guilds (`itemshare_account_guilds`) and the guild names (`itemshare_guilds`).
+Visibility joins three tables: the item's guilds (`guildsbounty_shared_item_guilds`), the
+viewer's guilds (`guildsbounty_account_guilds`) and the guild names (`guildsbounty_guilds`).
 Nothing is readable without a guild overlap, so an account in no guilds sees nothing.
 
 The rule is only applied when both sides are known. A guild rule needs the viewer's
@@ -906,7 +921,7 @@ point of the message is that there is something to collect. Cancelled rows say t
 had nothing to send and that nothing is waiting in the mailbox, so nobody signs in and
 goes looking for an item that was never mailed.
 
-The address is the asker's own sign-in address (`itemshare_users.email`). A person who
+The address is the asker's own sign-in address (`guildsbounty_users.email`). A person who
 never linked one gets no message and the answer still records itself; with no transport
 configured the log says `Email: N answer email(s) not sent - ...`. The answer is committed
 before any mail is attempted, and a failure to work out who to tell is caught, so a mail
@@ -936,7 +951,7 @@ arrives, the problem is the MTA's queue or DNS, not Guild's Bounty.
 
 Browsers cannot draw the game's DDS textures, so after an upload the site fetches each
 *new* icon once from UESP's PNG mirror (`esoicons.uesp.net`) and stores the bytes in
-`itemshare_item_icons`. Pages then serve them from `/icons/<key>.png`, so browsing never
+`guildsbounty_item_icons`. Pages then serve them from `/icons/<key>.png`, so browsing never
 contacts UESP and a later upload of the same item fetches nothing.
 
 Fetching is best effort: a failure is logged, that row shows no thumbnail, and it is
@@ -960,7 +975,7 @@ An item's name opens a card instead of sending the reader to another tab. It sta
 what the row already knows - name in its quality colour, type, trait, enchant, level and
 champion points - then adds the game's own description and what the item's **set** does.
 That second half comes from UESP's public item database, fetched server-side by
-`/item-tip` and cached in `itemshare_item_tips` for a month, so a name is looked up once
+`/item-tip` and cached in `guildsbounty_item_tips` for a month, so a name is looked up once
 however often it is hovered and the browser never talks to UESP.
 
 The cache is an optimisation: with an empty table, no network, or UESP refusing the
@@ -980,7 +995,7 @@ and set bonuses are looked up.
 
 ## Staying signed in
 
-Sessions are stored in MariaDB (`itemshare_sessions`) rather than process memory, so a
+Sessions are stored in MariaDB (`guildsbounty_sessions`) rather than process memory, so a
 restart or a redeploy no longer signs everybody out while their cookie still says
 otherwise. The cookie lasts `SESSION_TTL_DAYS` (default 30) with rolling renewal, so
 somebody who visits now and then never sees a login screen.
@@ -1082,28 +1097,28 @@ handled by one process would otherwise never reach sockets held by another.
 
 | Table | Purpose |
 | --- | --- |
-| `itemshare_schema_migrations` | Which migration files have been applied |
-| `itemshare_uploads` | One row per import: account, file, item count, total quantity, person |
-| `itemshare_accounts` | ESO account → person link, with the platform and megaserver the file reported |
-| `itemshare_account_guilds` | Which guilds each ESO account belongs to, and on which world; `granted_code_id` marks one that came from a code rather than the file |
-| `itemshare_guild_codes` | Invitation codes, each naming one guild and its server |
-| `itemshare_guild_code_redemptions` | Who used which code, and on which account |
-| `itemshare_users` | One row per person: display name, email, verified flag, avatar, and the ESO account they browse as |
-| `itemshare_user_identities` | `(provider, provider_user_id)` → person, for Discord, Google and email |
-| `itemshare_passwords` | one scrypt hash per person, for email and password sign-in |
-| `itemshare_sessions` | Sign-in sessions, so they survive a restart |
-| `itemshare_discord_users` | Legacy Discord profile table, superseded by `itemshare_users` |
-| `itemshare_guilds` | Guild ID + world → name; a guild id is only unique within one megaserver |
-| `itemshare_shared_items` | One row per shared item per character, with its captured details |
-| `itemshare_shared_item_guilds` | Which guilds each shared item is offered to |
-| `itemshare_always_share` | Standing offers: items the owner hands out whenever they have one |
-| `itemshare_always_share_guilds` | Which guilds each standing offer is shown in |
-| `itemshare_requests` | Who asked for what, how many, and how it ended |
-| `itemshare_request_drafts` | The basket: picked but not yet sent, with its deadline |
-| `itemshare_item_icons` | Cached PNG bytes per icon path, fetched once from UESP |
-| `itemshare_item_tips` | Cached description and set bonuses per item |
+| `guildsbounty_schema_migrations` | Which migration files have been applied |
+| `guildsbounty_uploads` | One row per import: account, file, item count, total quantity, person |
+| `guildsbounty_accounts` | ESO account → person link, with the platform and megaserver the file reported |
+| `guildsbounty_account_guilds` | Which guilds each ESO account belongs to, and on which world; `granted_code_id` marks one that came from a code rather than the file |
+| `guildsbounty_guild_codes` | Invitation codes, each naming one guild and its server |
+| `guildsbounty_guild_code_redemptions` | Who used which code, and on which account |
+| `guildsbounty_users` | One row per person: display name, email, verified flag, avatar, and the ESO account they browse as |
+| `guildsbounty_user_identities` | `(provider, provider_user_id)` → person, for Discord, Google and email |
+| `guildsbounty_passwords` | one scrypt hash per person, for email and password sign-in |
+| `guildsbounty_sessions` | Sign-in sessions, so they survive a restart |
+| `guildsbounty_discord_users` | Legacy Discord profile table, superseded by `guildsbounty_users` |
+| `guildsbounty_guilds` | Guild ID + world → name; a guild id is only unique within one megaserver |
+| `guildsbounty_shared_items` | One row per shared item per character, with its captured details |
+| `guildsbounty_shared_item_guilds` | Which guilds each shared item is offered to |
+| `guildsbounty_always_share` | Standing offers: items the owner hands out whenever they have one |
+| `guildsbounty_always_share_guilds` | Which guilds each standing offer is shown in |
+| `guildsbounty_requests` | Who asked for what, how many, and how it ended |
+| `guildsbounty_request_drafts` | The basket: picked but not yet sent, with its deadline |
+| `guildsbounty_item_icons` | Cached PNG bytes per icon path, fetched once from UESP |
+| `guildsbounty_item_tips` | Cached description and set bonuses per item |
 
-`itemshare_shared_items` and `itemshare_always_share` both carry `held_quantity` and
+`guildsbounty_shared_items` and `guildsbounty_always_share` both carry `held_quantity` and
 `reserve_quantity`: what was in the bag and what the owner keeps back. `item_count` stays
 what is actually on offer, so every OFFERED/RESERVED/AVAILABLE calculation is unaffected by
 a reserve. On a standing offer `held_quantity` is nullable, and null means the upload never
@@ -1128,7 +1143,7 @@ without asking anyone to upload again.
 ## Email addresses
 
 Discord sign-in requests `identify` and `email`; Google requests `openid email profile`.
-Either way the address lands in `itemshare_users.email` with the provider's own verified
+Either way the address lands in `guildsbounty_users.email` with the provider's own verified
 flag, refreshed at every sign-in so it stays correct if somebody changes it.
 
 The address is personal data and is only ever read server-side. It is shown back to its
@@ -1472,7 +1487,7 @@ message was accepted, `1` when email is not configured or the transport refused 
 `email-preview.html` and `email-preview.txt` (the plain-text part), or whatever name you
 give it - `node previewEmail.js out.html`. Open the HTML in a browser to see the layout,
 the quality colours and the answer link an owner receives. The link is built from
-`BASE_URL`; with that unset the command says so and `itemshare.example` stands in, so the
+`BASE_URL`; with that unset the command says so and `guildsbounty.example` stands in, so the
 whole message can still be seen. Nothing is sent, no mail transport is needed and no
 database is opened, so a change to the message can be checked on a machine that cannot
 send mail at all.
@@ -1493,11 +1508,11 @@ npm ci
 ```
 
 **2. The database account.** Run once as root on the MariaDB server. `ALL` on
-`itemshare.*` includes the CREATE the first boot needs to make the database itself:
+`guildsbounty.*` includes the CREATE the first boot needs to make the database itself:
 
 ```sql
-CREATE USER 'itemshare'@'localhost' IDENTIFIED BY 'a-long-password';
-GRANT ALL PRIVILEGES ON itemshare.* TO 'itemshare'@'localhost';
+CREATE USER 'guildsbounty'@'localhost' IDENTIFIED BY 'a-long-password';
+GRANT ALL PRIVILEGES ON guildsbounty.* TO 'guildsbounty'@'localhost';
 FLUSH PRIVILEGES;
 ```
 
@@ -1579,7 +1594,7 @@ sudo systemctl restart itemshare      # applies any new migrations on boot
 **8. Backups.** Everything is in one database:
 
 ```bash
-mysqldump itemshare > itemshare-$(date +%F).sql
+mysqldump guildsbounty > guildsbounty-$(date +%F).sql
 ```
 
 Uploads are never stored on disk - a saved variables file is parsed and the rows are
@@ -1588,7 +1603,7 @@ kept - so a database dump is the whole backup.
 **After deploying, check:** the page loads over https, a sign-in round trip completes, an
 upload lands, the Request tab shows items, picking one shows the basket clock, sending it
 appears in *My Requests* with a send time, and
-`SELECT filename FROM itemshare_schema_migrations;` lists migrations through `019`, an owner
+`SELECT filename FROM guildsbounty_schema_migrations;` lists migrations through `019`, an owner
 answers their request email, and the requester's list says what was handed over.
 
 ## Troubleshooting
@@ -1610,8 +1625,8 @@ account is configured for Kerberos/GSSAPI, which `mysql2` cannot use. On the Mar
 as an administrator, give it an ordinary password login:
 
 ```sql
-SELECT user, host, plugin FROM mysql.user WHERE user = 'itemshare';
-ALTER USER 'itemshare'@'%' IDENTIFIED VIA mysql_native_password USING PASSWORD('the-password-from-.env');
+SELECT user, host, plugin FROM mysql.user WHERE user = 'guildsbounty';
+ALTER USER 'guildsbounty'@'%' IDENTIFIED VIA mysql_native_password USING PASSWORD('the-password-from-.env');
 FLUSH PRIVILEGES;
 ```
 
@@ -1728,7 +1743,7 @@ working once every row has been answered. Its last stage asks for one item three
 checks the owner's page lists that as one row of five, sends three of them and checks the
 oldest two are closed while the third still waits, then cancels what is left with the Not
 fulfilled answer. It drops and rebuilds its database first, so
-`ITEMSHARE_DATABASE` has to end in `_test` (`itemshare_test` by default).
+`GUILDSBOUNTY_DATABASE` has to end in `_test` (`guildsbounty_test` by default).
 
 It needs a reachable MariaDB; without one it stops before touching anything and says so.
 
@@ -1745,7 +1760,7 @@ then the page is the upload box, because there are no guilds to compare against 
 only useful thing is the file that supplies them.
 
 `demo@example.com` with the password `demo` is a sign-in that needs neither. It is a real person row with
-`itemshare_users.is_demo = 1`, one ESO account (`@ItemShareDemo`), one guild -
+`guildsbounty_users.is_demo = 1`, one ESO account (`@ItemShareDemo`), one guild -
 **Alphabet Mafia** on PC / NA Megaserver - and the curated catalogue in
 `lib/demoItems.js` shared with it. The catalogue carries the fields an upload carries, not
 just names: its weapons, armour and jewellery are level 50, CP 160 and enchanted, so the
@@ -1757,19 +1772,19 @@ if it is missing, so a fresh database already has it. The address on it is
 `demo@example.com`, on the reserved documentation domain, and creating an ordinary
 account with that address is refused, so nobody can take it over.
 
-The demo has its own MariaDB database, `itemshare-demo`, dropped and rebuilt at every
+The demo has its own MariaDB database, `guildsbounty-demo`, dropped and rebuilt at every
 startup from the same migrations as the real one. It is then filled with a copy of the
 site's own rows - guilds, accounts, shared items, offers, requests - with every person
-anonymised on the way in (`Member 7`, `member7@itemshare.invalid`) and every copied
+anonymised on the way in (`Member 7`, `member7@guildsbounty.invalid`) and every copied
 password and sign-in identity deleted, so nobody can sign in as a real person and no
 address can be read. The curated `Alphabet Mafia` guild is seeded on top, so the demo
 always has something familiar in it. Its schema cannot drift from the site's, and the next
 visitor always gets the curated demo rather than the leftovers of somebody's session - a
 restart is also how you reset it. A demo session reads that copy instead of the live
 rows, and nothing it does can reach them; signing in as anybody else switches back to
-`ITEMSHARE_DATABASE` on the next request. Sessions stay in the real database, because a
+`GUILDSBOUNTY_DATABASE` on the next request. Sessions stay in the real database, because a
 session has to be read before the site knows who is asking. The database account needs
-CREATE and DROP on `itemshare-demo`, the privilege it already uses to make the real
+CREATE and DROP on `guildsbounty-demo`, the privilege it already uses to make the real
 database.
 
 The demo is a sandbox rather than a preview: reserving, cancelling, sending a basket,
@@ -1806,7 +1821,7 @@ item, so every row of an owner shares the one window - the same rule a real uplo
 for: the Request tab would mirror their own bag. `lib/demoCast.js` writes three
 guildmates into the demo's own guild - `@NightMarket`, `@QuietSmith` and
 `@AetherCartel`, each with a slice of `lib/demoItems.js` - so their items are visible to
-the demo visitor and the demo's are visible to them. They exist only in `itemshare-demo`,
+the demo visitor and the demo's are visible to them. They exist only in `guildsbounty-demo`,
 and the rows are written through `replaceAccounts`, the same call an upload uses.
 
 **Activity while somebody watches.** `lib/demoActivity.js` does one small thing per tick

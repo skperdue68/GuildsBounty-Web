@@ -35,7 +35,7 @@ await test('known account queries always enforce exact guild/platform/server mat
   await store.getAlwaysShareForViewer(connection,['@fresh']);
   await store.getViewerFacets(connection,['@fresh']);
   await store.getRequestTarget(connection,['@fresh'],'inventory',99);
-  const scoped=queries.filter(q=>/FROM itemshare_shared_items i|FROM itemshare_always_share a/.test(q.sql));
+  const scoped=queries.filter(q=>/FROM guildsbounty_shared_items i|FROM guildsbounty_always_share a/.test(q.sql));
   assert(scoped.length>=4);
   for(const {sql,params} of scoped){
     assert.match(sql,/viewer\.account_name IN/);
@@ -53,9 +53,9 @@ await test('switch reconciliation cancels only inaccessible drafts and keeps eli
   const connection={beginTransaction:async()=>{},commit:async()=>{},rollback:async()=>{},execute:async(sql,params=[])=>{
     if(sql.includes('FOR UPDATE'))return [[{browsing_eso_account_name:'@fresh'}],[]];
     if(sql.includes('a.linked_at'))return [[{eso_account_name:'@fresh'}],[]];
-    if(/SELECT.*FROM itemshare_requests/s.test(sql)&&/status = 'draft'/.test(sql))return [drafts,[]];
-    if(/FROM itemshare_shared_items i/.test(sql))return [params.at(-1)===10?[{id:10}]:[],[]];
-    if(/FROM itemshare_always_share a/.test(sql))return [[],[]];
+    if(/SELECT.*FROM guildsbounty_requests/s.test(sql)&&/status = 'draft'/.test(sql))return [drafts,[]];
+    if(/FROM guildsbounty_shared_items i/.test(sql))return [params.at(-1)===10?[{id:10}]:[],[]];
+    if(/FROM guildsbounty_always_share a/.test(sql))return [[],[]];
     writes.push({sql,params});return [{affectedRows:1},[]];
   }};
   const result=await store.reconcileDraftBasket(connection,{userId:7,accountName:'@fresh',holdMinutes:30});
@@ -80,7 +80,7 @@ await test('a live read for an old browsing account cannot cancel the newly sele
   const result=await store.reconcileDraftBasket(connection,{userId:7,accountName:'@one'});
   assert.equal(result.stale,true);
   assert.equal(result.cancelled,0);
-  assert(!queries.some(sql=>sql.includes('UPDATE itemshare_requests')));
+  assert(!queries.some(sql=>sql.includes('UPDATE guildsbounty_requests')));
 });
 
 await test('My Requests counts unsent drafts without submitted or cancelled history',()=>{
@@ -144,33 +144,33 @@ await test('the server refuses an offer with nothing to hand over, before it wri
   for(const extra of [{held_quantity:0,reserve_quantity:0},{held_quantity:5,reserve_quantity:5}]){
     const queries=[];
     const connection={execute:async(sql)=>{queries.push(sql);
-      if(/FROM itemshare_always_share a/.test(sql))return [[offerTarget(extra)],[]];
+      if(/FROM guildsbounty_always_share a/.test(sql))return [[offerTarget(extra)],[]];
       return [[],[]];}};
     await assert.rejects(
       store.createRequest(connection,{userId:7,requesterAccounts:['@mine'],itemKind:'offer',itemId:34,quantity:1}),
       (error)=>error.statusCode===409,
       JSON.stringify(extra)
     );
-    assert(!queries.some((sql)=>sql.includes('INSERT INTO itemshare_requests')),'nothing is written');
+    assert(!queries.some((sql)=>sql.includes('INSERT INTO guildsbounty_requests')),'nothing is written');
   }
 });
 
 await test('the server refuses an offer whose file wrote no count',async()=>{
   const queries=[];
   const connection={execute:async(sql)=>{queries.push(sql);
-    if(/FROM itemshare_always_share a/.test(sql))return [[offerTarget({held_quantity:null,reserve_quantity:0})],[]];
+    if(/FROM guildsbounty_always_share a/.test(sql))return [[offerTarget({held_quantity:null,reserve_quantity:0})],[]];
     return [[],[]];}};
   await assert.rejects(
     store.createRequest(connection,{userId:7,requesterAccounts:['@mine'],itemKind:'offer',itemId:34,quantity:1}),
     (error)=>error.statusCode===409
   );
-  assert(!queries.some((sql)=>sql.includes('INSERT INTO itemshare_requests')),'nothing is written');
+  assert(!queries.some((sql)=>sql.includes('INSERT INTO guildsbounty_requests')),'nothing is written');
 });
 
 await test('the server refuses more requests than an offer has copies',async()=>{
   const connection={execute:async(sql)=>{
-    if(/FROM itemshare_always_share a/.test(sql))return [[offerTarget({held_quantity:3,reserve_quantity:0})],[]];
-    if(/itemshare_requests/.test(sql)&&/SUM/i.test(sql))return [[{reserved:3,total:3,n:3,quantity:3,sum:3}],[]];
+    if(/FROM guildsbounty_always_share a/.test(sql))return [[offerTarget({held_quantity:3,reserve_quantity:0})],[]];
+    if(/guildsbounty_requests/.test(sql)&&/SUM/i.test(sql))return [[{reserved:3,total:3,n:3,quantity:3,sum:3}],[]];
     return [[],[]];}};
   await assert.rejects(
     store.createRequest(connection,{userId:7,requesterAccounts:['@mine'],itemKind:'offer',itemId:34,quantity:1}),

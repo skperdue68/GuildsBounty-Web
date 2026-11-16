@@ -9,6 +9,6 @@
 -- A file from an older addon writes neither, so both columns stay empty and the row draws
 -- a dash - the same thing it drew before this existed. Nothing is inferred: an empty
 -- location means the file did not say, not that the owner keeps it nowhere.
-ALTER TABLE itemshare_always_share
+ALTER TABLE guildsbounty_always_share
   ADD COLUMN IF NOT EXISTS location_key VARCHAR(191) NOT NULL DEFAULT '' AFTER reserve_quantity,
   ADD COLUMN IF NOT EXISTS location_label VARCHAR(255) NOT NULL DEFAULT '' AFTER location_key;

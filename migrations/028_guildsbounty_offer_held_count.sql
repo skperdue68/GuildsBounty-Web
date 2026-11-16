@@ -9,5 +9,5 @@
 -- answer. Existing rows are left alone rather than backfilled: a 0 already stored may be
 -- either meaning, and the next upload of that account writes the truth, because every
 -- always-share row is refreshed from the file on every upload.
-ALTER TABLE itemshare_always_share
+ALTER TABLE guildsbounty_always_share
   MODIFY COLUMN held_quantity INT NULL DEFAULT NULL;

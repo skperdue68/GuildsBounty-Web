@@ -11,5 +11,5 @@
 -- Stored on the person rather than in the session because it is a preference, not a
 -- login: it should survive signing out and follow them to another device.
 
-ALTER TABLE itemshare_users
+ALTER TABLE guildsbounty_users
   ADD COLUMN IF NOT EXISTS browsing_eso_account_name VARCHAR(96) NOT NULL DEFAULT '';

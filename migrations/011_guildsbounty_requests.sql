@@ -12,7 +12,7 @@
 -- status_reason is shown to the person who asked, so it is written as a sentence:
 -- "Ghost Bane is no longer sharing Briarheart Dagger."
 
-CREATE TABLE IF NOT EXISTS itemshare_requests (
+CREATE TABLE IF NOT EXISTS guildsbounty_requests (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   requester_user_id BIGINT UNSIGNED NOT NULL,
   -- The requester's own ESO account, preferring the one that shares a guild with
@@ -36,8 +36,8 @@ CREATE TABLE IF NOT EXISTS itemshare_requests (
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   closed_at TIMESTAMP NULL DEFAULT NULL,
   PRIMARY KEY (id),
-  KEY idx_itemshare_requests_owner (owner_account_name, item_kind, status),
-  KEY idx_itemshare_requests_requester (requester_user_id, status),
-  KEY idx_itemshare_requests_item (shared_item_id),
-  KEY idx_itemshare_requests_offer (always_share_id)
+  KEY idx_guildsbounty_requests_owner (owner_account_name, item_kind, status),
+  KEY idx_guildsbounty_requests_requester (requester_user_id, status),
+  KEY idx_guildsbounty_requests_item (shared_item_id),
+  KEY idx_guildsbounty_requests_offer (always_share_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

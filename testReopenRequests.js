@@ -78,7 +78,7 @@ function fakeConnection({ rows = [], reserved = {}, delivered = {} } = {}) {
     updates,
     queries,
     async execute(sql, params = []) {
-      if (sql.trimStart().startsWith('UPDATE itemshare_requests')) {
+      if (sql.trimStart().startsWith('UPDATE guildsbounty_requests')) {
         updates.push({ sql, params });
         return [{ affectedRows: 1 }, []];
       }
@@ -93,7 +93,7 @@ function fakeConnection({ rows = [], reserved = {}, delivered = {} } = {}) {
         return [[{ delivered: delivered[String(params[params.length - 1])] || 0 }], []];
       }
 
-      if (sql.includes('FROM itemshare_requests r')) {
+      if (sql.includes('FROM guildsbounty_requests r')) {
         queries.push({ kind: 'rows', sql, params });
         return [rows, []];
       }

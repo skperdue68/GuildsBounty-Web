@@ -1,12 +1,12 @@
 -- Standing offers: items the owner will hand out whenever they have one.
 --
--- Deliberately separate from itemshare_shared_items. These rows carry no count
+-- Deliberately separate from guildsbounty_shared_items. These rows carry no count
 -- and no location, because the owner does not necessarily have the item; the
 -- site lists them as an offer rather than as inventory. Keeping them in their
 -- own table also means the addon's rebuild pass, which prunes inventory entries
 -- missing from a readable bag, can never delete them.
 
-CREATE TABLE IF NOT EXISTS itemshare_always_share (
+CREATE TABLE IF NOT EXISTS guildsbounty_always_share (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   account_name VARCHAR(96) NOT NULL,
   character_name VARCHAR(96) NOT NULL DEFAULT '',
@@ -32,18 +32,18 @@ CREATE TABLE IF NOT EXISTS itemshare_always_share (
   first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uniq_itemshare_always_share (account_name, item_key_hash),
-  KEY idx_itemshare_always_share_name (item_name),
-  KEY idx_itemshare_always_share_type (item_type_name),
-  CONSTRAINT fk_itemshare_always_share_upload
-    FOREIGN KEY (upload_id) REFERENCES itemshare_uploads (id) ON DELETE SET NULL
+  UNIQUE KEY uniq_guildsbounty_always_share (account_name, item_key_hash),
+  KEY idx_guildsbounty_always_share_name (item_name),
+  KEY idx_guildsbounty_always_share_type (item_type_name),
+  CONSTRAINT fk_guildsbounty_always_share_upload
+    FOREIGN KEY (upload_id) REFERENCES guildsbounty_uploads (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS itemshare_always_share_guilds (
+CREATE TABLE IF NOT EXISTS guildsbounty_always_share_guilds (
   always_share_id BIGINT UNSIGNED NOT NULL,
   guild_id BIGINT UNSIGNED NOT NULL,
   PRIMARY KEY (always_share_id, guild_id),
-  KEY idx_itemshare_always_share_guilds_guild (guild_id),
-  CONSTRAINT fk_itemshare_always_share_guilds_row
-    FOREIGN KEY (always_share_id) REFERENCES itemshare_always_share (id) ON DELETE CASCADE
+  KEY idx_guildsbounty_always_share_guilds_guild (guild_id),
+  CONSTRAINT fk_guildsbounty_always_share_guilds_row
+    FOREIGN KEY (always_share_id) REFERENCES guildsbounty_always_share (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
