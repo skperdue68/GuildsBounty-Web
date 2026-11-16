@@ -1013,6 +1013,46 @@ await checkAsync('a shelf that changes is written the way a file is written', as
   );
 });
 
+await checkAsync('the piece that leaves is the one the message names', async () => {
+  // The piece that can empty its type out of the menus sits first on the shelf, so "the last
+  // piece on the shelf" and "the piece the message names" are different answers here.
+  const first = ITEMS.findIndex((spec, index) =>
+    ITEMS.some((other, otherIndex) => otherIndex !== index && other.typeName === spec.typeName)
+  );
+  const twin = ITEMS.findIndex(
+    (spec, index) => index !== first && spec.typeName === ITEMS[first].typeName
+  );
+  const alone = ITEMS.findIndex(
+    (spec, index) => index !== first && index !== twin && spec.typeName !== ITEMS[first].typeName
+  );
+
+  assert(alone > -1 && twin > -1 && first > -1, 'MISSING ANCHOR: three catalogue pieces, two of a type');
+
+  const shelf = [alone, first, twin];
+  const connection = fakeConnection();
+  const outcome = await runDemoActivity(connection, {
+    cast: [{ account: '@SomebodyElse', character: 'Somebody-Else', items: shelf, offers: [] }],
+    random: () => 0.9,
+  });
+
+  assert(
+    outcome && outcome.kind === 'stock',
+    `expected a shelf change, got ${outcome && outcome.kind}`
+  );
+  assert(
+    outcome.summary.includes(ITEMS[alone].name),
+    `the message should name ${ITEMS[alone].name}, got "${outcome.summary}"`
+  );
+
+  const written = connection
+    .calls(/INSERT INTO guildsbounty_shared_items/)
+    .map((call) => call.params.join('|'))
+    .join('\n');
+
+  assert(!written.includes(ITEMS[alone].name), 'the piece the message names is not written back');
+  assert(written.includes(ITEMS[twin].name), 'and the pieces behind it on the shelf stay');
+});
+
 check('a piece leaving is the last of its type when there is one', () => {
   // Two pieces of one type and a third of another, so only the third can empty a type out of
   // the menus. It is first on the shelf, so "the last piece" and "the last of its type" give

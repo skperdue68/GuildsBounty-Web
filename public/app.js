@@ -531,6 +531,52 @@ if (listRegion) {
     offer: { type: 'mtype', owner: 'mowner', added: 'madded' },
   };
 
+  // What the list is drawn from, filters and all. It is kept here rather than read back from
+  // the address bar, because the bar is not where a choice belongs: picking a type used to
+  // leave `?type=...&owner=...` sitting in it, to be read, copied or bookmarked by accident.
+  // A link that arrives with filters is read once, on load, and then left behind.
+  let liveSearch = (() => {
+    const params = new URLSearchParams(window.location.search);
+    ['tab', 'answered', 'waiting', 'historyPage'].forEach((name) => params.delete(name));
+
+    return params.toString() ? `?${params.toString()}` : '';
+  })();
+
+  // The names that only ever lead into the page - a tab to open, the answered flag an email
+  // link carries, a page of Already sent - plus every filter. Each is read on load, so each
+  // is taken back out of the bar once the page has drawn itself.
+  const TRANSIENT_PARAMS = [
+    ...new Set(Object.values(FILTER_PARAMS).flatMap((map) => Object.values(map))),
+    'tab',
+    'answered',
+    'waiting',
+    'historyPage',
+  ];
+
+  /** The bar's query with those names taken out. Pure, so the rule can be tried on its own. */
+  function cleanBarQuery(search, names) {
+    const params = new URLSearchParams(String(search || '').replace(/^\?/, ''));
+
+    names.forEach((name) => params.delete(name));
+
+    return params.toString();
+  }
+
+  /** Leaves whatever is not ours in the bar - `?demo=1`, a campaign name - and nothing else. */
+  function cleanAddressBar() {
+    if (!window.history || !window.history.replaceState) {
+      return;
+    }
+
+    const query = cleanBarQuery(window.location.search, TRANSIENT_PARAMS);
+    const path = window.location.pathname;
+    const clean = `${path}${query ? `?${query}` : ''}`;
+
+    if (clean !== `${path}${window.location.search}`) {
+      window.history.replaceState(null, '', clean);
+    }
+  }
+
   // Which page of Already sent is on screen. It is kept here rather than in the address
   // bar: paging is a view of the same page, so it must not rewrite the URL, count as a
   // navigation, or move the reader to a different tab.
@@ -944,13 +990,13 @@ if (listRegion) {
   /**
    * Whether the list is narrowed by its own filter row right now.
    *
-   * Read from the address bar, because that is where the filters travel and what a refresh is
-   * drawn from: a value that is not there is narrowing nothing. An empty value is the "any"
-   * end of a menu, which is the same as having made no choice at all.
+   * Read from what the list is drawn from, not from the address bar: the bar is cleaned of
+   * filter names as soon as they are used, so it can never say what is narrowing the list. An
+   * empty value is the "any" end of a menu, which is the same as having made no choice at all.
    */
   function listHasFilter(list) {
     const names = Object.values(FILTER_PARAMS[list] || {});
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(liveSearch);
 
     return names.some((name) => params.getAll(name).some((value) => String(value).trim() !== ''));
   }
@@ -1327,16 +1373,22 @@ if (listRegion) {
     }
 
     const names = FILTER_PARAMS[filterListOf(form)];
-    const params = new URLSearchParams(window.location.search);
+    const own = Object.values(names);
 
     // The item name is not here any more: the list's own search box narrows the rows on
-    // the page, so nothing about it belongs in the address bar.
+    // the page, so nothing about it belongs in the request.
     //
     // Only this list's names are rewritten. The other list keeps what it was left with, which
     // is the whole point of the two rows: its filters are its own business.
-    Object.values(names).forEach((name) => params.delete(name));
-    Object.values(names).forEach((name) => {
-      chosenValues(form, name).forEach((value) => params.append(name, value));
+    //
+    // The choice goes into `liveSearch`, which the next request is drawn from, and the bar is
+    // cleaned of every filter name instead of being written to. A viewer who copies the address
+    // of a filtered list gets the site, not their own search.
+    const want = new URLSearchParams(liveSearch);
+
+    own.forEach((name) => want.delete(name));
+    own.forEach((name) => {
+      chosenValues(form, name).forEach((value) => want.append(name, value));
     });
 
     renderFilterChips(form);
@@ -1345,13 +1397,11 @@ if (listRegion) {
     // A new filter is a new list, so it starts at the first page rather than at whichever
     // page of the previous list happened to be open.
     liveHistoryPage = null;
-    params.delete('historyPage');
+    want.delete('historyPage');
 
-    const query = params.toString();
+    liveSearch = want.toString() ? `?${want.toString()}` : '';
 
-    if (window.history && window.history.replaceState) {
-      window.history.replaceState(null, '', query ? `/?${query}` : '/');
-    }
+    cleanAddressBar();
 
     scheduleRefresh(0);
   }
@@ -1448,6 +1498,9 @@ if (listRegion) {
     renderFilterMenus(form);
   });
   syncFilterCard();
+  // A link that arrives with its filters chosen is drawn once - `liveSearch` has already read
+  // them - and then leaves them behind, so the bar shows the page and nothing more.
+  cleanAddressBar();
 
   // -------------------------------------------------------- keeping the place
   // The row the reader is looking at: the first one crossing the anchor line. Null
@@ -1664,9 +1717,9 @@ if (listRegion) {
     );
   }
 
-  /** The address bar's filters, with the page being read added in. */
+  /** The filters the list is drawn from, with the page being read added in. */
   function listQuery() {
-    const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(liveSearch);
     const page = listHistoryPage();
 
     if (page > 1) {

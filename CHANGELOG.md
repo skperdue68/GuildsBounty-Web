@@ -16,6 +16,23 @@ landed on `main`.
   a browser - or anything between it and the server - still holding yesterday's copy: reload,
   and the stamp plus every file it loads should be the new one.
 
+### Fixed
+
+- **The demo takes away the piece it named.** The shelf-change scenario picked the last of a
+  type to let go and then wrote the shelf back without its last *position* instead, so the
+  message and the removal could be about two different pieces and the type being watched never
+  left the menus. It now removes exactly the piece it chose.
+
+### Changed
+
+- **The address bar shows the page, not the search.** Choosing a filter used to rewrite the
+  location (`/?type=Furnishing&mtype=...`), and the one-shot names links arrive with - `?tab=`,
+  `?answered=`, `?waiting=1`, `?historyPage=` - stayed in the bar after they had been read. The
+  filters now live in the page (the list is drawn from them, so a refresh or a live push still
+  asks for the same rows) and the bar is cleaned as the page draws itself, leaving anything that
+  is not ours - `?demo=1` - alone. A link that arrives with filters chosen is still drawn with
+  them, once.
+
 ### Added
 
 - **Escape closes an open filter menu.** The summary opens the box from the keyboard, so the
