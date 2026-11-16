@@ -451,7 +451,11 @@ t('a folded heading keeps its count, hides its rows and points its caret', () =>
   assert.match(html, /Weapons <span class="type-count">\(2\)<\/span>/, 'the count is still true');
   assert.match(html, /data-item-key="inv:1" hidden/, 'Briarheart Dagger is away with it');
   assert.match(html, /data-item-key="inv:4" hidden/, 'and so is Hunting Bow');
-  assert.match(html, /data-item-key="inv:2" data-search/, 'Apparel is untouched');
+  assert.match(
+    html,
+    /data-item-key="inv:2" data-type-name="Apparel" data-search/,
+    'Apparel is untouched'
+  );
   assert.match(
     html,
     /data-type-toggle="Apparel" data-group-list="request" aria-expanded="true"/,

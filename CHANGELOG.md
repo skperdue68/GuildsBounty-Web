@@ -72,6 +72,15 @@ landed on `main`.
 
 ### Fixed
 
+- **Every count beside a type now comes from the rows on the page.** The number in the Type menu
+  was whatever the page was first sent, so after a live push - somebody uploading, an offer
+  running out - it kept counting rows that were no longer there until the page was reloaded.
+  It is now read back off the rows themselves every time they change, in the same pass that
+  recounts the category headings, so the menu and the headings cannot disagree; a type with no
+  rows left stops being an option, and the card is drawn again on each push rather than merged
+  so a new type arrives with an option to pick. Folding or searching still only hides rows, so
+  neither moves a count.
+
 - **Browse Offers only offers the types and owners it actually lists.** Its menus were built
   from every row the viewer could see, which included their own bag and bank - so the Type menu
   offered Apparel, Recipe, Weapon and the rest from My Inventory even when the guild was only

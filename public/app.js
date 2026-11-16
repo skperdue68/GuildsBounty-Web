@@ -334,6 +334,37 @@ function reconcileLiveNode(current, next) {
   reconcileLiveChildren(current, next);
 }
 
+/**
+ * The filter card, drawn again from the render that just arrived.
+ *
+ * The menus, their options and the counts beside those options are the server's answer for
+ * the rows it just sent, so keeping the old ones around is how a closed menu ended up showing
+ * yesterday's numbers. Only the open menus are carried across: they are the reader's place,
+ * not the server's.
+ */
+function drawFilterCard(card, content) {
+  const open = new Set();
+
+  for (const form of card.querySelectorAll('[data-filters]')) {
+    const list = form.dataset.filterList === 'offer' ? 'offer' : 'request';
+
+    Array.from(form.querySelectorAll('details')).forEach((details, index) => {
+      if (details.open) open.add(`${list}:${index}`);
+    });
+  }
+
+  card.textContent = '';
+  card.appendChild(content.cloneNode(true));
+
+  for (const form of card.querySelectorAll('[data-filters]')) {
+    const list = form.dataset.filterList === 'offer' ? 'offer' : 'request';
+
+    Array.from(form.querySelectorAll('details')).forEach((details, index) => {
+      details.open = open.has(`${list}:${index}`);
+    });
+  }
+}
+
 function reconcileLiveChildren(current, next) {
   const oldChildren = Array.from(current.childNodes);
   const keyed = new Map(oldChildren.map(node => [liveNodeKey(node), node]).filter(([key]) => key));
@@ -739,6 +770,61 @@ if (listRegion) {
         }
       }
     }
+
+  }
+
+  /**
+   * What each type's menu entry counts: the rows of that type on the page.
+   *
+   * Read back from the rows rather than from what the page was first sent, because the rows
+   * are what changed - a live push, a search, an offer fading out - and the number beside a
+   * type has to follow them or it is describing a list the reader is not looking at. A type
+   * with no rows left stops being a choice: it is taken out of the menu, which leaves the menu
+   * listing exactly what its list has. While a word is being searched for, the options stay
+   * where they are and only the counts narrow, so clearing the word brings them back.
+   */
+  function syncTypeCounts() {
+    for (const form of filterForms()) {
+      const list = filterListOf(form);
+      const name = (FILTER_PARAMS[list] || {}).type;
+
+      if (!name) continue;
+
+      const menu = Array.from(form.querySelectorAll('[data-filter-menu]')).find((entry) =>
+        entry.querySelector(`input[data-filter][name="${name}"]`)
+      );
+
+      if (!menu) continue;
+
+      const counts = new Map();
+
+      // A folded row is still a row, so folding a type does not change its number; a row
+      // that has left the page - a push, a search, an offer that ran out - is simply gone.
+      for (const row of listRegion.querySelectorAll(
+        `table[data-list="${list}"] tbody tr[data-type-name]`
+      )) {
+        const type = row.getAttribute('data-type-name');
+
+        if (type) counts.set(type, (counts.get(type) || 0) + 1);
+      }
+
+      // A list with no rows at all says nothing about the types it has; its menus are left
+      // exactly as the server drew them.
+      if (counts.size === 0) continue;
+
+      for (const box of menu.querySelectorAll(`input[data-filter][name="${name}"]`)) {
+        const option = box.closest('.filter-option');
+        const count = option ? option.querySelector('.filter-option-count') : null;
+        const total = counts.get(box.value) || 0;
+
+        if (count) count.textContent = `(${total})`;
+
+        // A type the list is not drawing any more is not a choice any more. The server has
+        // already dropped it from the address bar, so nothing ticked disappears under the
+        // reader: what is left is exactly the list in front of them.
+        if (option) option.hidden = total === 0;
+      }
+    }
   }
 
   function updateSearchClear(tab) {
@@ -1071,8 +1157,8 @@ if (listRegion) {
           checked.length === 0
             ? allLabel
             : checked.length === 1
-              ? checked[0].closest('.filter-option')?.querySelector('span')?.textContent ||
-                checked[0].value
+              ? checked[0].closest('.filter-option')?.querySelector('[data-filter-label]')
+                  ?.textContent || checked[0].value
               : `${checked.length} chosen`;
       }
       if (badge) {
@@ -1400,10 +1486,11 @@ if (listRegion) {
     const filterCard = document.getElementById('itemFilters');
 
     if (filterCard && filterTemplate && filterTemplate.content.childElementCount) {
-      // Preserve the rows themselves, and the menus and chips inside them, as the facets come
-      // and go. Which row is on screen - and whether the card is drawn at all - is decided by
-      // syncFilterCard() once the new markup is in place.
-      reconcileLiveChildren(filterCard, filterTemplate.content);
+      // Drawn again rather than merged. A menu keeps its numbers inside its own options, and a
+      // merge that matched those options by position could leave a type counting the rows it
+      // had before an upload. Which menus were open is the one thing worth carrying over; the
+      // rest is what the server has just worked out.
+      drawFilterCard(filterCard, filterTemplate.content);
     }
 
     const rowTops = captureRowTops(listRegion);
@@ -1421,6 +1508,9 @@ if (listRegion) {
     noteClosedRequests();
     syncRequestDialog();
     applyListSearch();
+    // The rows are new, so the numbers that count them are read back off the page: a menu
+    // that still says what it said before the push is the one thing a reader cannot check.
+    syncTypeCounts();
     syncFilterCard();
   }
 
