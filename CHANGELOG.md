@@ -157,6 +157,10 @@ landed on `main`.
 
 ### Changed
 
+- **A short handover is confirmed as "1 of 2".** Answering a request for two with one copy said
+  "Fulfilled 1 × Item", which read as though one had been asked for. The confirmation carries both
+  numbers whenever they differ, and stays the single number when the whole ask went.
+
 - **The controls the browser draws are the site's too.** A select's black chevron on a dark box, a
   white tick box, a light dropdown list, the stepper arrows in a number box and a focus ring that
   followed the operating system's accent were the last pieces of the page that came from the

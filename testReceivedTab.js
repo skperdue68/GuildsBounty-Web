@@ -446,6 +446,26 @@ t('the one-off backfill zeroes what old cancellations recorded as sent', () => {
   assert.match(sql, /AND quantity > 0/, 'leaving a basket row its copies, and a fixed row alone');
 });
 
+t('a short handover is confirmed with both numbers, and a whole one with one', () => {
+  const answered = (asked, sent) => ({
+    rows: [{ itemName: 'Hunting Bow', requesterAccount: '@Dee', asked, sent, status: 'fulfilled' }],
+    fulfilled: 1,
+    cancelled: 0,
+    copies: sent,
+  });
+
+  assert.match(
+    render({ answered: answered(2, 1) }),
+    /Fulfilled 1 of 2 \u00d7 Hunting Bow for @Dee\./,
+    'one of two says so'
+  );
+  assert.match(
+    render({ answered: answered(2, 2) }),
+    /Fulfilled 2 \u00d7 Hunting Bow for @Dee\./,
+    'and a whole ask is just its number'
+  );
+});
+
 t('a count like "0 of 10" is never broken over two lines', () => {
   const css = read('public/styles.css');
 
