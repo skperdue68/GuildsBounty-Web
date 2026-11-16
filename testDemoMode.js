@@ -1397,6 +1397,13 @@ check('a re-saved file moves a stack, up or down, and keeps every piece', () => 
   );
 });
 
+check('a shelf with nothing on it is a refresh that does nothing', () => {
+  const empty = refreshedShelf([]);
+
+  assert(empty.items.length === 0 && empty.moved.length === 0, 'no pieces, no moves, no crash');
+  assert(refreshedShelf(null).moved.length === 0, 'and nothing handed in is not a crash either');
+});
+
 check('a refresh never counts one row twice', () => {
   for (const pick of [0, 0.3, 0.6, 0.9]) {
     const { moved } = refreshedShelf(refreshShelf(), {
@@ -1411,18 +1418,24 @@ check('a refresh never counts one row twice', () => {
   }
 });
 
-check('the demo says what its guildmates did, in the page rather than only the log', () => {
+check('the demo says what its guildmates did, in the banner rather than as a toast', () => {
   const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
   const from = app.indexOf("socket.on('items:changed'");
-  const handler = app.slice(from, from + 700);
+  const handler = app.slice(from, from + 800);
+  const views = readFileSync(new URL('./lib/views.js', import.meta.url), 'utf8');
 
   assert(from > 0, 'the list still listens for a change');
   assertMatch(handler, /payload\.demo/, 'only a push from the demo copy says anything');
   assertMatch(
     handler,
-    /showToast\(payload\.message, 'info'\)/,
-    'and it is the same toast an upload result uses'
+    /querySelector\('\[data-demo-activity\]'\)/,
+    'and the sentence goes into the banner'
   );
+  assert(
+    !/showToast/.test(handler),
+    'not into a toast, which would replace whatever the visitor is reading every tick'
+  );
+  assertMatch(views, /class="demo-activity" data-demo-activity hidden/, 'the banner carries the line');
 });
 
 check('the refresh summary reads exactly like the upload box does', () => {

@@ -2572,12 +2572,17 @@ if (listRegion) {
       scheduleRefresh();
 
       // The demo copy's guildmates act on their own, and until now what they had done was
-      // only in the server's log. It is said here instead, in the same toast a saved file's
-      // result uses - so a visitor sees "@NightMarket re-saved their file: 0 items removed,
-      // 0 items added, 2 items refreshed" the way they would see it after an upload. The
-      // marker is only on demo pushes, so an ordinary page never shows one.
+      // only in the server's log. It is written into the demo banner rather than shown as a
+      // toast: one of these arrives every fifteen seconds or so, and a toast that replaces
+      // whatever the visitor is reading - including their own "3 copies reserved" - is
+      // noise. The marker is only on demo pushes, so an ordinary page never shows one.
       if (payload && payload.demo && payload.message) {
-        showToast(payload.message, 'info');
+        const line = document.querySelector('[data-demo-activity]');
+
+        if (line) {
+          line.textContent = payload.message;
+          line.hidden = false;
+        }
       }
     });
     // Addressed to this person only, and carrying the total rather than a change: two tabs

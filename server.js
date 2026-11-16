@@ -3988,14 +3988,14 @@ async function tickDemoActivity() {
 
     // Only when it moved: a tick that announced the same number every fifteen seconds would
     // fill the log with an event nobody can see.
-    for (const badge of (outcome && outcome.badges) || []) {
+    for (const badge of outcome?.badges || []) {
       if (demoBadgeCount !== badge.count) {
         demoBadgeCount = badge.count;
         realtime.notifyPendingRequests(badge.userId, badge.count);
       }
     }
 
-    if (outcome && outcome.activity) {
+    if (outcome?.activity) {
       realtime.notifyDemoChange('simulation', outcome.activity.summary);
       logLine(`[DEMO] ${outcome.activity.summary}`);
     }

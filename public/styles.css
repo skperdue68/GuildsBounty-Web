@@ -3001,6 +3001,20 @@ th .sort-link {
 
 /* The demo pair is the one thing somebody may want before they have an account, so it is
    a box and a size up rather than another grey hint. */
+/* What the demo copy's guildmates have just done, in the banner: the sentence an upload
+   result gives ("0 items removed, 0 items added, 2 items refreshed"), one line, replaced by
+   the next. It sits here rather than in a toast because it arrives every fifteen seconds or
+   so, and a toast would keep taking the screen from whatever the visitor is reading. */
+.demo-activity {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid rgba(96, 165, 250, 0.55);
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.1);
+  font-size: 12.5px;
+  color: var(--muted-strong);
+}
+
 .demo-callout {
   margin: 16px 0 0;
   padding: 16px 18px;
