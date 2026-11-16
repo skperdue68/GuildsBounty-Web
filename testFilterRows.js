@@ -287,8 +287,13 @@ t('the counts are read back off the page, not from what it was first sent', () =
     /table\[data-list="\$\{list\}"\] tbody tr\[data-type-name\]/,
     'it counts the rows of its own list'
   );
-  assert.match(app, /count\.textContent = `\(\$\{total\}\)`/, 'and writes the number beside the type');
-  assert.match(app, /option\.hidden = total === 0/, 'a type with no rows stops being a choice');
+  assert.match(
+    app,
+    /count\.textContent = `\(\$\{counts\.get\(box\.value\) \|\| 0\}\)`/,
+    'and writes the number beside the type'
+  );
+  assert.doesNotMatch(app, /option\.hidden = /, 'a type is never taken out of the menu by the page');
+  assert.doesNotMatch(app, /dropped\) applyFilters/, 'and no count ever throws a choice away');
   assert.doesNotMatch(app, /drawFilterCard/, 'the card is not rebuilt from a template any more');
   assert.match(
     app,
@@ -314,80 +319,63 @@ t('a folded type keeps its rows, so folding cannot move a count', () => {
 });
 
 
-// --------------------------------------------------- a type that has gone leaves the menu
+// ------------------------------------ the menu lists the list, not the slice on screen
 
-t('an option with no rows left is hidden by a rule that can actually hide it', () => {
-  const css = read('public/styles.css');
+// The rows a filtered page carries are the chosen slice of the list, so counting them said
+// every type the reader had not chosen was empty. Choosing one type then emptied the box of
+// all the others, and there was no way back to them but resetting the whole row.
 
-  assert.match(
-    css,
-    /\.filter-option\[hidden\]\s*\{[^}]*display:\s*none/,
-    'the display on .filter-option outranks [hidden], so the menu restates it'
-  );
-});
-
-t('the last row of a ticked type takes the tick and the chip with it', () => {
+t('a list narrowed by its filter row leaves every type in the menu', () => {
   const app = read('public/app.js');
   const source = functionSource(app, 'syncTypeCounts');
 
-  const options = {};
-  const boxes = {};
-
-  for (const [type, checked] of [
-    ['Weapons', true],
-    ['Apparel', false],
-  ]) {
-    const count = { textContent: '(1)' };
-    const option = { hidden: false, querySelector: (selector) => (selector === '.filter-option-count' ? count : null) };
-    const box = { value: type, checked, closest: () => option };
-
-    options[type] = { option, count };
-    boxes[type] = box;
-  }
-
-  const menu = {
-    querySelector: () => boxes.Weapons,
-    querySelectorAll: () => [boxes.Weapons, boxes.Apparel],
-  };
+  const weapons = { textContent: '(2)' };
+  const weaponsOption = { hidden: false, querySelector: () => weapons };
+  const weaponsBox = { value: 'Weapons', checked: false, closest: () => weaponsOption };
+  const apparel = { textContent: '(3)' };
+  const apparelOption = { hidden: false, querySelector: () => apparel };
+  const apparelBox = { value: 'Apparel', checked: true, closest: () => apparelOption };
+  const menu = { querySelector: () => apparelBox, querySelectorAll: () => [weaponsBox, apparelBox] };
   const form = { dataset: { filterList: 'request' }, querySelectorAll: () => [menu] };
-  const rowsLeft = [{ getAttribute: () => 'Apparel', hasAttribute: () => false }];
   const asked = [];
 
-  const listRegion = { querySelectorAll: () => rowsLeft };
   const sync = new Function(
     'filterForms',
     'filterListOf',
     'FILTER_PARAMS',
     'listRegion',
     'applyFilters',
-    `${source}
-return syncTypeCounts;`
+    'listHasFilter',
+    `${source}\nreturn syncTypeCounts;`
   )(
     () => [form],
     (node) => (node.dataset.filterList === 'offer' ? 'offer' : 'request'),
-    { request: { type: 'type', owner: 'owner', added: 'added' }, offer: {} },
-    listRegion,
-    (node) => asked.push(node)
+    { request: { type: 'type', owner: 'owner', added: 'added' } },
+    { querySelectorAll: () => [{ getAttribute: () => 'Apparel', hasAttribute: () => false }] },
+    (node) => asked.push(node),
+    () => true
   );
 
   sync();
 
-  assert.equal(options.Weapons.count.textContent, '(0)', 'Weapons counts nothing');
-  assert.equal(options.Weapons.option.hidden, true, 'and is drawn away');
-  assert.equal(boxes.Weapons.checked, false, 'the tick goes with it');
-  assert.equal(options.Apparel.option.hidden, false, 'the type that still has rows stays');
-  assert.equal(options.Apparel.count.textContent, '(1)', 'counting its row');
-  assert.deepEqual(asked, [form], 'and the list is asked again without the value');
+  assert.equal(weapons.textContent, '(2)', 'the type the reader did not choose keeps its number');
+  assert.equal(weaponsOption.hidden, false, 'and stays in the menu');
+  assert.equal(apparel.textContent, '(3)', 'the chosen one keeps its number too');
+  assert.equal(apparelBox.checked, true, 'with its tick');
+  assert.deepEqual(asked, [], 'and nothing reloads just to tidy a menu');
 });
 
-t('a ticked type that still has rows keeps its tick and asks for nothing', () => {
+t('a type whose rows have gone keeps its place until the server redraws the list', () => {
   const app = read('public/app.js');
   const source = functionSource(app, 'syncTypeCounts');
 
-  const count = { textContent: '(0)' };
-  const option = { hidden: true, querySelector: () => count };
-  const box = { value: 'Weapons', checked: true, closest: () => option };
-  const menu = { querySelector: () => box, querySelectorAll: () => [box] };
+  const weapons = { textContent: '(2)' };
+  const weaponsOption = { hidden: false, querySelector: () => weapons };
+  const weaponsBox = { value: 'Weapons', checked: false, closest: () => weaponsOption };
+  const apparel = { textContent: '(3)' };
+  const apparelOption = { hidden: false, querySelector: () => apparel };
+  const apparelBox = { value: 'Apparel', checked: false, closest: () => apparelOption };
+  const menu = { querySelector: () => apparelBox, querySelectorAll: () => [weaponsBox, apparelBox] };
   const form = { dataset: { filterList: 'request' }, querySelectorAll: () => [menu] };
   const asked = [];
 
@@ -397,24 +385,38 @@ t('a ticked type that still has rows keeps its tick and asks for nothing', () =>
     'FILTER_PARAMS',
     'listRegion',
     'applyFilters',
-    `${source}
-return syncTypeCounts;`
+    'listHasFilter',
+    `${source}\nreturn syncTypeCounts;`
   )(
     () => [form],
     () => 'request',
     { request: { type: 'type', owner: 'owner', added: 'added' } },
-    {
-      querySelectorAll: () => [{ getAttribute: () => 'Weapons', hasAttribute: () => false }],
-    },
-    (node) => asked.push(node)
+    { querySelectorAll: () => [{ getAttribute: () => 'Apparel', hasAttribute: () => false }] },
+    (node) => asked.push(node),
+    () => false
   );
 
   sync();
 
-  assert.equal(count.textContent, '(1)', 'the number follows the row back');
-  assert.equal(option.hidden, false, 'and the option is drawn again');
-  assert.equal(box.checked, true, 'the reader keeps their choice');
+  assert.equal(weapons.textContent, '(0)', 'the type with nothing under it counts nothing');
+  assert.equal(weaponsOption.hidden, false, 'but is still a choice, because a push may bring it back');
+  assert.equal(apparel.textContent, '(1)', 'and the type that has its row counts it');
   assert.deepEqual(asked, [], 'with no request in flight');
+});
+
+t('what a list can offer is drawn without the filters, so one choice cannot empty the box', () => {
+  const store = read('lib/store.js');
+
+  assert.match(
+    store,
+    /export async function getViewerFacets\(connection, accountNames, ownAccountNames = \[\]\)/,
+    'the facet query is asked for no filters at all'
+  );
+  assert.match(
+    store,
+    /Item types and owner accounts present in what the viewer can see[\s\S]{0,200}Not affected by the active filters\./,
+    'and says so, because the menus are the list and not the slice'
+  );
 });
 
 
@@ -694,7 +696,17 @@ t('the band pins between the tabs and the search, and neither covers it', () => 
     /\.filter-band \{[^}]*top: calc\(var\(--sticky-top, 0px\) \+ var\(--list-head-h, 0px\)\);/,
     'under the tab row'
   );
-  assert.match(css, /\.filter-band \{[^}]*z-index: 12;/, 'at the tab row’s level');
+  // Layer order, bottom to top: column headings 11, search row 13, filter band 15, the
+  // subhead that takes the pinned row over 16. The band has to be above the search row,
+  // because an open dropdown is its child and cannot climb out of the band's layer: at 12 the
+  // bottom of a long type menu was drawn behind the search row.
+  assert.match(css, /\.filter-band \{[^}]*z-index: 15;/, 'the band sits above the search row');
+  assert.match(css, /\.list-tools \{[^}]*z-index: 13;/, 'which is 13');
+  assert.match(
+    css,
+    /\.filter-menu-list \{[^}]*z-index: 20;/,
+    'and the open menu is drawn above the band it hangs from'
+  );
 
   assert.match(
     css,

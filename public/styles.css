@@ -472,6 +472,58 @@ code {
   display: none;
 }
 
+/* A file can be dropped anywhere on the site, so while one is being carried over the page the
+   whole page says so. It is only painted: the pointer is left to the page underneath, or the
+   overlay would answer its own drag and flicker. */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(3, 8, 20, 0.66);
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+.drop-overlay[hidden] {
+  display: none;
+}
+
+.drop-overlay::after {
+  content: '';
+  position: absolute;
+  inset: 18px;
+  border: 2px dashed rgba(147, 197, 253, 0.75);
+  border-radius: 16px;
+}
+
+.drop-overlay-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+
+.drop-overlay-file {
+  font-size: 13px;
+  color: var(--muted-strong);
+}
+
+/* The words sit above the dashed frame, which is drawn by the overlay rather than around it. */
+.drop-overlay-title,
+.drop-overlay-file {
+  position: relative;
+  z-index: 1;
+  display: block;
+  text-align: center;
+}
+
+.drop-overlay-title {
+  margin-bottom: 6px;
+}
+
 .actions {
   margin-top: 16px;
   display: flex;
@@ -1274,7 +1326,10 @@ a.primary-button {
 .filter-band {
   position: sticky;
   top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
-  z-index: 12;
+  /* Above the search row it sits over (13): an open dropdown is a child of this band, so the
+     band's own layer decides whether the menu can be seen at all - at 12 the menu was below
+     the search row and the bottom of a long list of types disappeared behind it. */
+  z-index: 15;
   padding: 16px 0 18px;
   background: rgba(9, 20, 45, 0.92);
   backdrop-filter: blur(10px);
@@ -1657,16 +1712,17 @@ a.primary-button {
 .subhead.list-sticky {
   position: sticky;
   top: var(--sticky-top, 0px);
-  z-index: 14;
+  /* Above the filter band (15), which it can meet on the way past. */
+  z-index: 16;
   /* As tall as the line of tabs it replaces, so the column headings below pin at the same
-     line either way and nothing shows between the two bars. The space under it is padding,
-     for the same reason the tab bar's is. */
+     line either way and nothing shows between the two bars. It used to be as tall as the tabs
+     and the filter band and the search row together, which left a bar of empty colour as deep
+     as all three around one line of words - the space the reader was looking at. The space
+     under it is padding, for the same reason the tab bar's is. */
   display: flex;
   align-items: center;
-  min-height: calc(
-    var(--list-head-h, 0px) + var(--list-band-h, 0px) + var(--list-tools-h, 0px)
-  );
-  margin: 20px -24px 0;
+  min-height: var(--list-head-h, 0px);
+  margin: 14px -24px 0;
   padding: 0 24px;
   background: rgba(9, 20, 45, 0.95);
   backdrop-filter: blur(10px);
