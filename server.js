@@ -847,15 +847,35 @@ app.get('/how-to', (req, res) => {
 // every tick.
 let demoDatabaseReady = false;
 
+// A database this process made belongs to the account it connected as only if that account
+// was granted it, and MariaDB grants per name: an account given `guildsbounty.*` can create
+// `guildsbounty-demo` and then not touch a single table in it. The grant is made as the
+// database is made, and a refusal - GRANT needs GRANT OPTION, which an application account
+// normally does not have - is printed with the one statement an administrator has to run.
+function reportDatabaseGrant(label, grant) {
+  if (!grant) {
+    return;
+  }
+
+  if (grant.granted) {
+    logLine(`${label}: granted ${grant.account} the privileges it needs`);
+    return;
+  }
+
+  warnLine(`${label}: could not grant ${grant.account} its own privileges - ${grant.error}`);
+  warnLine(`${label}: run this once as an administrator: ${grant.statement}`);
+}
+
 // Migrations run once at startup, in both databases; request connections just use the
 // database that belongs to whoever is asking.
 async function prepareDatabase() {
   const config = readConfig();
-  const { connection, migrations } = await openDatabase(config);
+  const { connection, migrations, grant } = await openDatabase(config);
 
   await connection.end();
   logLine(`Database ready: ${config.database} on ${config.host}:${config.port}`);
   logLine(`Migrations: ${migrations.length ? migrations.join(', ') : 'already up to date'}`);
+  reportDatabaseGrant('Database', grant);
 
   // The demo sign-in lives in its own database - a real person, one ESO account, one
   // guild and a shelf of items, made here, once, rather than on the first page view -
@@ -871,6 +891,7 @@ async function prepareDatabase() {
     demoConfig = demoDatabaseConfig(config);
     const opened = await openDatabase(demoConfig, { recreate: true });
     demoConnection = opened.connection;
+    reportDatabaseGrant('Demo database', opened.grant);
 
     // Filled from the site's own rows before the demo's curated guild goes on top, so a
     // visitor can walk through several guilds, real-looking items and requests rather

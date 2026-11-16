@@ -7,6 +7,15 @@ landed on `main`.
 
 ### Changed
 
+- **The demo database is granted to the site's own account as it is made.** MariaDB grants per
+  database name, so an account holding `guildsbounty.*` could create `guildsbounty-demo` and
+  then be refused every table in it, and the demo reported itself not ready until somebody ran
+  a second `GRANT` by hand. A database the site creates now comes with the privileges the
+  account that created it needs on that one database (SELECT, INSERT, UPDATE, DELETE, CREATE,
+  DROP, ALTER, INDEX, REFERENCES, LOCK TABLES), and the boot log confirms it. `GRANT` needs
+  `GRANT OPTION`, which an application account normally does not have; where it is refused,
+  the log prints the statement to run as an administrator instead of failing.
+
 - **The site has one name, everywhere.** The package, the cookies that remember sorting,
   grouping and folded types (`guildsbounty_sort`, `guildsbounty_group`, `guildsbounty_collapsed`
   and the rest, one per list), the keys the browser keeps to itself, the `X-GuildsBounty-*`
