@@ -46,6 +46,15 @@ landed on `main`.
 
 ### Changed
 
+- **Every scrollbar is the site's own.** The filter menus had blue scrollbars and nothing else
+  did, so a dialog, the avatar menu, a table too wide for the window and the page itself still
+  showed the browser's pale grey slab. They are now drawn in one block near the top of
+  `public/styles.css`: thin, in the same blue the controls use, with the track left out and a
+  brighter thumb under the pointer. It is one block rather than one per element, and it matches
+  every element, so a scroller added later is drawn the same way without being told.
+
+### Changed
+
 - **A chip is removed by its ×, not by clicking the word.** The whole chip was a button, so a
   click anywhere on it - or a stray one while reaching for a menu above - threw the choice
   away. The chip is a label now and the × inside it is the button, with the red hover on the ×

@@ -949,6 +949,55 @@ t('a chosen filter is kept in the page, not in the address bar', () => {
   );
 });
 
+t('any scrollbar the page draws is drawn in the site\u2019s blues', () => {
+  const css = read('public/styles.css');
+
+  assert.match(
+    css,
+    /:root \{[^}]*--scroll-thumb: rgba\(96, 165, 250, 0\.42\);/,
+    'the thumb is the blue the rest of the controls use'
+  );
+  assert.match(css, /:root \{[^}]*--scroll-thumb-hover:/, 'with a brighter one for the pointer');
+  assert.match(css, /:root \{[^}]*--scroll-size: /, 'and one width for every scroller');
+
+  // Firefox reads these, and inherits them, so a scroller added later is covered too.
+  assert.match(
+    css,
+    /html \{[^}]*scrollbar-width: thin;[^}]*scrollbar-color: var\(--scroll-thumb\) transparent;/,
+    'thin, in the palette\u2019s colour, with no track'
+  );
+
+  // Chromium: matched everywhere with `*`, for the same reason.
+  assert.match(
+    css,
+    /\*::-webkit-scrollbar \{[^}]*width: var\(--scroll-size\);[^}]*height: var\(--scroll-size\);/,
+    'one size, vertical and horizontal alike'
+  );
+  assert.match(
+    css,
+    /\*::-webkit-scrollbar-thumb \{[^}]*background: var\(--scroll-thumb\);[^}]*background-clip: content-box;/,
+    'the thumb is the site\u2019s own'
+  );
+  assert.match(
+    css,
+    /\*::-webkit-scrollbar-thumb:hover \{[^}]*background: var\(--scroll-thumb-hover\);/,
+    'and brightens under the pointer'
+  );
+  assert.match(
+    css,
+    /\*::-webkit-scrollbar-track,[^}]*\{[^}]*background: transparent;/,
+    'the track stays out of the way'
+  );
+
+  // One block, not one per element: the menu used to carry its own copy of these rules.
+  assert.doesNotMatch(
+    css,
+    /\.filter-menu-list::-webkit-scrollbar/,
+    'the menu no longer carries a copy of its own'
+  );
+  assert.doesNotMatch(css, /scrollbar-color:\s*rgba/, 'and nothing sets a colour of its own');
+});
+
 t('the controls the browser draws itself are drawn the site\u2019s way', () => {
   const css = read('public/styles.css');
 
