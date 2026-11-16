@@ -3925,11 +3925,14 @@ if (SWEEP_INTERVAL_MS > 0) {
 // The sandbox's other people. One small action per tick, while a demo page is open, taken
 // against the demo database and announced to the demo room only. A quiet copy with no
 // page open costs one comparison per tick.
+// Forty-five seconds on average, not fifteen: every action that is not the visitor's own
+// re-save moves a quantity on the board, and a stack changing under a reader every quarter of
+// a minute is a copy that looks like it is malfunctioning rather than one somebody uses.
 const DEMO_ACTIVITY_MS = (() => {
-  const configured = Number(process.env.DEMO_ACTIVITY_MS ?? 15000);
+  const configured = Number(process.env.DEMO_ACTIVITY_MS ?? 45000);
 
   if (!Number.isFinite(configured)) {
-    return 15000;
+    return 45000;
   }
 
   return configured <= 0 ? 0 : Math.max(3000, Math.trunc(configured));
@@ -3996,7 +3999,14 @@ async function tickDemoActivity() {
     }
 
     if (outcome?.activity) {
-      realtime.notifyDemoChange('simulation', outcome.activity.summary);
+      // Only the visitor's own file being read again is announced: that is the one thing a
+      // saved upload would tell them, and the banner is where the demo says it. Everything
+      // else is a guildmate going about their business - a real site notifies nobody about
+      // another owner's stack, the tabs just show the new number on the next push.
+      if (outcome.activity.mine) {
+        realtime.notifyDemoChange('simulation', outcome.activity.summary);
+      }
+
       logLine(`[DEMO] ${outcome.activity.summary}`);
     }
   } catch (error) {

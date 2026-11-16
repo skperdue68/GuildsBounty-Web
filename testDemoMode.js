@@ -48,6 +48,7 @@ import {
   DEMO_ASK_TTL_MS,
   DEMO_RESTOCK_MS,
   abandonedAsksSql,
+  demoOwnAccount,
   shouldRestock,
 } from './lib/demoShelf.js';
 import { AGE_HOURS, planAges, untouchedRowsSql } from './lib/itemAges.js';
@@ -602,11 +603,14 @@ check('the demo lets go of asks nobody was going to answer', () => {
   assert(DEMO_ASK_TTL_MS === 120000, `two minutes, not ${DEMO_ASK_TTL_MS}`);
 });
 
-check('a demo restock runs at most once a minute', () => {
+check('a demo restock runs at most every few minutes', () => {
   assert(shouldRestock(0, 5000), 'the first call always runs');
-  assert(!shouldRestock(1000, 1000 + DEMO_RESTOCK_MS - 1), 'never twice inside the minute');
-  assert(shouldRestock(1000, 1000 + DEMO_RESTOCK_MS), 'the next minute it runs again');
-  assert(DEMO_RESTOCK_MS === 60000, `a minute, not ${DEMO_RESTOCK_MS}`);
+  assert(!shouldRestock(1000, 1000 + DEMO_RESTOCK_MS - 1), 'never twice inside the window');
+  assert(shouldRestock(1000, 1000 + DEMO_RESTOCK_MS), 'once the window is up it runs again');
+  assert(
+    DEMO_RESTOCK_MS === 3 * 60 * 1000,
+    `three minutes, not ${DEMO_RESTOCK_MS}: a restock puts every count back, so doing it often is visible`
+  );
 });
 
 check('every line the site prints carries the time it happened', () => {
@@ -1221,16 +1225,30 @@ check('a piece arriving prefers a type nobody is sharing yet', () => {
 });
 
 check('the pause between actions is drawn fresh rather than fixed', () => {
-  const shortest = demoActivityPause(15000, () => 0);
-  const longest = demoActivityPause(15000, () => 1);
+  const shortest = demoActivityPause(45000, () => 0);
+  const longest = demoActivityPause(45000, () => 1);
 
-  assert(shortest === 9000, `expected 60% of the base, got ${shortest}`);
-  assert(longest === 21000, `expected 140% of the base, got ${longest}`);
+  assert(shortest === 27000, `expected 60% of the base, got ${shortest}`);
+  assert(longest === 63000, `expected 140% of the base, got ${longest}`);
   assert(
-    shortest !== longest && demoActivityPause(15000, () => 0.5) === 15000,
+    shortest !== longest && demoActivityPause(45000, () => 0.5) === 45000,
     'each action must wait a random time, with the configured interval as the average'
   );
   assert(demoActivityPause(0) === 0, '0 means no activity at all');
+});
+
+check('the demo acts about once a minute rather than every quarter of one', () => {
+  const server = readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const block = server.slice(
+    server.indexOf('const DEMO_ACTIVITY_MS'),
+    server.indexOf('let demoActivityBusy')
+  );
+
+  assert(
+    /DEMO_ACTIVITY_MS \?\? 45000/.test(block) && /return 45000;/.test(block),
+    '45s by default, because every action but one moves a quantity somebody may be reading'
+  );
+  assert(!/15000/.test(block), 'and not the fifteen seconds that made the board churn');
 });
 
 check('a demo page counts as watching until it goes quiet', () => {
@@ -1436,6 +1454,41 @@ check('the demo says what its guildmates did, in the banner rather than as a toa
     'not into a toast, which would replace whatever the visitor is reading every tick'
   );
   assertMatch(views, /class="demo-activity" data-demo-activity hidden/, 'the banner carries the line');
+});
+
+check('the demo re-reads your own file, and that is the only thing it announces', () => {
+  const activity = readFileSync(new URL('./lib/demoActivity.js', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const refresh = activity.slice(activity.indexOf('async function refreshMyShelf'));
+  const own = demoOwnAccount();
+
+  assert(
+    own.accountName === DEMO_ACCOUNT,
+    `the file re-saved must be the demo person's, not ${own.accountName}`
+  );
+  assert(
+    own.items.length === ITEMS.length && own.alwaysShare.length === OFFERS.length,
+    'the whole catalogue, so the shelf is as full as the seeded one'
+  );
+  assert(own.expireDays === DEMO_EXPIRE_DAYS, 'and the LAST CHANCE window travels with it');
+  assert(
+    /kind: 'refresh',\s*mine: true/.test(refresh),
+    "the re-save is marked as the visitor's own"
+  );
+
+  const tick = server.slice(
+    server.indexOf('if (outcome?.activity)'),
+    server.indexOf('Demo activity: nothing happened')
+  );
+
+  assert(
+    /if \(outcome\.activity\.mine\) \{\s*realtime\.notifyDemoChange/.test(tick),
+    "only the visitor's own file reaches the page as a message"
+  );
+  assert(
+    !/if \(outcome\?\.activity\) \{\s*realtime\.notifyDemoChange/.test(server),
+    "a guildmate's stack moving under the list says nothing - the rows just update"
+  );
 });
 
 check('the refresh summary reads exactly like the upload box does', () => {

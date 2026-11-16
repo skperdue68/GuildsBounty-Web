@@ -166,15 +166,22 @@ landed on `main`.
 
 ### Changed
 
-- **The demo's file refresh shows what an upload shows.** A guildmate re-saving their file used to
-  rewrite the same rows and report nothing, so the one thing the site calls a refresh - a piece
-  that stays on the list with its quantity moved - could not be seen at all. The file now comes
-  back with a stack or two re-counted, and the summary reads the way the page under the file drop
-  does: "0 items removed, 0 items added, 2 items refreshed (Soul Gem 3 to 4, Dreugh Wax 1 to 2)".
-  A stack never goes to zero, because that is the piece leaving the shelf rather than a re-count.
-  The line is shown in the demo banner, where a visitor can read it, rather than only in the
-  server's log - and as a line rather than a toast, because one arrives every fifteen seconds or
-  so and a toast would keep taking the screen from whatever is being read.
+- **The demo re-reads your own file, and says what an upload says.** A refresh in the demo used to
+  rewrite another owner's identical rows and report nothing, so the one thing the site calls a
+  refresh - a piece that stays on the list with its quantity moved - could not be seen at all.
+  The demo now re-saves **your** file, a stack or two re-counted, through the same call the file
+  drop makes: "Your saved file was read again: 0 items removed, 0 items added, 2 items refreshed
+  (Soul Gem 3 to 4, Dreugh Wax 1 to 2)". A stack never goes to zero, because that is the piece
+  leaving the shelf rather than a re-count.
+
+- **The demo only announces your own file, and it does so more slowly.** It said what every
+  guildmate had done, as a toast and then as a banner line, and moved a stack somewhere on the
+  board every fifteen seconds or so - quantities changing under a reader, with a message about
+  somebody else's shelf on top of it. Now only the re-save of your own file is announced, in the
+  demo banner rather than a toast; a guildmate's stack, ask or answer simply updates the rows on
+  the next push, the way another owner's always have on a real site. The activity loop's default
+  interval went from 15s to 45s (27-63s at random, `DEMO_ACTIVITY_MS`), and the full-shelf
+  top-up - which rewrites every count back to the catalogue - from once a minute to every three.
 
 - **The guilds you are browsing are named under the count.** The line above the tabs says how many
   items are shared by "members of @X's guilds" and left you to remember which guilds those were;
