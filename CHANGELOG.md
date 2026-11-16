@@ -7,6 +7,13 @@ landed on `main`.
 
 ### Changed
 
+- **An upload writes down every item it added or removed.** The count under the file drop says
+  how many rows moved, but not which ones - so the log now gets a line per item, with its name,
+  the place it sat (*Bank*, *Housing Storage (MISC)*) and the character whose scan it was filed
+  under. A row that goes while the same item is still in the file says who it is filed under
+  now, which is what turns "230 items removed" into an answer. An upload that changed nothing
+  says so, and `journalctl -u <service> | grep '@account'` is then one account's whole history.
+
 - **The demo database is granted to the site's own account as it is made.** MariaDB grants per
   database name, so an account holding `guildsbounty.*` could create `guildsbounty-demo` and
   then be refused every table in it, and the demo reported itself not ready until somebody ran
