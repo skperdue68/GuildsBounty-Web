@@ -183,6 +183,23 @@ landed on `main`.
   interval went from 15s to 45s (27-63s at random, `DEMO_ACTIVITY_MS`), and the full-shelf
   top-up - which rewrites every count back to the catalogue - from once a minute to every three.
 
+- **A restock keeps the counts your file last reported.** The demo topped its shelves back up
+  from the catalogue every minute, which quietly undid a re-count in front of the person
+  watching it - the one silent change on the page with nothing to explain it. It now keeps the
+  count each row already carries, so a re-count survives the restock that follows it.
+
+- **The demo's own file can lose a row, not only move a count.** A re-save only ever moves
+  quantities, so "1 item removed" could never be read in the demo. Once in six actions the
+  visitor's own file is saved with one row gone (and the next re-save brings it back, reading
+  "1 item added"), so both of those numbers arrive from real writes.
+
+- **The list header is measured again when its guild pills wrap.** The block above the tabs
+  grows by a whole line as the window narrows, and its height is what everything below it is
+  offset by. It is now watched directly - along with the site header, the tab row and the
+  filter band - so the tabs and column headings move down with it instead of pinning over the
+  last line of pills. Measured in a browser: at 430px the pills take three lines, the published
+  height goes from 104px to 225px, and the headings start exactly at the block's bottom edge.
+
 - **The guilds you are browsing are named under the count.** The line above the tabs says how many
   items are shared by "members of @X's guilds" and left you to remember which guilds those were;
   each one now has a pill under it, in the pill the accounts card already uses, so a guild reads
@@ -602,6 +619,17 @@ landed on `main`.
 - **Clear filters** is now **Reset**.
 
 ### Added
+
+- **The demo starts with each of the three answers already in its history.** A whole handover
+  (`2`), one sent short (`1 of 2`) and a refusal (`0`) used to appear whenever a guildmate
+  happened to draw that answer, which made the Sent tab awkward to review. Its history is now
+  seeded with one of each, written from the guildmates' real shared rows so the names, quality
+  and owners are real. Written once - a history with rows in it is one somebody is reading.
+
+- **A CI job that runs every test, including the database ones.** Five suites build a real
+  schema and exercise the store against MariaDB; they need a server, which is why they were the
+  ones nobody ran. `.github/workflows/tests.yml` supplies one as a service container and runs
+  each suite by itself, so a failure names the suite instead of hiding behind the others.
 
 - **The page says which build it is.** The stylesheet and every script are now asked for by
   the version of the files this build was made with (`/styles.css?v=…`, `/app.js?v=…`,

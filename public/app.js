@@ -69,8 +69,16 @@ measureStickyBars();
 
 if (typeof ResizeObserver === 'function') {
   const observer = new ResizeObserver(measureStickyBars);
-  const stickyHeader = document.querySelector('.top-bar');
-  if (stickyHeader) observer.observe(stickyHeader);
+
+  // Every bar whose height is published, watched directly. The one that moves without the
+  // window doing anything is the block above the tabs: its guild pills wrap onto a second
+  // line as the window narrows, and the block grows by a whole line - the tabs and headings
+  // below it have to move down with it, or they pin over its last line.
+  for (const selector of ['.top-bar', '.list-top', '.list-head', '.filter-band']) {
+    const bar = document.querySelector(selector);
+    if (bar) observer.observe(bar);
+  }
+
   // The list region is replaced when it refreshes, so the body is watched for it: the tab
   // row can come back at a different height, and a stale offset would leave the headings a
   // few pixels away from the tabs pinned above them.
