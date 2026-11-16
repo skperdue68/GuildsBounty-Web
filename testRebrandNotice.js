@@ -56,7 +56,7 @@ t('a visit by the old name gets the notice', () => {
   const html = page({ newUrl: NEW_URL });
 
   assert.match(html, /data-rebrand-notice/);
-  assert.match(html, /ItemShare is now Guild&rsquo;s Bounty/);
+  assert.match(html, /Guild&rsquo;s Bounty answers here now/);
 });
 
 t('and it names the address to use instead', () => {
@@ -101,7 +101,7 @@ t('ten seconds, or the cross, whichever comes first', () => {
 t('the old name is the one the site used before the rebrand', () => {
   const server = read('server.js');
 
-  assert.match(server, /'itemshare\.perdues\.me'/);
+  assert.match(server, /process\.env\.LEGACY_HOSTS === undefined \? '' :/, 'and no name is old by default');
   assert.match(server, /process\.env\.LEGACY_HOSTS/, 'and it can be changed without a deploy');
 });
 

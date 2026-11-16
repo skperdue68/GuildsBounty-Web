@@ -12,7 +12,7 @@ import { extractShareData } from './lib/savedVars.js';
 import { getAccountSummary, getViewerGuilds } from './lib/store.js';
 
 const twoWorlds = `
-ItemShareSavedVars =
+GuildsBountySavedVars =
 {
     ["Default"] =
     {
@@ -62,7 +62,7 @@ ItemShareSavedVars =
 
 // An older addon: no world anywhere, so nothing about this file may be guessed.
 const olderFile = `
-ItemShareSavedVars =
+GuildsBountySavedVars =
 {
     ["Default"] =
     {
@@ -132,6 +132,13 @@ t('a file with no world says nothing rather than guessing', () => {
   assert.equal(parsed.accountWorlds.size, 0);
   assert.deepEqual(parsed.accounts, ['@old-timer']);
   assert.equal(parsed.alwaysShare.length, 1);
+});
+
+t('a file with neither name is refused, saying which table it wanted', () => {
+  assert.throws(
+    () => extractShareData('SomethingElseSavedVars = { }'),
+    /Could not find a "GuildsBountySavedVars = \{ \.\.\. \}" table/
+  );
 });
 
 // --------------------------------------------------------------- matching in the store

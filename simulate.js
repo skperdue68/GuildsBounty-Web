@@ -976,7 +976,7 @@ try {
 
     if (mine.length === 0) {
       fail(
-        'No real ESO account found. Upload your ItemShareSavedVars.lua on the site first,\n' +
+        'No real ESO account found. Upload your GuildsBountySavedVars.lua on the site first,\n' +
           'so the simulated people have a guildmate to share with.'
       );
       process.exitCode = 1;

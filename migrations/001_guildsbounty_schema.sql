@@ -1,4 +1,4 @@
--- ItemShare stage one schema.
+-- GuildsBounty stage one schema.
 -- Every table is prefixed guildsbounty_ so this database can never be mistaken for
 -- the GuildSync schema even when both live on the same MariaDB server.
 

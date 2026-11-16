@@ -1,4 +1,4 @@
-ItemShareSavedVars =
+GuildsBountySavedVars =
 {
     ["Default"] =
     {

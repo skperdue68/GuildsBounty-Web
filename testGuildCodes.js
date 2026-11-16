@@ -502,7 +502,7 @@ await t('the guide explains the code path before the addon path', async () => {
     'an invited person must not have to read the addon steps first'
   );
   assert.match(page, /Use Guild Code<\/strong> at the top/, 'the code is entered from the top of the page');
-  assert.match(page, /<code>\/itemshare list<\/code>/, 'the addon path is still the whole of the old guide');
+  assert.match(page, /<code>\/guildsbounty list<\/code>/, 'the addon path is still the whole of the old guide');
 });
 
 await t('step 3 carries both game screenshots', async () => {

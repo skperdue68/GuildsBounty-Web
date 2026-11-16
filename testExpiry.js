@@ -27,7 +27,7 @@ function t(label, run) {
 }
 
 function file(scopeExtra) {
-  return `ItemShareSavedVars =
+  return `GuildsBountySavedVars =
 {
     ["Default"] =
     {
@@ -108,7 +108,7 @@ t('a nonsense expireDays is clamped rather than trusted', () => {
 // the row. Two places keeping the same item are one offer, so both rows report one day -
 // and a row whose link is not in the table reports nothing rather than borrowing a date.
 function fileWithTable(tableBody) {
-  return `ItemShareSavedVars =
+  return `GuildsBountySavedVars =
 {
     ["Default"] =
     {
