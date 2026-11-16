@@ -13,7 +13,10 @@ landed on `main`.
   gone out. The handover is now 0 and the ask is kept, so the row reads "0 of 4" and the column
   sorts by the number it shows. An answer can still close several asks at once - one row on the
   owner's list stands for every pending ask for that item - and each of them keeps its own line of
-  history, because each asker is told separately what became of what they asked for.
+  history, because each asker is told separately what became of what they asked for. Rows
+  already in the database from before the fix read the same way: both tables take a refused ask as
+  0 whatever number it stored, so the owner's Completed table and the requester's Sent table agree
+  on the old rows as well as the new ones.
 
 ### Changed
 

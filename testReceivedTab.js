@@ -85,7 +85,9 @@ const history = [
     quality: 2,
     owner_account_name: '@Eva',
     requester_account_name: '@Dee',
-    quantity: 0,
+    // The old code wrote the ask into the handover, so a cancelled row from before the fix
+    // still says two were sent when two were asked for and none left the bag.
+    quantity: 2,
     quantity_requested: 2,
     status: 'cancelled',
     fulfilled_at: null,
@@ -416,6 +418,39 @@ t('a craft taken back out of the basket keeps the copies it was holding', () => 
 
   assert.match(mine, /<td class="num">2<\/td>/, 'a basket row is not an answer: it still holds two');
   assert.match(mine, /data-sort-qty="2"/);
+});
+
+t('a cancellation recorded before the fix reads 0 on both tables', () => {
+  const legacy = {
+    id: 11,
+    item_name: 'Hunting Bow',
+    item_type_name: 'Weapons',
+    quality: 2,
+    owner_account_name: '@Eva',
+    requester_account_name: '@Dee',
+    quantity: 2,
+    quantity_requested: 2,
+    status: 'cancelled',
+    fulfilled_at: null,
+    closed_at: '2026-11-12T10:00:00Z',
+  };
+  const html = render({
+    requests: [legacy],
+    receivedHistory: [legacy],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = panel(html, 'mine');
+  const answered = panel(html, 'received');
+  const row = answered.slice(answered.indexOf('Hunting Bow'));
+
+  assert.match(mine, /<td class="num">0 of 2<\/td>/, 'the requester sees that nothing arrived');
+  assert.match(
+    row,
+    /<td class="num">2<\/td>\s*<td class="num">0<\/td>\s*<td>Not fulfilled<\/td>/,
+    'asked 2, sent 0, on the owner\u2019s own table'
+  );
+  assert.match(row, /data-sort-amount="0"/, 'and its Amount column sorts as nothing');
+  assert.match(row, /data-sort-requested="2"/, 'while the ask stays what it was');
 });
 
 t('each table carries the words its search box looks through', () => {
