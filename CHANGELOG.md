@@ -631,6 +631,15 @@ landed on `main`.
   ones nobody ran. `.github/workflows/tests.yml` supplies one as a service container and runs
   each suite by itself, so a failure names the suite instead of hiding behind the others.
 
+  Putting a server behind them found two things straight away. The fulfillment suite had been
+  failing since items started being keyed by the storage they were found in: its fixture wrote
+  every stack as a character's own bag and its accounts had no server, so no guildmate could
+  see the stack it was asking for and the first check failed. The fixture now uploads a guild
+  bank on a real world, and its one stale expectation - that an account with no guilds sees
+  everything - says what the rule actually is. It runs 101 checks. There is also a new suite for
+  the demo's own writing - `npm run test:demo-database` - which builds the demo database, seeds
+  it, re-counts a stack, drops a row and restocks, checking the rows rather than the sentences.
+
 - **The page says which build it is.** The stylesheet and every script are now asked for by
   the version of the files this build was made with (`/styles.css?v=…`, `/app.js?v=…`,
   stamped from their own size and modification time), and the same short stamp sits in the

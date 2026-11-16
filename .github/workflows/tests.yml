@@ -55,6 +55,9 @@ jobs:
           set -o pipefail
           failed=0
           for file in test*.js; do
+            # testEmail.js is not a suite: it is the mail preview CLI (`npm run email:test --
+            # you@example.com`) and refuses to run without an address.
+            case "$file" in testEmail.js) continue;; esac
             echo "::group::$file"
             if node "$file"; then
               echo "::endgroup::"

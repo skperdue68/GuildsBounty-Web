@@ -52,6 +52,9 @@ if (!config.database.endsWith('_test')) {
 const OWNER = '@TestOwner';
 const ASKER = '@TestAsker';
 const GUILD = 9001;
+// Guild visibility matches on the pair (platform, world name), and treats an empty world as
+// no world at all - so the fixture has to be an account on a real server, the way a file is.
+const WORLD = { platform: 1, worldName: 'NA Megaserver' };
 const ITEM = 'Briarheart Dagger';
 // A second name, so one message can carry two rows that are answered separately.
 const SECOND = 'Soul Gem';
@@ -87,8 +90,8 @@ function itemFor(accountName, itemName, itemCount) {
     styleName: '',
     requiredLevel: 0,
     requiredCp: 0,
-    locationKey: 'inventory',
-    locationLabel: 'Inventory',
+    locationKey: 'guildbank:9001',
+    locationLabel: 'Guild Bank',
     itemCount,
     heldQuantity: 0,
     reserveQuantity: 0,
@@ -107,6 +110,8 @@ async function uploadItems(connection, accountName, entries) {
         items: entries.map(({ name, count }) => itemFor(accountName, name, count)),
         alwaysShare: [],
         guilds: new Map([[GUILD, 'Test Guild']]),
+        platform: WORLD.platform,
+        worldName: WORLD.worldName,
       },
     ],
     { sourceFile: 'test.lua' }
@@ -202,8 +207,16 @@ try {
   const ownerId = Number(ownerUser.insertId);
   const askerId = Number(askerUser.insertId);
 
-  await linkAccountToUser(connection, { accountName: OWNER, userId: ownerId });
-  await linkAccountToUser(connection, { accountName: ASKER, userId: askerId });
+  await linkAccountToUser(connection, {
+    accountName: OWNER,
+    userId: ownerId,
+    ...WORLD,
+  });
+  await linkAccountToUser(connection, {
+    accountName: ASKER,
+    userId: askerId,
+    ...WORLD,
+  });
 
   console.log('\n1. The owner shares ten, and the file arrived ten minutes ago');
   const firstUpload = await upload(connection, OWNER, 10);
@@ -243,12 +256,14 @@ try {
     (await getAlwaysShareForViewer(connection, [])).length,
     0
   );
-  // An account attached by hand has no guild rows - the addon has never said which
-  // guilds it is in - so the guild rule cannot apply and the list is unrestricted.
+  // An account attached by hand has no guild rows - the addon has never said which guilds
+  // it is in - and the guild rule still applies to it: a list read as an account with no
+  // known guilds shares no guild with anybody, so it matches nothing. The unrestricted
+  // read is the public preview, which passes no account at all.
   ok(
-    'an account with no guilds of its own still sees the shared row',
+    'an account with no guilds of its own sees nothing shared',
     (await getSharedItemsForViewer(connection, ['@NoGuildsYet'])).map((row) => row.item_name),
-    [ITEM]
+    []
   );
 
   console.log('\n2. The ask holds its copies before it is even sent');
@@ -869,6 +884,10 @@ ${guildedItems('@TestV3')}
           items: parsed.items,
           alwaysShare: parsed.alwaysShare,
           guilds: parsed.accountGuilds.get(account),
+          // The same world as every other account here: a guild id registered on two worlds
+          // is two registry rows, and the file's own guild list would read it twice.
+          platform: WORLD.platform,
+          worldName: WORLD.worldName,
         },
       ],
       { sourceFile }
