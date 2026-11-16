@@ -468,10 +468,44 @@ t('the filter row sits inside the list card, between the tabs and the search', (
   );
 });
 
+t('only the \u00d7 on a chip removes it, not a click on the word', () => {
+  const views = read('lib/views.js');
+  const app = read('public/app.js');
+  const css = read('public/styles.css');
+
+  // The chip is a label, and the only thing carrying a removal inside it is the × button - so
+  // a click on the word has nothing to act on.
+  assert.match(
+    views,
+    /<span class="filter-chip">\$\{escapeHtml\(\s*chip\.value\s*\)\}<button class="filter-chip-remove"/,
+    'the word is a label with the × as a button inside it'
+  );
+  assert.doesNotMatch(views, /<button class="filter-chip"/, 'no chip is a button of its own');
+  assert.doesNotMatch(
+    views,
+    /<span class="filter-chip"[^>]*data-chip/,
+    'and the removal names are not on the label, only on the × inside it'
+  );
+
+  // The page builds the same chip when a choice is made, or the first refresh would put the
+  // clickable one back.
+  assert.match(app, /const chip = document\.createElement\('span'\);/, 'the page builds a label too');
+  assert.match(app, /remove\.dataset\.chipFilter = name;/, 'with the names on the ×');
+  assert.match(app, /chip\.appendChild\(remove\)/, 'inside the label');
+
+  assert.match(css, /\.filter-chip \{[^}]*cursor: default;/, 'the label does not answer to a pointer');
+  assert.match(css, /\.filter-chip-remove \{[^}]*cursor: pointer;/, 'the × does');
+});
+
 t('the band keeps air above and below and loses the empty chip floor', () => {
   const css = read('public/styles.css');
 
-  assert.match(css, /\.filter-band \{[^}]*padding: 16px 0 18px;/, 'air above and below');
+  assert.match(
+    css,
+    /\.filter-band \{[^}]*padding: 16px 0 24px;/,
+    'air above and below, a little more below so the search row is not tight under the border'
+  );
+  assert.match(css, /\.list-tools \{[^}]*padding: 10px 0 10px;/, 'and air above the search row itself');
   assert.match(css, /\.filter-chips:empty \{\s*display: none;/, 'no chip row when none are chosen');
   assert.match(css, /\.filter-chips \{[^}]*margin-top: 10px;/, 'and room for one when they are');
   assert.match(
