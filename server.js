@@ -226,7 +226,7 @@ if (!process.env.SESSION_SECRET) {
       'and paste the line into .env.'
   );
 }
-const SESSION_SECRET = process.env.SESSION_SECRET || `itemshare-${Math.random().toString(36).slice(2)}`;
+const SESSION_SECRET = process.env.SESSION_SECRET || `guildsbounty-${Math.random().toString(36).slice(2)}`;
 
 // Staying signed in is the default, not a trick: sessions are kept in MariaDB so a
 // restart no longer signs everyone out, and the cookie lasts a month rather than
@@ -944,20 +944,20 @@ const ADDED_WINDOWS = new Set(['1', '3', '7', '14', '30', 'last-chance']);
 // cookie holds a queue of columns - `name:asc,type:desc` - read back by lib/sortQueue.js,
 // so several headings can be on at once. A ?sort= still wins when it is present, so an
 // older bookmark, which only knows one column, keeps behaving.
-const SORT_COOKIE = 'itemshare_sort';
+const SORT_COOKIE = 'guildsbounty_sort';
 
 // Grouping is its own preference, for the same reason: turning the type headings off
 // should not disturb the order somebody chose from the column headings.
-const GROUP_COOKIE = 'itemshare_group';
+const GROUP_COOKIE = 'guildsbounty_group';
 // My Inventory keeps its own: whether one list is cut up by type is a reading choice about
 // that list, so turning the headings off there must not turn them off on Browse Offers too.
-const GROUP_COOKIE_MINE = 'itemshare_group_mine';
+const GROUP_COOKIE_MINE = 'guildsbounty_group_mine';
 
 // Which type headings are folded shut, again one list each. It is a reading choice about a
 // table, not something a link should carry, so it lives beside the grouping rather than in
 // the address bar.
-const FOLDED_COOKIE = 'itemshare_collapsed';
-const FOLDED_COOKIE_MINE = 'itemshare_collapsed_mine';
+const FOLDED_COOKIE = 'guildsbounty_collapsed';
+const FOLDED_COOKIE_MINE = 'guildsbounty_collapsed_mine';
 
 
 function readFilters(query, cookieHeader = '') {
@@ -1631,7 +1631,7 @@ function signedOutOwnerPage(req, res) {
 // the fragment means "give me the card, not the page around it".
 function wantsFragment(req) {
   return (
-    String(req.get('x-itemshare-fragment') || '') === '1' ||
+    String(req.get('x-guildsbounty-fragment') || req.get('x-itemshare-fragment') || '') === '1' ||
     String(req.query.fragment || '') === '1'
   );
 }
@@ -3497,7 +3497,9 @@ app.post(
 
     const header = String(req.get('authorization') || '');
     const bearer = header.toLowerCase().startsWith('bearer ') ? header.slice(7).trim() : '';
-    const given = bearer || String(req.get('x-itemshare-token') || '').trim();
+    const given =
+      bearer ||
+      String(req.get('x-guildsbounty-token') || req.get('x-itemshare-token') || '').trim();
 
     if (!ingestTokenMatches(given)) {
       res.status(401).json({ error: 'That ingest token is not accepted here.' });
@@ -3515,7 +3517,9 @@ app.post(
 
     // The watcher knows the real file name; record it so an upload can be traced to
     // the file it came from. Anything longer is trimmed rather than refused.
-    const sourceFile = String(req.get('x-itemshare-file') || 'ItemShareSavedVars.lua').slice(0, 200);
+    const sourceFile = String(
+      req.get('x-guildsbounty-file') || req.get('x-itemshare-file') || 'ItemShareSavedVars.lua'
+    ).slice(0, 200);
 
     try {
       const summary = await applySavedVariablesUpload({ fileText, sourceFile, user: null });
@@ -3683,7 +3687,9 @@ function refuseSimulate(res, token) {
 // broadcast, so a mismatch is one clear line at the start of a run rather than a silent
 // 404 per action ten minutes in.
 app.post('/simulate/check', (req, res) => {
-  const token = String(req.get('x-itemshare-simulate') || '').trim();
+  const token = String(
+    req.get('x-guildsbounty-simulate') || req.get('x-itemshare-simulate') || ''
+  ).trim();
 
   if (!simulateTokenMatches(token)) {
     refuseSimulate(res, token);
@@ -3694,7 +3700,9 @@ app.post('/simulate/check', (req, res) => {
 });
 
 app.post('/simulate/nudge', (req, res) => {
-  const token = String(req.get('x-itemshare-simulate') || '').trim();
+  const token = String(
+    req.get('x-guildsbounty-simulate') || req.get('x-itemshare-simulate') || ''
+  ).trim();
 
   if (!simulateTokenMatches(token)) {
     refuseSimulate(res, token);

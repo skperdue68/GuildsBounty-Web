@@ -26,7 +26,7 @@ const config = emailConfig();
 // BASE_URL falls back to a placeholder origin - said out loud below - rather than quietly
 // rendering the plain-list variant a host with no public address sends.
 const usingPlaceholder = !config.siteUrl;
-const siteUrl = config.siteUrl || 'https://itemshare.example';
+const siteUrl = config.siteUrl || 'https://guildsbounty.example';
 
 // A real message carries a token issued for its own rows. This one is a sample, so the
 // link opens the answer page but records nothing.
@@ -75,7 +75,7 @@ console.log('         (a sample token: the page opens, and records nothing)');
 
 if (usingPlaceholder) {
   console.log(
-    'Origin:  BASE_URL is not set, so itemshare.example stands in. Set BASE_URL in .env to see the address an owner would get.'
+    'Origin:  BASE_URL is not set, so guildsbounty.example stands in. Set BASE_URL in .env to see the address an owner would get.'
   );
 }
 

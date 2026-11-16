@@ -244,8 +244,8 @@ await t('an empty queue leaves the rows exactly as they came', () => {
 });
 
 await t('the cookie name is its own, so the item list sort is untouched', () => {
-  assert.equal(ORDER_COOKIE, 'itemshare_owner_sort');
-  assert.notEqual(ORDER_COOKIE, 'itemshare_sort');
+  assert.equal(ORDER_COOKIE, 'guildsbounty_owner_sort');
+  assert.notEqual(ORDER_COOKIE, 'guildsbounty_sort');
   assert.deepEqual(FIELDS, ['name', 'stored', 'mail', 'asked']);
 });
 
@@ -345,13 +345,13 @@ await t('a table declares its columns and cookie, and the owner list keeps the d
 
   const basket = configFor({
     dataset: {
-      sortCookie: 'itemshare_basket_sort',
+      sortCookie: 'guildsbounty_basket_sort',
       sortFields: 'name,from,qty,status',
       sortNumeric: 'qty',
     },
   });
 
-  assert.equal(basket.cookie, 'itemshare_basket_sort');
+  assert.equal(basket.cookie, 'guildsbounty_basket_sort');
   assert.deepEqual(basket.fields, ['name', 'from', 'qty', 'status']);
   assert.deepEqual(basket.numeric, ['qty']);
   assert.deepEqual(cycleOrder([], 'qty', basket.fields), [{ field: 'qty', dir: 'asc' }]);

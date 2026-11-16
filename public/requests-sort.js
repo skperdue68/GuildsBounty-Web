@@ -15,7 +15,7 @@
 // A table declares what it sorts by on its own container:
 //
 //   data-sort-table
-//   data-sort-cookie="itemshare_basket_sort"
+//   data-sort-cookie="guildsbounty_basket_sort"
 //   data-sort-fields="name,from,qty,status"
 //   data-sort-numeric="qty"
 //
@@ -26,7 +26,7 @@
 // card arrives twice in a page's life: rendered with the page, and fetched into the modal over
 // the item list afterwards.
 
-export const ORDER_COOKIE = 'itemshare_owner_sort';
+export const ORDER_COOKIE = 'guildsbounty_owner_sort';
 
 // The owner's list: the item, where the copy is stored, who it has to be mailed to, and when it
 // was first asked for. The order a column sits in the queue is the order these fields were

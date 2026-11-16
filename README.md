@@ -101,6 +101,28 @@ name, `localhost` or an IP means the proxy is rewriting `Host` without saying wh
 the answer is `proxy_set_header Host $host;` plus `proxy_set_header X-Forwarded-Host $host;`
 (or Caddy's `header_up Host {host}`).
 
+### What still says ItemShare, and why
+
+Everything this repository owns now says **GuildsBounty** (`guildsbounty` inside an identifier):
+the package name, the filter and sort cookies (`guildsbounty_sort`, `guildsbounty_group`,
+`guildsbounty_group_mine`, `guildsbounty_collapsed`, `guildsbounty_collapsed_mine`,
+`guildsbounty_basket_sort`, `guildsbounty_sent_sort`, `guildsbounty_owner_sort`,
+`guildsbounty_answered_sort`), the keys the browser keeps for itself (`guildsbounty:tab` and
+its neighbours), the `X-GuildsBounty-*` headers, the mail boundary and `Message-ID` domain, the
+fallback session-secret prefix, and the wordmark. The old `X-ItemShare-*` headers are still
+*accepted* and never sent, so an uploader that has not been updated - or a browser holding an
+old `app.js` - keeps working.
+
+Three things carry the old name on purpose, because they are not this application's to rename:
+
+- **The addon's own files and command.** `ItemShare.lua`, `ItemShareSavedVars.lua`,
+  `ItemShareExport.lua` and the in-game `/itemshare` command belong to the addon; the site reads
+  whatever that file is called, so its instructions have to name it correctly.
+- **`itemshare.perdues.me`.** That is the old address the redirect card exists for. Renaming it
+  would break the card for everybody still using the old link.
+- **`CHANGELOG.md` before this entry.** It is a record of what happened under the old name;
+  rewriting it would make the history wrong.
+
 The database is renamed as well: the tables are `guildsbounty_*`, the ledger is
 `guildsbounty_schema_migrations`, and the database is `guildsbounty` (`guildsbounty-demo` for the
 demo). An existing database on the old names is taken over on the first boot - see *Startup and
@@ -433,7 +455,7 @@ The body is the file's **contents**, not a multipart form:
 curl -X POST https://your-site.example/ingest \
   -H "Authorization: Bearer $INGEST_TOKEN" \
   -H "Content-Type: text/plain" \
-  -H "X-ItemShare-File: ItemShareSavedVars.lua" \
+  -H "X-GuildsBounty-File: ItemShareSavedVars.lua" \
   --data-binary @ItemShareSavedVars.lua
 ```
 
@@ -450,9 +472,10 @@ gzip -c ItemShareSavedVars.lua | curl -X POST https://your-site.example/ingest \
   --data-binary @-
 ```
 
-`X-ItemShare-Token` is accepted as an alternative to the `Bearer` header, and
-`X-ItemShare-File` names the file for the upload log (it defaults to
-`ItemShareSavedVars.lua`).
+`X-GuildsBounty-Token` is accepted as an alternative to the `Bearer` header, and
+`X-GuildsBounty-File` names the file for the upload log (it defaults to
+`ItemShareSavedVars.lua`). The old `X-ItemShare-Token` and `X-ItemShare-File` are still read, so
+a watcher that has not been updated keeps uploading.
 
 | Reply | Meaning |
 | --- | --- |
@@ -494,7 +517,7 @@ token travels in a header and the file contents are plain text over the wire.
 | `POST` | `/simulate/nudge` | Token-authenticated "something changed" push, used by `npm run simulate` |
 | `GET` | `/requests/fulfill/:token` | The link a request email carries: it signs that email's owner in and lands on Requests Received (`?form=1` asks for the bare one-email form instead) |
 | `POST` | `/requests/fulfill/:token` | Records what the owner says they sent: `0` cancels that row, anything else hands it over |
-| `GET` | `/owner/requests` | Signed-in list of what is waiting on your own items; with `X-ItemShare-Fragment: 1` it returns just the card the modal shows |
+| `GET` | `/owner/requests` | Signed-in list of what is waiting on your own items; with `X-GuildsBounty-Fragment: 1` it returns just the card the modal shows |
 | `POST` | `/owner/requests` | Records an answer given on the site, then redirects back so a refresh cannot answer twice; the fragment request gets the refreshed card instead |
 
 Socket.IO shares the HTTP server under `/socket.io`, so live updates need no second
@@ -558,8 +581,8 @@ table that draws it: **Location** is on **My Inventory** alone, so a sort left t
 not take the first place on **Request**, where its heading is not drawn and could not be
 switched off. Rows with nothing in the
 column - no trait, no recorded location - sink to the bottom whichever way it runs. The
-queue is remembered in the `itemshare_sort` cookie and the grouping in `itemshare_group` for
-**Browse Offers** and `itemshare_group_mine` for **My Inventory**, so both survive a reload
+queue is remembered in the `guildsbounty_sort` cookie and the grouping in `guildsbounty_group` for
+**Browse Offers** and `guildsbounty_group_mine` for **My Inventory**, so both survive a reload
 without ever appearing in the URL. The two grouping choices are independent: one list can be
 cut up by type while the other is a flat list, and the switch on each tab shows the state of
 the list it sits on. Turning the headings off on **My Inventory** does not turn them off on
@@ -570,8 +593,8 @@ count beside the name stays, so a folded type reads as folded rather than empty.
 chevron at the start of the heading - a stroke arrow the height of a capital letter, not a
 small glyph - points right while the rows are away and turns down when they are back, which
 is the one thing that has to be seen rather than guessed. A folded type survives a
-reload and a live refresh, in its own cookie - `itemshare_collapsed` for **Browse Offers** and
-`itemshare_collapsed_mine` for **My Inventory** - so folding Weapons on one list leaves
+reload and a live refresh, in its own cookie - `guildsbounty_collapsed` for **Browse Offers** and
+`guildsbounty_collapsed_mine` for **My Inventory** - so folding Weapons on one list leaves
 Weapons open on the other. A word typed in the search box does not spring a folded type open:
 the rows it matches are counted and the heading goes on saying how many are waiting there,
 and opening it then shows what the word left.
@@ -616,15 +639,15 @@ second sort, biggest first - and the numbers renumber when a column in front of 
 switched off, so a queue never shows `2` with nothing above it. Without that number a
 second column looks idle while the first decides most of the table. A row with nothing in the column - no recorded place, say
 - sinks to the bottom whichever way that column runs, rather than floating up on a
-descending pass, and the queue is remembered in `itemshare_owner_sort`, never in the
+descending pass, and the queue is remembered in `guildsbounty_owner_sort`, never in the
 address bar. `Requested` and `Amount Sent` do not sort: they describe what you have
 answered, not how to find a row.
 
 The other three request tables sort the same way, and each remembers its own order under its
-own cookie rather than borrowing one: **In your basket** (`itemshare_basket_sort`) sorts by
+own cookie rather than borrowing one: **In your basket** (`guildsbounty_basket_sort`) sorts by
 item, the account it is from, quantity and status; **Submitted requests**
-(`itemshare_sent_sort`)
-adds the day it went; and **Completed requests** (`itemshare_answered_sort`) sorts by item, who
+(`guildsbounty_sent_sort`)
+adds the day it went; and **Completed requests** (`guildsbounty_answered_sort`) sorts by item, who
 it went to, requested, amount sent, whether it was fulfilled and when. None of it reaches the
 address bar, so a link stays a plain link to the page.
 
@@ -1368,7 +1391,7 @@ npm run simulate -- --once              # exactly one action, then exit
 npm run simulate -- --only requests     # asking, sending, cancelling, timing out
 npm run simulate -- --only items        # just re-saving files
 npm run simulate -- --reset             # remove the simulated people and their data
-npm run simulate -- --url https://itemshare.example.com   # notify that site instead
+npm run simulate -- --url https://guildsbounty.example.com   # notify that site instead
 ```
 
 Without `--rounds` or `--once` it keeps going until Ctrl+C, waiting a random five to sixty
@@ -1404,8 +1427,8 @@ The site says the same thing about itself at start-up - which token it holds, wh
 it, and from which file:
 
 ```
-Live pushes: on - this site holds 4b1f0e93, loaded at 2026-11-05 17:20:31 UTC from /srv/itemshare/.env
-Live pushes: off - no SIMULATE_TOKEN in /srv/itemshare/.env when this site started at 2026-11-05 17:20:31 UTC; set one and restart to let npm run simulate refresh open pages
+Live pushes: on - this site holds 4b1f0e93, loaded at 2026-11-05 17:20:31 UTC from /srv/guildsbounty/.env
+Live pushes: off - no SIMULATE_TOKEN in /srv/guildsbounty/.env when this site started at 2026-11-05 17:20:31 UTC; set one and restart to let npm run simulate refresh open pages
 ```
 
 If `.env` is edited while the site is running, the next refused nudge says so instead of
@@ -1500,10 +1523,10 @@ request emails. Nothing else - no build step, no bundler, no front-end toolchain
 **1. Code and dependencies.**
 
 ```bash
-sudo useradd --system --home /opt/itemshare --shell /usr/sbin/nologin itemshare
-sudo mkdir -p /opt/itemshare && sudo chown itemshare: /opt/itemshare
-git clone <this repository> /opt/itemshare
-cd /opt/itemshare
+sudo useradd --system --home /opt/guildsbounty --shell /usr/sbin/nologin guildsbounty
+sudo mkdir -p /opt/guildsbounty && sudo chown guildsbounty: /opt/guildsbounty
+git clone <this repository> /opt/guildsbounty
+cd /opt/guildsbounty
 npm ci
 ```
 
@@ -1528,7 +1551,7 @@ Then edit it: `MARIADB_USER`, `MARIADB_PASSWORD`, `BASE_URL` (the public https a
 `SESSION_SECRET`, and the provider ids if you want sign-in. Leave the email settings
 blank until step 6.
 
-**4. Run it as a service.** `/etc/systemd/system/itemshare.service`:
+**4. Run it as a service.** `/etc/systemd/system/guildsbounty.service`:
 
 ```ini
 [Unit]
@@ -1537,8 +1560,8 @@ After=network.target mariadb.service
 
 [Service]
 Type=simple
-User=itemshare
-WorkingDirectory=/opt/itemshare
+User=guildsbounty
+WorkingDirectory=/opt/guildsbounty
 ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=3
@@ -1549,8 +1572,8 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now itemshare
-journalctl -u itemshare -f
+sudo systemctl enable --now guildsbounty
+journalctl -u guildsbounty -f
 ```
 
 Use `command -v node` for `ExecStart`: it is `/usr/bin/node` for a distro package and
@@ -1585,10 +1608,10 @@ changes - no code, no migrations, no dependency.
 **7. Updating.**
 
 ```bash
-cd /opt/itemshare
+cd /opt/guildsbounty
 git pull
 npm ci
-sudo systemctl restart itemshare      # applies any new migrations on boot
+sudo systemctl restart guildsbounty      # applies any new migrations on boot
 ```
 
 **8. Backups.** Everything is in one database:
