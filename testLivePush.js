@@ -122,7 +122,11 @@ t('a demo change stays inside the demo room', () => {
 // --------------------------------------------------- the page fetches what it may see
 
 t('a page that hears the word fetches its own list, with its own filters', () => {
-  assert.match(app, /socket\.on\('items:changed', \(\) => scheduleRefresh\(\)\)/, 'it listens');
+  assert.match(
+    app,
+    /socket\.on\('items:changed', \(payload\) => \{\s*scheduleRefresh\(\);/,
+    'it listens and refetches, whatever the push also has to say'
+  );
   assert.match(app, /fetch\(`\/items\$\{query\}`/, 'and fetches the list fragment');
 
   const refresh = app.slice(app.indexOf('  async function refresh()'), app.indexOf('  function scheduleRefresh('));
