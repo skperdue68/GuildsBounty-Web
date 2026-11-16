@@ -517,11 +517,16 @@ const rowOf = (markup) => {
   const classes = ((markup.match(/class="([^"]*)"/) || [])[1] || '').split(' ').filter(Boolean);
   const search = (markup.match(/data-search="([^"]*)"/) || [])[1];
 
+  const marks = new Set();
+
   return {
     text: search === undefined ? '' : search,
     classList: { contains: (name) => classes.includes(name) },
-    hasAttribute: (name) => name === 'data-search' && search !== undefined,
+    hasAttribute: (name) =>
+      name === 'data-search' ? search !== undefined : marks.has(name),
     getAttribute: (name) => (name === 'data-search' ? search : null),
+    setAttribute: (name) => marks.add(name),
+    removeAttribute: (name) => marks.delete(name),
     hidden: /<tr\b[^>]*\shidden[\s>]/.test(markup),
     querySelector: () => null,
   };
@@ -552,12 +557,13 @@ function wireTab(tab, panelHtml) {
     'listRegion',
     'listSearchByTab',
     'activeTab',
+    'syncCounts',
     [
       appSourceOf('applyListSearch'),
       appSourceOf('updateSearchClear'),
       'return { applyListSearch, updateSearchClear };',
     ].join('\n')
-  )(listRegion, listSearchByTab, tab);
+  )(listRegion, listSearchByTab, tab, () => {});
   const fire = new Function(
     'listRegion',
     'listSearchByTab',

@@ -7,6 +7,20 @@ landed on `main`.
 
 ### Changed
 
+- **The filter row sits inside the list card, between the tabs and the search.** It was a card of
+  its own above the list, which left a box nobody looked at and a band of empty space under it.
+  It is now the list's own band: air above and below, the three menus centred, RESET lined up
+  with the bottom of the dropdowns, and the chips taking room only when there are any, so the
+  empty row shrinks away instead of holding a line open. The band pins with the tab strip above
+  it and the search row below it, so the whole strip - tabs, filters, applied chips, search -
+  stays in place while a long list scrolls under it, and the column headings clear all three.
+
+- **Every number that counts rows follows the rows on the page.** The tab's count and the number
+  beside each type are read back from the rows themselves after a search as well as after a
+  push: type "dagger" and Browse Offers counts the rows that are left rather than the list's
+  total, and a type with nothing left stops being an option. Folding a type still counts its
+  rows - a folded row is one the list holds - so the numbers only move when the rows do.
+
 - **An upload writes down every item it added or removed.** The count under the file drop says
   how many rows moved, but not which ones - so the log now gets a line per item, with its name,
   the place it sat (*Bank*, *Housing Storage (MISC)*) and the character whose scan it was filed
@@ -71,6 +85,22 @@ landed on `main`.
   of leaving it below the fold under the tab strip.
 
 ### Fixed
+
+- **A type whose last row has gone leaves the menu, and its chip with it.** The option was
+  marked hidden, but `display: flex` on `.filter-option` outranked the browser's `[hidden]`
+  rule, so the type stayed in the list with `(0)` beside it. The menu now restates the rule,
+  and a ticked type that loses its last row is unticked and the filter row is applied again, so
+  the chip under the bar goes with the option instead of leaving a filter the reader cannot see
+  or switch off.
+
+- **Every count beside a type now comes from the rows on the page.** The number in the Type menu
+  was whatever the page was first sent, so after a live push - somebody uploading, an offer
+  running out - it kept counting rows that were no longer there until the page was reloaded.
+  It is now read back off the rows themselves every time they change, in the same pass that
+  recounts the category headings, so the menu and the headings cannot disagree; a type with no
+  rows left stops being an option, and the card is drawn again on each push rather than merged
+  so a new type arrives with an option to pick. Folding or searching still only hides rows, so
+  neither moves a count.
 
 - **Browse Offers only offers the types and owners it actually lists.** Its menus were built
   from every row the viewer could see, which included their own bag and bank - so the Type menu

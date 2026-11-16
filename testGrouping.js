@@ -451,7 +451,11 @@ t('a folded heading keeps its count, hides its rows and points its caret', () =>
   assert.match(html, /Weapons <span class="type-count">\(2\)<\/span>/, 'the count is still true');
   assert.match(html, /data-item-key="inv:1" hidden/, 'Briarheart Dagger is away with it');
   assert.match(html, /data-item-key="inv:4" hidden/, 'and so is Hunting Bow');
-  assert.match(html, /data-item-key="inv:2" data-search/, 'Apparel is untouched');
+  assert.match(
+    html,
+    /data-item-key="inv:2" data-counts-tab="request" data-type-name="Apparel" data-search/,
+    'Apparel is untouched'
+  );
   assert.match(
     html,
     /data-type-toggle="Apparel" data-group-list="request" aria-expanded="true"/,
@@ -627,6 +631,7 @@ t('opening a folded type is aimed at the panel that has the rows, not at "mine"'
     .map((markup) => {
       const classes = ((markup.match(/class="([^"]*)"/) || [])[1] || '').split(' ').filter(Boolean);
       const search = (markup.match(/data-search="([^"]*)"/) || [])[1];
+      const marks = new Set();
 
       return {
         classList: {
@@ -637,8 +642,11 @@ t('opening a folded type is aimed at the panel that has the rows, not at "mine"'
             if (place > -1) classes.splice(place, 1);
           },
         },
-        hasAttribute: (name) => name === 'data-search' && search !== undefined,
+        hasAttribute: (name) =>
+          name === 'data-search' ? search !== undefined : marks.has(name),
         getAttribute: (name) => (name === 'data-search' ? search : null),
+        setAttribute: (name) => marks.add(name),
+        removeAttribute: (name) => marks.delete(name),
         hidden: false,
         querySelector: () => null,
       };
@@ -659,8 +667,9 @@ t('opening a folded type is aimed at the panel that has the rows, not at "mine"'
     'listRegion',
     'listSearchByTab',
     'activeTab',
+    'syncCounts',
     `${source}\nreturn { applyListSearch };`
-  )(listRegion, listSearchByTab, 'offer');
+  )(listRegion, listSearchByTab, 'offer', () => {});
   const visible = () => rows.filter((row) => row.hasAttribute('data-search') && !row.hidden).length;
 
   assert.equal(visible(), 2, 'two rows to start with');

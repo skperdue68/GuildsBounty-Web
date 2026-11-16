@@ -465,11 +465,16 @@ function headingRow(count) {
 }
 
 function itemRow(text) {
+  // The marks are the ones app.js writes: `data-search-miss` on a row the word left out.
+  const marks = new Set();
+
   return {
     classList: { contains: () => false },
     hidden: false,
-    hasAttribute: (name) => name === 'data-search',
+    hasAttribute: (name) => (name === 'data-search' ? true : marks.has(name)),
     getAttribute: (name) => (name === 'data-search' ? text : null),
+    setAttribute: (name) => marks.add(name),
+    removeAttribute: (name) => marks.delete(name),
   };
 }
 
@@ -484,8 +489,9 @@ function runSearch(term, rows) {
     'listRegion',
     'activeTab',
     'listSearchByTab',
+    'syncCounts',
     `${searchSource}; return applyListSearch;`
-  )(region, 'request', { request: term, offer: '' });
+  )(region, 'request', { request: term, offer: '' }, () => {});
 
   apply();
 
@@ -508,7 +514,7 @@ t('each heading counts its own group when nothing is being searched', () => {
   assert.equal(weapons.count.textContent, '(1)');
 });
 
-t('a search makes the heading count what matched, out of the whole group', () => {
+t('a search makes the heading count the rows the word leaves', () => {
   const weapons = headingRow(2);
   const dagger = itemRow('Briarheart Dagger Weapons Sharpened');
   const ring = itemRow('Amber Ring Weapons Robust');
@@ -517,7 +523,7 @@ t('a search makes the heading count what matched, out of the whole group', () =>
 
   assert.equal(dagger.hidden, false, 'the row that matches stays');
   assert.equal(ring.hidden, true, 'the row that does not is hidden');
-  assert.equal(weapons.count.textContent, '(1 of 2)', 'one of the two in the group');
+  assert.equal(weapons.count.textContent, '(1)', 'the one row the word leaves');
 });
 
 t('a group with nothing to show loses its heading', () => {
@@ -534,7 +540,7 @@ t('a group with nothing to show loses its heading', () => {
 
   assert.equal(apparel.hidden, true, 'no Apparel row matches, so the heading goes');
   assert.equal(weapons.hidden, false);
-  assert.equal(weapons.count.textContent, '(1 of 1)');
+  assert.equal(weapons.count.textContent, '(1)');
 });
 
 // A word is typed over one tab, so it narrows that one tab. Both tables are in the page all
@@ -559,8 +565,9 @@ function runTabSearch(tab, terms, panels) {
     'listRegion',
     'activeTab',
     'listSearchByTab',
+    'syncCounts',
     `${searchSource}; return applyListSearch;`
-  )(region, tab, terms);
+  )(region, tab, terms, () => {});
 
   apply();
 }
@@ -615,7 +622,7 @@ t('a term matches a row the heading does not name', () => {
   runSearch('sharpened', [weapons, row, itemRow('Amber Ring Weapons Robust')]);
 
   assert.equal(row.hidden, false, 'the trait is in the row text, the heading is not searched');
-  assert.equal(weapons.count.textContent, '(1 of 2)');
+  assert.equal(weapons.count.textContent, '(1)');
 });
 
 t('an empty My Requests tab draws both tables and says so in each', () => {

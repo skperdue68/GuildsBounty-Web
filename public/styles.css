@@ -819,7 +819,7 @@ th {
    while the rows scroll: one block from the tabs down to OFFERED BY. It sits a step below
    the tab bar in the stack, and both offsets are measured in app.js. */
 .list-table thead th {
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px));
   z-index: 11;
 }
 
@@ -827,7 +827,10 @@ th {
    first row of data rides up between the two bars. Only the tables that carry the row: the
    closing offers table without a search of its own has no bar to clear. */
 .list-tools + .table-shell .list-table thead th {
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px));
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px) +
+      var(--list-tools-h, 0px)
+  );
 }
 
 tbody tr:hover {
@@ -1260,8 +1263,26 @@ a.primary-button {
 
 /* Tabs and the filter card. The filter row lives outside #itemLists on purpose: a
    live update must never wipe out what someone is typing there. */
-.card-filters {
-  padding: 14px 18px;
+/* The filter row lives inside the list card, between the tabs and the search, so it is
+   a band rather than a card of its own: air above, air below, and no border to make it look
+   like a second panel.
+
+   It pins in the same stack as the bars around it - under the tab row and over the search
+   row - so scrolling a long list never takes the menus away from the rows they narrow.
+   --list-band-h is this band's own height, measured in app.js, because the search row and
+   the column headings pin directly under it; it is 0px on a tab that has no row at all. */
+.filter-band {
+  position: sticky;
+  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  z-index: 12;
+  padding: 16px 0 18px;
+  background: rgba(9, 20, 45, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+.filter-band[hidden] {
+  display: none;
 }
 
 /* One row per list, and only one of them belongs to the tab being read. The form is laid out
@@ -1270,7 +1291,7 @@ a.primary-button {
   display: none;
 }
 
-.card-filters .filters {
+.filter-band .filters {
   margin: 0;
 }
 
@@ -1614,7 +1635,8 @@ a.primary-button {
    the jump lands with the heading it aimed at hidden behind them. */
 .subhead[id] {
   scroll-margin-top: calc(
-    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-tools-h, 0px)
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px) +
+      var(--list-tools-h, 0px)
   );
 }
 
@@ -1641,7 +1663,9 @@ a.primary-button {
      for the same reason the tab bar's is. */
   display: flex;
   align-items: center;
-  min-height: var(--list-head-h, 0px);
+  min-height: calc(
+    var(--list-head-h, 0px) + var(--list-band-h, 0px) + var(--list-tools-h, 0px)
+  );
   margin: 20px -24px 0;
   padding: 0 24px;
   background: rgba(9, 20, 45, 0.95);
@@ -2185,7 +2209,7 @@ tr.row-fading td {
 /* ------------------------------------------------------------------ filters */
 
 /* The filter controls and the chips under them are centred as one row. */
-.card-filters .filters {
+.filter-band .filters {
   justify-content: center;
 }
 
@@ -2300,6 +2324,12 @@ tr.row-fading td {
   cursor: pointer;
 }
 
+/* A type whose last row has gone is taken out of the menu, and the display above outranks
+   the browser's [hidden] rule, so restate it. */
+.filter-option[hidden] {
+  display: none;
+}
+
 .filter-option:hover {
   background: rgba(148, 163, 184, 0.14);
 }
@@ -2347,15 +2377,13 @@ tr.row-fading td {
   flex-wrap: wrap;
   justify-content: center;
   gap: 8px;
+  /* Room for a line of chips, taken only when there is one: with nothing chosen the row
+     collapses and the filter band is just the three menus and RESET. */
+  margin-top: 10px;
 }
 
-/* The chip row keeps the height of one line even when nothing is chosen, so the filter
-   card does not jump the moment the first chip appears. It is a floor, not a fixed
-   size: more chips still wrap and push the card taller. */
 .filter-chips:empty {
-  display: flex;
-  min-height: 28px;
-  align-content: flex-start;
+  display: none;
 }
 
 .filter-chip {
@@ -2380,7 +2408,7 @@ tr.row-fading td {
 
 /* Clearing throws the whole filter row away, so it is coloured like the destructive
    action it is and lines up with the bottom of the controls beside it. */
-.card-filters .filter-clear {
+.filter-band .filter-clear {
   align-self: flex-end;
   height: 34px;
   border-color: rgba(248, 113, 113, 0.55);
@@ -2388,7 +2416,7 @@ tr.row-fading td {
   color: #fecaca;
 }
 
-.card-filters .filter-clear:hover {
+.filter-band .filter-clear:hover {
   border-color: rgba(248, 113, 113, 0.85);
   background: rgba(153, 27, 27, 0.55);
   color: #fff;
@@ -3220,7 +3248,9 @@ th.action-cell {
    and a number guessed here would leave a strip of scrolling rows between the two bars. */
 .list-tools {
   position: sticky;
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px)
+  );
   /* Above the column headings it pins over, below the subhead that takes the pinned row over
      further down the page. */
   z-index: 13;
