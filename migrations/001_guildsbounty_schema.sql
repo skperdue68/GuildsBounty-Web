@@ -1,8 +1,8 @@
 -- ItemShare stage one schema.
--- Every table is prefixed itemshare_ so this database can never be mistaken for
+-- Every table is prefixed guildsbounty_ so this database can never be mistaken for
 -- the GuildSync schema even when both live on the same MariaDB server.
 
-CREATE TABLE IF NOT EXISTS itemshare_uploads (
+CREATE TABLE IF NOT EXISTS guildsbounty_uploads (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   account_name VARCHAR(96) NOT NULL,
   character_name VARCHAR(96) NOT NULL,
@@ -12,19 +12,19 @@ CREATE TABLE IF NOT EXISTS itemshare_uploads (
   guild_count INT UNSIGNED NOT NULL DEFAULT 0,
   uploaded_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  KEY idx_itemshare_uploads_scope (account_name, character_name, uploaded_at)
+  KEY idx_guildsbounty_uploads_scope (account_name, character_name, uploaded_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS itemshare_guilds (
+CREATE TABLE IF NOT EXISTS guildsbounty_guilds (
   guild_id BIGINT UNSIGNED NOT NULL,
   guild_name VARCHAR(255) NOT NULL DEFAULT '',
   first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (guild_id),
-  KEY idx_itemshare_guilds_name (guild_name)
+  KEY idx_guildsbounty_guilds_name (guild_name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-CREATE TABLE IF NOT EXISTS itemshare_shared_items (
+CREATE TABLE IF NOT EXISTS guildsbounty_shared_items (
   id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   account_name VARCHAR(96) NOT NULL,
   character_name VARCHAR(96) NOT NULL,
@@ -44,20 +44,20 @@ CREATE TABLE IF NOT EXISTS itemshare_shared_items (
   first_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
   last_seen_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uniq_itemshare_shared_item (account_name, character_name, item_key_hash),
-  KEY idx_itemshare_shared_items_name (item_name),
-  KEY idx_itemshare_shared_items_location (location_key),
-  CONSTRAINT fk_itemshare_shared_items_upload
-    FOREIGN KEY (upload_id) REFERENCES itemshare_uploads (id) ON DELETE SET NULL
+  UNIQUE KEY uniq_guildsbounty_shared_item (account_name, character_name, item_key_hash),
+  KEY idx_guildsbounty_shared_items_name (item_name),
+  KEY idx_guildsbounty_shared_items_location (location_key),
+  CONSTRAINT fk_guildsbounty_shared_items_upload
+    FOREIGN KEY (upload_id) REFERENCES guildsbounty_uploads (id) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- Which guilds each shared item is offered to. Guild IDs, not names, are the
 -- key because names are neither unique nor stable.
-CREATE TABLE IF NOT EXISTS itemshare_shared_item_guilds (
+CREATE TABLE IF NOT EXISTS guildsbounty_shared_item_guilds (
   item_id BIGINT UNSIGNED NOT NULL,
   guild_id BIGINT UNSIGNED NOT NULL,
   PRIMARY KEY (item_id, guild_id),
-  KEY idx_itemshare_item_guilds_guild (guild_id),
-  CONSTRAINT fk_itemshare_item_guilds_item
-    FOREIGN KEY (item_id) REFERENCES itemshare_shared_items (id) ON DELETE CASCADE
+  KEY idx_guildsbounty_item_guilds_guild (guild_id),
+  CONSTRAINT fk_guildsbounty_item_guilds_item
+    FOREIGN KEY (item_id) REFERENCES guildsbounty_shared_items (id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

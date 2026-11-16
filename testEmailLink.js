@@ -151,7 +151,7 @@ t('the store reads the owner from the token, pending rows only', () => {
   assert.match(fn, /email_token_hash = \?/, 'keyed on the token hash');
   assert.match(fn, /email_token_expires_at > NOW\(\)/, 'and its expiry');
   assert.match(fn, /status = 'pending'/, 'and only rows still waiting');
-  assert.match(fn, /JOIN itemshare_accounts a ON a\.eso_account_name = r\.owner_account_name/, 'through the ESO accounts');
+  assert.match(fn, /JOIN guildsbounty_accounts a ON a\.eso_account_name = r\.owner_account_name/, 'through the ESO accounts');
   assert.match(fn, /a\.user_id IS NOT NULL/, 'that are claimed by a user');
 });
 

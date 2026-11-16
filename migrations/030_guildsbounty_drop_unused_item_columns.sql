@@ -28,7 +28,7 @@
 --                                                    dates for rows that predate the file
 --   upload_id                                        the refresh mark the prune uses
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   DROP COLUMN IF EXISTS item_type,
   DROP COLUMN IF EXISTS quality_name,
   DROP COLUMN IF EXISTS trait_type,
@@ -45,7 +45,7 @@ ALTER TABLE itemshare_shared_items
 
 -- The same columns on the standing offers, which mirrored the item table. This table never
 -- had a last_dumped_at of its own.
-ALTER TABLE itemshare_always_share
+ALTER TABLE guildsbounty_always_share
   DROP COLUMN IF EXISTS item_type,
   DROP COLUMN IF EXISTS quality_name,
   DROP COLUMN IF EXISTS trait_type,

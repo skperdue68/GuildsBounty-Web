@@ -17,11 +17,11 @@
 -- The history query reads one person's sent requests newest first, which is exactly
 -- what this index covers.
 
-UPDATE itemshare_requests
+UPDATE guildsbounty_requests
    SET submitted_at = created_at
  WHERE submitted_at IS NULL
    AND status IN ('pending', 'fulfilled', 'declined', 'expired');
 
 -- IF NOT EXISTS keeps a retried migration from stopping on the index it already built.
-ALTER TABLE itemshare_requests
-  ADD INDEX IF NOT EXISTS idx_itemshare_requests_submitted (requester_user_id, submitted_at);
+ALTER TABLE guildsbounty_requests
+  ADD INDEX IF NOT EXISTS idx_guildsbounty_requests_submitted (requester_user_id, submitted_at);

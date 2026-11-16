@@ -165,13 +165,13 @@ t('the guild list joins names on id and world', async () => {
 
 t('the account summary reports the server the file gave', async () => {
   const connection = recordingConnection((sql) => {
-    if (/SELECT platform, world_name FROM itemshare_accounts/.test(sql)) {
+    if (/SELECT platform, world_name FROM guildsbounty_accounts/.test(sql)) {
       return [[{ platform: 2, world_name: 'EU Megaserver' }]];
     }
     if (/COUNT\(\*\) AS itemCount/.test(sql)) return [[{ itemCount: 3, totalQuantity: 12 }]];
     if (/COUNT\(\*\) AS guildCount/.test(sql)) return [[{ guildCount: 4 }]];
-    if (/FROM itemshare_uploads/.test(sql)) return [[null]];
-    if (/FROM itemshare_accounts a/.test(sql)) return [[{ user_id: 7, display_name: 'Someone' }]];
+    if (/FROM guildsbounty_uploads/.test(sql)) return [[null]];
+    if (/FROM guildsbounty_accounts a/.test(sql)) return [[{ user_id: 7, display_name: 'Someone' }]];
     return [[]];
   });
 
@@ -184,11 +184,11 @@ t('the account summary reports the server the file gave', async () => {
 
 t('an account with no file behind it reports no server', async () => {
   const connection = recordingConnection((sql) => {
-    if (/SELECT platform, world_name FROM itemshare_accounts/.test(sql)) return [[]];
+    if (/SELECT platform, world_name FROM guildsbounty_accounts/.test(sql)) return [[]];
     if (/COUNT\(\*\) AS itemCount/.test(sql)) return [[{ itemCount: 0, totalQuantity: 0 }]];
     if (/COUNT\(\*\) AS guildCount/.test(sql)) return [[{ guildCount: 0 }]];
-    if (/FROM itemshare_uploads/.test(sql)) return [[null]];
-    if (/FROM itemshare_accounts a/.test(sql)) return [[{ user_id: 7, display_name: 'Someone' }]];
+    if (/FROM guildsbounty_uploads/.test(sql)) return [[null]];
+    if (/FROM guildsbounty_accounts a/.test(sql)) return [[{ user_id: 7, display_name: 'Someone' }]];
     return [[]];
   });
 

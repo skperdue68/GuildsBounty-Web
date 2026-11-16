@@ -113,10 +113,10 @@ function fakeConnection({ userRow = null, sharedCount = 0 } = {}) {
       // mysql2 answers `[rows, fields]`, and the store reads the first element of each
       // call as either a row list or an insert result, so the two shapes must differ.
       if (/^\s*SELECT/i.test(sql)) {
-        if (/FROM itemshare_users WHERE is_demo = 1/.test(sql)) {
+        if (/FROM guildsbounty_users WHERE is_demo = 1/.test(sql)) {
           return [userRow ? [userRow] : [], {}];
         }
-        if (/COUNT\(\*\) AS n FROM itemshare_shared_items/.test(sql)) {
+        if (/COUNT\(\*\) AS n FROM guildsbounty_shared_items/.test(sql)) {
           return [[{ n: sharedCount }], {}];
         }
         return [[], {}];
@@ -303,7 +303,7 @@ await checkAsync('a fresh database gets the demo person, account, guild and item
   assert(result.seeded, 'the items should have been written');
   assert(result.userId === 7, `expected user 7, got ${result.userId}`);
 
-  const userInsert = connection.calls(/INSERT INTO itemshare_users/)[0];
+  const userInsert = connection.calls(/INSERT INTO guildsbounty_users/)[0];
   assert(userInsert, 'no user row was written');
   assertMatch(
     userInsert.sql,
@@ -311,20 +311,20 @@ await checkAsync('a fresh database gets the demo person, account, guild and item
     'the person must be written with is_demo = 1'
   );
 
-  const identity = connection.calls(/INSERT INTO itemshare_user_identities/)[0];
+  const identity = connection.calls(/INSERT INTO guildsbounty_user_identities/)[0];
   assert(identity, 'no sign-in identity was written');
   assert(
     identity.params[0] === DEMO_LOGIN,
     `identity should be ${DEMO_LOGIN}, got ${identity.params[0]}`
   );
 
-  const account = connection.calls(/INSERT INTO itemshare_accounts/)[0];
+  const account = connection.calls(/INSERT INTO guildsbounty_accounts/)[0];
   assert(account, 'the ESO account was never linked to the demo person');
   assert(account.params.includes(DEMO_ACCOUNT), 'the link must name the demo account');
   assert(account.params.includes(2), 'the platform must travel with the account');
   assert(account.params.includes('NA Megaserver'), 'the world must travel with the account');
 
-  const guild = connection.calls(/INSERT INTO itemshare_guilds/)[0];
+  const guild = connection.calls(/INSERT INTO guildsbounty_guilds/)[0];
   assert(guild, 'the guild was never written');
   assert(guild.params.includes('Alphabet Mafia'), 'the guild name must be Alphabet Mafia');
   assert(guild.params.includes(2) && guild.params.includes('NA Megaserver'), 'the guild needs its world');
@@ -339,11 +339,11 @@ await checkAsync('an existing demo person is not rewritten on every visit', asyn
   assert(!result.seeded, 'existing items must be left alone');
   assert(
     connection
-      .calls(/INSERT INTO itemshare_users/)
+      .calls(/INSERT INTO guildsbounty_users/)
       .filter((call) => call.params.includes(DEMO_EMAIL)).length === 0,
     'no second demo person'
   );
-  assert(connection.calls(/INSERT INTO itemshare_shared_items/).length === 0, 'no rewrite');
+  assert(connection.calls(/INSERT INTO guildsbounty_shared_items/).length === 0, 'no rewrite');
 });
 
 // --------------------------------------------------------------------- the copy
@@ -357,10 +357,10 @@ await checkAsync('the demo copy is filled from the site, with people anonymised'
       if (/^SHOW TABLES FROM/.test(sql)) {
         return [
           [
-            { 'Tables_in_itemshare': 'itemshare_users' },
-            { 'Tables_in_itemshare': 'itemshare_shared_items' },
-            { 'Tables_in_itemshare': 'itemshare_sessions' },
-            { 'Tables_in_itemshare': 'itemshare_schema_migrations' },
+            { 'Tables_in_guildsbounty': 'guildsbounty_users' },
+            { 'Tables_in_guildsbounty': 'guildsbounty_shared_items' },
+            { 'Tables_in_guildsbounty': 'guildsbounty_sessions' },
+            { 'Tables_in_guildsbounty': 'guildsbounty_schema_migrations' },
           ],
           {},
         ];
@@ -370,23 +370,23 @@ await checkAsync('the demo copy is filled from the site, with people anonymised'
     },
   };
 
-  const result = await copyDemoData(connection, { sourceDatabase: 'itemshare' });
+  const result = await copyDemoData(connection, { sourceDatabase: 'guildsbounty' });
   const sql = statements.join('\n');
 
   assert(result.copied === 2, `expected 2 tables copied, got ${result.copied}`);
   assert(result.failed.length === 0, 'nothing should have failed');
   assertMatch(
     sql,
-    /INSERT INTO `itemshare-demo`\.`itemshare_users` SELECT \* FROM `itemshare`\.`itemshare_users`/,
+    /INSERT INTO `guildsbounty-demo`\.`guildsbounty_users` SELECT \* FROM `guildsbounty`\.`guildsbounty_users`/,
     'the people must be copied across'
   );
-  assert(!sql.includes('itemshare_sessions'), 'sessions must never be copied');
-  assert(!sql.includes('itemshare_schema_migrations'), 'the demo keeps its own migration ledger');
+  assert(!sql.includes('guildsbounty_sessions'), 'sessions must never be copied');
+  assert(!sql.includes('guildsbounty_schema_migrations'), 'the demo keeps its own migration ledger');
   assert(sql.includes('SET SESSION FOREIGN_KEY_CHECKS = 0'), 'foreign keys must be off while copying');
-  assertMatch(sql, /UPDATE `itemshare-demo`\.itemshare_users[\s\S]*Member /, 'people must be renamed');
-  assert(sql.includes('DELETE FROM `itemshare-demo`.itemshare_passwords'), 'copied passwords must go');
+  assertMatch(sql, /UPDATE `guildsbounty-demo`\.guildsbounty_users[\s\S]*Member /, 'people must be renamed');
+  assert(sql.includes('DELETE FROM `guildsbounty-demo`.guildsbounty_passwords'), 'copied passwords must go');
   assert(
-    sql.includes('DELETE FROM `itemshare-demo`.itemshare_user_identities'),
+    sql.includes('DELETE FROM `guildsbounty-demo`.guildsbounty_user_identities'),
     'copied sign-ins must go'
   );
 });
@@ -397,14 +397,14 @@ await checkAsync('one damaged table does not cost the rest of the copy', async (
       if (/^SHOW TABLES FROM/.test(sql)) {
         return [
           [
-            { 'Tables_in_itemshare': 'itemshare_users' },
-            { 'Tables_in_itemshare': 'itemshare_requests' },
+            { 'Tables_in_guildsbounty': 'guildsbounty_users' },
+            { 'Tables_in_guildsbounty': 'guildsbounty_requests' },
           ],
           {},
         ];
       }
 
-      if (sql.includes('`itemshare_requests`')) {
+      if (sql.includes('`guildsbounty_requests`')) {
         throw new Error('Table is damaged');
       }
 
@@ -412,11 +412,11 @@ await checkAsync('one damaged table does not cost the rest of the copy', async (
     },
   };
 
-  const result = await copyDemoData(connection, { sourceDatabase: 'itemshare' });
+  const result = await copyDemoData(connection, { sourceDatabase: 'guildsbounty' });
 
   assert(result.copied === 1, `expected 1 table copied, got ${result.copied}`);
   assert(
-    result.failed.length === 1 && result.failed[0].table === 'itemshare_requests',
+    result.failed.length === 1 && result.failed[0].table === 'guildsbounty_requests',
     'the failing table must be reported'
   );
   assert(result.failed[0].error === 'Table is damaged', 'the reason must travel with it');
@@ -654,7 +654,7 @@ check('the demo shelf carries a window, so LAST CHANCE has something to flag', (
 });
 
 check('only rows nobody has touched since they were inserted are dated', () => {
-  const sql = untouchedRowsSql('itemshare_shared_items');
+  const sql = untouchedRowsSql('guildsbounty_shared_items');
 
   assert(sql.includes('first_seen_at = last_seen_at'), 'a re-saved row must keep its first date');
   assert(/ORDER BY item_name/.test(sql), 'the same item lands on the same rung every time');
@@ -662,7 +662,7 @@ check('only rows nobody has touched since they were inserted are dated', () => {
   let refused = false;
 
   try {
-    untouchedRowsSql('itemshare_users');
+    untouchedRowsSql('guildsbounty_users');
   } catch {
     refused = true;
   }
@@ -736,7 +736,7 @@ await checkAsync('a name attached from the form is written with its platform and
 
   assert(outcome === 'linked', `expected a new link, got ${outcome}`);
 
-  const insert = log.find((call) => /INSERT INTO itemshare_accounts/.test(call.sql));
+  const insert = log.find((call) => /INSERT INTO guildsbounty_accounts/.test(call.sql));
   assert(insert, 'the account was never written');
   assert(insert.params.includes('EU Megaserver'), 'the server must be written with the name');
   assert(insert.params.includes(2), 'the platform must be written with the name');
@@ -758,7 +758,7 @@ await checkAsync('re-attaching the demo account keeps the server its file record
   const outcome = await linkAccountToUser(connection, { accountName: DEMO_ACCOUNT, userId: 42 });
   assert(outcome === 'already-linked', `expected the existing link, got ${outcome}`);
 
-  const update = log.find((call) => /UPDATE itemshare_accounts/.test(call.sql));
+  const update = log.find((call) => /UPDATE guildsbounty_accounts/.test(call.sql));
   assert(update, 'the account was never re-attached');
   assert(!/platform/.test(update.sql), 'with no form behind it there is no platform to write');
 });
@@ -818,26 +818,26 @@ check('an ordinary session shows no demo banner', () => {
 });
 
 check('the demo has a database of its own, apart from the real one', () => {
-  assert(DEMO_DATABASE === 'itemshare-demo', `expected itemshare-demo, got ${DEMO_DATABASE}`);
-  assert(DEMO_DATABASE !== 'itemshare', 'the demo must not share the real database');
+  assert(DEMO_DATABASE === 'guildsbounty-demo', `expected guildsbounty-demo, got ${DEMO_DATABASE}`);
+  assert(DEMO_DATABASE !== 'guildsbounty', 'the demo must not share the real database');
 });
 
 check('the demo connection keeps the site settings and swaps only the name', () => {
   const config = demoDatabaseConfig({
     host: 'db.internal',
     port: 3307,
-    user: 'itemshare',
+    user: 'guildsbounty',
     password: 'secret',
-    database: 'itemshare',
+    database: 'guildsbounty',
   });
 
   assert(config.database === DEMO_DATABASE, `expected ${DEMO_DATABASE}, got ${config.database}`);
   assert(config.host === 'db.internal' && config.port === 3307, 'the host and port must be kept');
-  assert(config.user === 'itemshare' && config.password === 'secret', 'the login must be kept');
+  assert(config.user === 'guildsbounty' && config.password === 'secret', 'the login must be kept');
 });
 
 check('the demo database can never be the site database', () => {
-  for (const name of ['itemshare-demo', 'ItemShare-Demo', '']) {
+  for (const name of ['guildsbounty-demo', 'GuildsBounty-Demo', '']) {
     let refused = false;
 
     try {
@@ -916,20 +916,20 @@ await checkAsync('the cast is written into the demo guild through the upload pat
     `expected ${DEMO_CAST.length} seeded, got ${result.seeded.length}`
   );
 
-  const shared = connection.calls(/INSERT INTO itemshare_shared_items/);
+  const shared = connection.calls(/INSERT INTO guildsbounty_shared_items/);
   assert(shared.length >= DEMO_CAST.length, 'every guildmate must share at least one item');
 
   const written = JSON.stringify(shared.map((call) => call.params));
   assert(written.includes('@NightMarket'), 'the guildmates\u2019 items must name their account');
 
-  const links = connection.calls(/INSERT IGNORE INTO itemshare_shared_item_guilds/);
+  const links = connection.calls(/INSERT IGNORE INTO guildsbounty_shared_item_guilds/);
   assert(links.length >= DEMO_CAST.length, 'every shared item must carry its guild link');
   assert(
     links.some((call) => call.params.includes(DEMO_GUILD.id)),
     'the items must be offered to the demo guild'
   );
 
-  const identities = connection.calls(/INSERT INTO itemshare_user_identities/);
+  const identities = connection.calls(/INSERT INTO guildsbounty_user_identities/);
   assert(
     identities.some((call) => call.params.includes('demo-cast')),
     'a guildmate needs a person row of its own, kept apart from real sign-ins'
@@ -943,7 +943,7 @@ await checkAsync('a guildmate who already shares is left alone', async () => {
   assert(result.seeded.length === 0, 'nothing should be written again');
   assert(result.kept.length === DEMO_CAST.length, 'every guildmate is already there');
   assert(
-    connection.calls(/INSERT INTO itemshare_shared_items/).length === 0,
+    connection.calls(/INSERT INTO guildsbounty_shared_items/).length === 0,
     'an existing shelf must not be rewritten on every boot'
   );
 });

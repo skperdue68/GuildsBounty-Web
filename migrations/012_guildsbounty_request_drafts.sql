@@ -1,6 +1,6 @@
 -- Requests that have not been sent yet.
 --
--- Until now a row in itemshare_requests was always a finished ask: it existed, so
+-- Until now a row in guildsbounty_requests was always a finished ask: it existed, so
 -- it held stock. That makes the "basket" impossible to express - someone picking
 -- two items out of five should not look like a promise to the owner, and walking
 -- away from the page should not hold the stack forever.
@@ -17,18 +17,18 @@
 
 -- IF NOT EXISTS: a migration is recorded only after every statement in it has run, so
 -- a startup interrupted here is retried with these columns already in place.
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS expires_at DATETIME NULL DEFAULT NULL AFTER status,
   ADD COLUMN IF NOT EXISTS submitted_at DATETIME NULL DEFAULT NULL AFTER expires_at;
 
 -- 'draft' is the new first state, 'expired' is why a draft died. Rows written
 -- before this migration keep their status; nothing is rewritten here.
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   MODIFY COLUMN status ENUM(
     'draft', 'pending', 'cancelled', 'fulfilled', 'declined', 'expired'
   ) NOT NULL DEFAULT 'draft';
 
 -- The sweeper's query is `status = 'draft' AND expires_at <= NOW()`, and the
 -- reserving queries all filter on the same pair.
-ALTER TABLE itemshare_requests
-  ADD INDEX IF NOT EXISTS idx_itemshare_requests_expiry (status, expires_at);
+ALTER TABLE guildsbounty_requests
+  ADD INDEX IF NOT EXISTS idx_guildsbounty_requests_expiry (status, expires_at);

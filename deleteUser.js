@@ -32,7 +32,7 @@
 // real ones and nothing changes.
 //
 // Reads the same .env as the site, from this folder: MARIADB_HOST, MARIADB_PORT,
-// MARIADB_USER, MARIADB_PASSWORD and ITEMSHARE_DATABASE.
+// MARIADB_USER, MARIADB_PASSWORD and GUILDSBOUNTY_DATABASE.
 
 import { existsSync } from 'node:fs';
 import path from 'node:path';
@@ -69,7 +69,7 @@ Discord and Google sign-ins belong to the provider and are not listed or removed
   --help, -h     This text
 
 Reads the same .env as the site, from this folder: MARIADB_HOST, MARIADB_PORT,
-MARIADB_USER, MARIADB_PASSWORD and ITEMSHARE_DATABASE.
+MARIADB_USER, MARIADB_PASSWORD and GUILDSBOUNTY_DATABASE.
 
 Exit codes: 0 removed (or a dry run that found them), 1 nothing found or something was
 left behind, 2 usage.`;
@@ -109,7 +109,7 @@ export function removalPlan({ userId, accountNames = [] }) {
   // from one of their own accounts.
   add(
     'requests asked for or owed on them',
-    `DELETE FROM itemshare_requests
+    `DELETE FROM guildsbounty_requests
       WHERE requester_user_id = ?${
         names.length
           ? `
@@ -125,63 +125,63 @@ export function removalPlan({ userId, accountNames = [] }) {
     // itself.
     add(
       'guild memberships of their accounts',
-      `DELETE FROM itemshare_account_guilds WHERE account_name IN ${inNames}`,
+      `DELETE FROM guildsbounty_account_guilds WHERE account_name IN ${inNames}`,
       names
     );
     add(
       'shared items',
-      `DELETE FROM itemshare_shared_items WHERE account_name IN ${inNames}`,
+      `DELETE FROM guildsbounty_shared_items WHERE account_name IN ${inNames}`,
       names
     );
     add(
       'standing offers',
-      `DELETE FROM itemshare_always_share WHERE account_name IN ${inNames}`,
+      `DELETE FROM guildsbounty_always_share WHERE account_name IN ${inNames}`,
       names
     );
     add(
       'uploads of their accounts',
-      `DELETE FROM itemshare_uploads WHERE account_name IN ${inNames} OR user_id = ?`,
+      `DELETE FROM guildsbounty_uploads WHERE account_name IN ${inNames} OR user_id = ?`,
       [...names, id]
     );
     // Anybody left browsing as one of these accounts would see an account that no longer
     // exists; empty means "the oldest one still linked", which is right again afterwards.
     add(
       'other people browsing as one of their accounts',
-      `UPDATE itemshare_users SET browsing_eso_account_name = ''
+      `UPDATE guildsbounty_users SET browsing_eso_account_name = ''
         WHERE browsing_eso_account_name IN ${inNames}`,
       names
     );
   } else {
-    add('uploads they made', 'DELETE FROM itemshare_uploads WHERE user_id = ?', [id]);
+    add('uploads they made', 'DELETE FROM guildsbounty_uploads WHERE user_id = ?', [id]);
   }
 
   // A code can be the only reason somebody else is in a guild, so the membership stays and
   // only the record of which code granted it goes.
   add(
     'codes their invitations came from',
-    `UPDATE itemshare_account_guilds SET granted_code_id = NULL
+    `UPDATE guildsbounty_account_guilds SET granted_code_id = NULL
       WHERE granted_code_id IN (
-        SELECT id FROM itemshare_guild_codes WHERE created_by_user_id = ?
+        SELECT id FROM guildsbounty_guild_codes WHERE created_by_user_id = ?
       )`,
     [id]
   );
   add(
     'redemptions of their codes',
-    `DELETE FROM itemshare_guild_code_redemptions
+    `DELETE FROM guildsbounty_guild_code_redemptions
       WHERE user_id = ?
          OR code_id IN (
-           SELECT id FROM itemshare_guild_codes WHERE created_by_user_id = ?
+           SELECT id FROM guildsbounty_guild_codes WHERE created_by_user_id = ?
          )`,
     [id, id]
   );
   add(
     'guild codes they created',
-    'DELETE FROM itemshare_guild_codes WHERE created_by_user_id = ?',
+    'DELETE FROM guildsbounty_guild_codes WHERE created_by_user_id = ?',
     [id]
   );
   add(
     'their ESO accounts',
-    `DELETE FROM itemshare_accounts WHERE user_id = ?${
+    `DELETE FROM guildsbounty_accounts WHERE user_id = ?${
       names.length ? ` OR eso_account_name IN ${inNames}` : ''
     }`,
     [id, ...names]
@@ -190,14 +190,14 @@ export function removalPlan({ userId, accountNames = [] }) {
   // which is why this one reads it out instead of comparing a foreign key.
   add(
     'signed-in sessions',
-    `DELETE FROM itemshare_sessions
+    `DELETE FROM guildsbounty_sessions
       WHERE CAST(JSON_EXTRACT(session_data, '$.user.id') AS UNSIGNED) = ?`,
     [id]
   );
-  add('sign-in identities', 'DELETE FROM itemshare_user_identities WHERE user_id = ?', [id]);
-  add('password', 'DELETE FROM itemshare_passwords WHERE user_id = ?', [id]);
-  add('password resets', 'DELETE FROM itemshare_password_resets WHERE user_id = ?', [id]);
-  add('the person', 'DELETE FROM itemshare_users WHERE id = ?', [id]);
+  add('sign-in identities', 'DELETE FROM guildsbounty_user_identities WHERE user_id = ?', [id]);
+  add('password', 'DELETE FROM guildsbounty_passwords WHERE user_id = ?', [id]);
+  add('password resets', 'DELETE FROM guildsbounty_password_resets WHERE user_id = ?', [id]);
+  add('the person', 'DELETE FROM guildsbounty_users WHERE id = ?', [id]);
 
   return steps;
 }
@@ -222,29 +222,29 @@ export function leftoverChecks({ userId, accountNames = [] }) {
     add(label, `SELECT COUNT(*) AS found FROM ${table} WHERE ${where}`, params);
 
   if (names.length) {
-    count('shared items', 'itemshare_shared_items', `account_name IN ${inNames}`, names);
-    count('standing offers', 'itemshare_always_share', `account_name IN ${inNames}`, names);
-    count('guild memberships', 'itemshare_account_guilds', `account_name IN ${inNames}`, names);
+    count('shared items', 'guildsbounty_shared_items', `account_name IN ${inNames}`, names);
+    count('standing offers', 'guildsbounty_always_share', `account_name IN ${inNames}`, names);
+    count('guild memberships', 'guildsbounty_account_guilds', `account_name IN ${inNames}`, names);
     add(
       'uploads',
-      `SELECT COUNT(*) AS found FROM itemshare_uploads
+      `SELECT COUNT(*) AS found FROM guildsbounty_uploads
         WHERE account_name IN ${inNames} OR user_id = ?`,
       [...names, id]
     );
     add(
       'accounts',
-      `SELECT COUNT(*) AS found FROM itemshare_accounts
+      `SELECT COUNT(*) AS found FROM guildsbounty_accounts
         WHERE user_id = ? OR eso_account_name IN ${inNames}`,
       [id, ...names]
     );
   } else {
-    count('uploads', 'itemshare_uploads', 'user_id = ?', [id]);
-    count('accounts', 'itemshare_accounts', 'user_id = ?', [id]);
+    count('uploads', 'guildsbounty_uploads', 'user_id = ?', [id]);
+    count('accounts', 'guildsbounty_accounts', 'user_id = ?', [id]);
   }
 
   add(
     'requests',
-    `SELECT COUNT(*) AS found FROM itemshare_requests
+    `SELECT COUNT(*) AS found FROM guildsbounty_requests
       WHERE requester_user_id = ?${
         names.length
           ? `
@@ -254,22 +254,22 @@ export function leftoverChecks({ userId, accountNames = [] }) {
       }`,
     [id, ...names, ...names]
   );
-  count('guild codes', 'itemshare_guild_codes', 'created_by_user_id = ?', [id]);
+  count('guild codes', 'guildsbounty_guild_codes', 'created_by_user_id = ?', [id]);
   add(
     'code redemptions',
-    `SELECT COUNT(*) AS found FROM itemshare_guild_code_redemptions WHERE user_id = ?`,
+    `SELECT COUNT(*) AS found FROM guildsbounty_guild_code_redemptions WHERE user_id = ?`,
     [id]
   );
   add(
     'sessions',
-    `SELECT COUNT(*) AS found FROM itemshare_sessions
+    `SELECT COUNT(*) AS found FROM guildsbounty_sessions
       WHERE CAST(JSON_EXTRACT(session_data, '$.user.id') AS UNSIGNED) = ?`,
     [id]
   );
-  count('identities', 'itemshare_user_identities', 'user_id = ?', [id]);
-  count('password', 'itemshare_passwords', 'user_id = ?', [id]);
-  count('password resets', 'itemshare_password_resets', 'user_id = ?', [id]);
-  count('the person', 'itemshare_users', 'id = ?', [id]);
+  count('identities', 'guildsbounty_user_identities', 'user_id = ?', [id]);
+  count('password', 'guildsbounty_passwords', 'user_id = ?', [id]);
+  count('password resets', 'guildsbounty_password_resets', 'user_id = ?', [id]);
+  count('the person', 'guildsbounty_users', 'id = ?', [id]);
 
   return checks;
 }
@@ -348,7 +348,7 @@ export function parseArguments(argv) {
  * to pick.
  *
  * Only that kind of login is handled: an account made on this site, whose subject in
- * `itemshare_user_identities` is the address itself. A Discord or Google sign-in is the
+ * `guildsbounty_user_identities` is the address itself. A Discord or Google sign-in is the
  * provider's account and is deliberately not matched, so an ESO account name, a provider
  * username or a display name can never remove a person this command was not asked about.
  *
@@ -366,8 +366,8 @@ export async function resolvePeople(connection, { login = '', id = 0 } = {}) {
 
   const sql = `SELECT u.id, u.display_name, u.email, u.is_demo,
                       i.provider_user_id AS login
-                 FROM itemshare_user_identities i
-                 JOIN itemshare_users u ON u.id = i.user_id
+                 FROM guildsbounty_user_identities i
+                 JOIN guildsbounty_users u ON u.id = i.user_id
                 WHERE i.provider = 'password'`;
 
   if (id) {
@@ -396,9 +396,9 @@ export async function listPasswordLogins(connection) {
   const [rows] = await connection.execute(
     `SELECT u.id, u.display_name, u.email, u.is_demo,
             i.provider_user_id AS login,
-            (SELECT COUNT(*) FROM itemshare_accounts a WHERE a.user_id = u.id) AS account_count
-       FROM itemshare_user_identities i
-       JOIN itemshare_users u ON u.id = i.user_id
+            (SELECT COUNT(*) FROM guildsbounty_accounts a WHERE a.user_id = u.id) AS account_count
+       FROM guildsbounty_user_identities i
+       JOIN guildsbounty_users u ON u.id = i.user_id
       WHERE i.provider = 'password'
       ORDER BY i.provider_user_id ASC, u.id ASC`
   );
@@ -416,7 +416,7 @@ export async function listPasswordLogins(connection) {
 /** The ESO accounts linked to one person. */
 export async function accountsForUser(connection, userId) {
   const [rows] = await connection.execute(
-    `SELECT eso_account_name FROM itemshare_accounts
+    `SELECT eso_account_name FROM guildsbounty_accounts
       WHERE user_id = ? ORDER BY eso_account_name`,
     [Number(userId)]
   );

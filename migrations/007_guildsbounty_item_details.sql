@@ -7,17 +7,17 @@
 -- second in-game capture. UESP enrichment therefore only ever fills gaps the
 -- client left empty.
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   ADD COLUMN IF NOT EXISTS set_name VARCHAR(255) NOT NULL DEFAULT '';
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   ADD COLUMN IF NOT EXISTS enchant_name VARCHAR(255) NOT NULL DEFAULT '' AFTER set_name;
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   ADD COLUMN IF NOT EXISTS style_name VARCHAR(128) NOT NULL DEFAULT '' AFTER enchant_name;
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   ADD COLUMN IF NOT EXISTS required_level INT NOT NULL DEFAULT 0 AFTER style_name;
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   ADD COLUMN IF NOT EXISTS required_cp INT NOT NULL DEFAULT 0 AFTER required_level;

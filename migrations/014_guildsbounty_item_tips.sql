@@ -8,7 +8,7 @@
 -- payload holds the whole normalised answer, so the shape can gain fields without a
 -- migration. A missing row just means "not looked up yet".
 
-CREATE TABLE IF NOT EXISTS itemshare_item_tips (
+CREATE TABLE IF NOT EXISTS guildsbounty_item_tips (
   tip_key VARCHAR(191) NOT NULL,
   payload JSON NOT NULL,
   fetched_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

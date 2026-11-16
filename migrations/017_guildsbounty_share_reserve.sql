@@ -9,10 +9,10 @@
 -- They are additive and default to 0, which is exactly what every row written before
 -- this migration means: no reserve, so everything held is shareable.
 
-ALTER TABLE itemshare_shared_items
+ALTER TABLE guildsbounty_shared_items
   ADD COLUMN IF NOT EXISTS held_quantity INT NOT NULL DEFAULT 0 AFTER item_count,
   ADD COLUMN IF NOT EXISTS reserve_quantity INT NOT NULL DEFAULT 0 AFTER held_quantity;
 
-ALTER TABLE itemshare_always_share
+ALTER TABLE guildsbounty_always_share
   ADD COLUMN IF NOT EXISTS held_quantity INT NOT NULL DEFAULT 0 AFTER required_cp,
   ADD COLUMN IF NOT EXISTS reserve_quantity INT NOT NULL DEFAULT 0 AFTER held_quantity;

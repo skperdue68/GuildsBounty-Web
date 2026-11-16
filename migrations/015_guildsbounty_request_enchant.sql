@@ -8,5 +8,5 @@
 --
 -- trait already exists (migration 013); this adds the other half of the detail line.
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS enchant_name VARCHAR(255) NOT NULL DEFAULT '' AFTER trait;

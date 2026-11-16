@@ -321,7 +321,7 @@ t('one person is looked up with the same bound, and their provider read from the
   const body = storeFunction('getViewAsUser');
 
   assert.match(body, /WHERE u\.id = \? AND u\.is_demo = \?/);
-  assert.match(body, /itemshare_user_identities/);
+  assert.match(body, /guildsbounty_user_identities/);
   assert.match(body, /LIMIT 1/);
 });
 
@@ -339,8 +339,8 @@ t('a form value that is not a person is refused before any query', () => {
 // no id column, so ordering by one failed at the database and the swap never happened.
 t('the sign-in rows are ordered by columns that table actually has', () => {
   const body = storeFunction('getViewAsUser');
-  const schema = read('migrations/005_itemshare_users.sql');
-  const from = schema.indexOf('CREATE TABLE IF NOT EXISTS itemshare_user_identities');
+  const schema = read('migrations/005_guildsbounty_users.sql');
+  const from = schema.indexOf('CREATE TABLE IF NOT EXISTS guildsbounty_user_identities');
   const create = schema.slice(from, schema.indexOf(') ENGINE', from));
 
   assert.ok(from > -1 && create.length > 0, 'the identity table is in the schema');
@@ -350,7 +350,7 @@ t('the sign-in rows are ordered by columns that table actually has', () => {
   assert.ok(named.length > 0, 'the subquery refers to its own columns');
 
   for (const column of named) {
-    assert.match(create, new RegExp(`\\b${column}\\b`), `itemshare_user_identities has ${column}`);
+    assert.match(create, new RegExp(`\\b${column}\\b`), `guildsbounty_user_identities has ${column}`);
   }
 });
 

@@ -5,5 +5,5 @@
 -- Initials remain the fallback when a provider has no picture, or the picture stops
 -- loading, so the header never depends on a third party being reachable.
 
-ALTER TABLE itemshare_users
+ALTER TABLE guildsbounty_users
   ADD COLUMN IF NOT EXISTS avatar_url VARCHAR(512) NOT NULL DEFAULT '' AFTER email_verified;

@@ -11,6 +11,6 @@
 -- Standing offers carry no location of their own (008), so their requests keep the empty
 -- default and the email simply says nothing about where.
 
-ALTER TABLE itemshare_requests
+ALTER TABLE guildsbounty_requests
   ADD COLUMN IF NOT EXISTS location_label VARCHAR(255) NOT NULL DEFAULT ''
   AFTER enchant_name;

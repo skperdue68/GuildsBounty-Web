@@ -335,7 +335,7 @@ function writtenDown({ code = null, affectedRows = 0 } = {}) {
       const flat = String(sql).replace(/\s+/g, ' ').trim();
       calls.push({ sql: flat, params });
 
-      return /FROM itemshare_guild_codes/.test(flat) ? [code ? [code] : []] : [{ affectedRows }];
+      return /FROM guildsbounty_guild_codes/.test(flat) ? [code ? [code] : []] : [{ affectedRows }];
     },
   };
 }
@@ -361,10 +361,10 @@ await t('revoking deletes the code, who used it, and only the rows it granted', 
   const deletes = connection.calls.filter((call) => call.sql.startsWith('DELETE'));
 
   assert.equal(deletes.length, 3, 'grants, then redemptions, then the code itself');
-  assert.match(deletes[0].sql, /DELETE FROM itemshare_account_guilds WHERE granted_code_id = \?/);
+  assert.match(deletes[0].sql, /DELETE FROM guildsbounty_account_guilds WHERE granted_code_id = \?/);
   assert.deepEqual(deletes[0].params, [7], 'only the rows this code wrote');
-  assert.match(deletes[1].sql, /FROM itemshare_guild_code_redemptions WHERE code_id = \?/);
-  assert.match(deletes[2].sql, /FROM itemshare_guild_codes WHERE id = \?/);
+  assert.match(deletes[1].sql, /FROM guildsbounty_guild_code_redemptions WHERE code_id = \?/);
+  assert.match(deletes[2].sql, /FROM guildsbounty_guild_codes WHERE id = \?/);
   assert.deepEqual(deletes[2].params, [7]);
 });
 
@@ -485,7 +485,7 @@ await t('the account is added on the platform and server the code names', async 
   assert.equal(row.world_name, 'NA Megaserver');
   assert.equal(row.platform, 2);
   assert.deepEqual(connection.calls[0].params, ['K7QM3XPD'], 'what was typed is normalised');
-  assert.match(connection.calls[0].sql, /FROM itemshare_guild_codes WHERE code = \?/);
+  assert.match(connection.calls[0].sql, /FROM guildsbounty_guild_codes WHERE code = \?/);
 });
 
 // The guide used to open with the addon, which is the wrong first step for somebody who was

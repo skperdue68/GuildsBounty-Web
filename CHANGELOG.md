@@ -19,9 +19,18 @@ landed on `main`.
   folded types, the sort queues and the remembered tab are read from the new names, and the old
   cookies are simply never looked at. The addon's own files (`ItemShareSavedVars.lua`,
   `ItemShareExport.lua`, the in-game `/itemshare` command), the old `itemshare.perdues.me`
-  address, the earlier entries in this file and the database - the `itemshare_*` tables, the
-  `itemshare`/`itemshare-demo` databases and `ITEMSHARE_DATABASE` - keep the old name on
-  purpose. The database is the one left to do, and it needs its own migration.
+  address and the earlier entries in this file keep the old name on purpose.
+
+- **The database has the new name too.** The tables are `guildsbounty_*`, the bookkeeping table
+  is `guildsbounty_schema_migrations`, the database is `guildsbounty` (and `guildsbounty-demo`
+  for the demo, whose anonymised addresses are now `@guildsbounty.invalid`), and the setting is
+  `GUILDSBOUNTY_DATABASE`; the old `ITEMSHARE_DATABASE` is still read when the new one is
+  blank, so an existing `.env` keeps working. Nothing has to be renamed by hand: on its first
+  boot the site renames any `itemshare_*` table it finds to `guildsbounty_*` in one atomic
+  `RENAME TABLE` and rewrites the migration filenames recorded in the ledger, so no migration is
+  re-applied against a schema that already has it. A table already under its new name is left
+  alone, and a second boot finds nothing to do. The migration files themselves were renamed
+  (`019_guildsbounty_request_fulfillment.sql` and so on) to match.
 
 - **The filter card belongs to Browse Offers and My Inventory, and the two now keep their own
   filters.** It used to sit above every tab and narrow one shared idea of the list, so a type

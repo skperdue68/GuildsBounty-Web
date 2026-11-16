@@ -441,7 +441,7 @@ function restoreOwnLogin(req) {
 
 // The menu's own data, worked out per page and hung on the user that page is drawn for.
 // Defined as a non-enumerable property on purpose: the session store writes the session with
-// JSON.stringify, so a list of everybody in the site never reaches itemshare_sessions and is
+// JSON.stringify, so a list of everybody in the site never reaches guildsbounty_sessions and is
 // rebuilt fresh on the next page instead of going stale in a row.
 app.use((req, res, next) => {
   const real = viewAsSignedIn(req);
@@ -3785,7 +3785,7 @@ await prepareDatabase().catch((error) => {
   try {
     config = readConfig();
   } catch {
-    // A malformed ITEMSHARE_DATABASE is reported by prepareDatabase itself.
+    // A malformed GUILDSBOUNTY_DATABASE is reported by prepareDatabase itself.
   }
   warnLine(describeConnectionFailure(error, config));
 });
