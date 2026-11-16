@@ -42,6 +42,7 @@
     "test:offer-listing": "node testOfferListing.js",
     "test:email-link": "node testEmailLink.js",
     "test:filter-rows": "node testFilterRows.js",
+    "test:app-startup": "node testAppStartup.js",
     "test:db-names": "node testDatabaseNames.js"
   },
   "dependencies": {

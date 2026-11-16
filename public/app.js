@@ -402,6 +402,21 @@ if (listRegion) {
   let listSearchByTab = { request: '', offer: '', mine: '', received: '' };
   let listSearchTimer = null;
 
+  // The names each list's filters travel under, read by the menus, the chips and the two
+  // numbers that count a list's rows. It sits up here with the rest of the page's state
+  // rather than beside the handlers: the first thing the page does is put the remembered tab
+  // on screen, and that already counts a menu, so a `const` declared further down would still
+  // be in its dead zone and the whole page would stop there.
+  //
+  // One row per list. Browse Offers and My Inventory each keep their own choices under their
+  // own names, so a type narrowed on what other people share never hides rows inside your own
+  // bag, and switching tabs shows the tab's own filters. My Requests and Requests Received
+  // have no row at all: a type or an owner says nothing about a request.
+  const FILTER_PARAMS = {
+    request: { type: 'type', owner: 'owner', added: 'added' },
+    offer: { type: 'mtype', owner: 'mowner', added: 'madded' },
+  };
+
   // Which page of Already sent is on screen. It is kept here rather than in the address
   // bar: paging is a view of the same page, so it must not rewrite the URL, count as a
   // navigation, or move the reader to a different tab.
@@ -470,10 +485,12 @@ if (listRegion) {
     // still inside the second-long wait belongs to the tab being left, so it is dropped
     // rather than fired against the tab that replaced it.
     window.clearTimeout(listSearchTimer);
-    applyListSearch();
-    // The filter card belongs to the list being drawn, so it moves with the tab - and leaves
-    // the page on the two tabs whose tables no type or owner filter speaks for.
+    // The filter row belongs to the list being drawn, so it moves with the tab - and leaves
+    // the page on the two tabs whose tables no type or owner filter speaks for. This comes
+    // first: the two rows are drawn together, and showing the right one must not depend on
+    // the narrowing below finishing.
     syncFilterCard();
+    applyListSearch();
   }
 
   listRegion.addEventListener('click', (event) => {
@@ -886,15 +903,6 @@ if (listRegion) {
   // ------------------------------------------------------------------- filters
   // Filters apply as soon as they change - there is no button to forget - and the
   // address bar keeps up, so a reload or a live refresh uses the same filters.
-  //
-  // One row per list. Browse Offers and My Inventory each keep their own choices under their
-  // own names, so a type narrowed on what other people share never hides rows inside your own
-  // bag, and switching tabs shows the tab's own filters. My Requests and Requests Received
-  // have no row at all: a type or an owner says nothing about a request.
-  const FILTER_PARAMS = {
-    request: { type: 'type', owner: 'owner', added: 'added' },
-    offer: { type: 'mtype', owner: 'mowner', added: 'madded' },
-  };
   let filterSearchTimer = null;
 
   function filterForms() {
@@ -1525,11 +1533,11 @@ if (listRegion) {
     relativeTick(listRegion);
     noteClosedRequests();
     syncRequestDialog();
+    syncFilterCard();
     applyListSearch();
     // The rows are new, so the numbers that count them are read back off the page: a menu
     // that still says what it said before the push is the one thing a reader cannot check.
     syncCounts();
-    syncFilterCard();
   }
 
   /**
