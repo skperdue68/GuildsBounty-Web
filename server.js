@@ -3419,7 +3419,8 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
   }
 
   return {
-    accounts: uploaded,
+    // The per-item detail is what the log is made of; the page only needs the counts.
+    accounts: uploaded.map(({ added, removed, ...account }) => account),
     accountCount: uploaded.length,
     itemCount: uploaded.reduce((sum, entry) => sum + entry.itemCount, 0),
     alwaysShareCount: uploaded.reduce((sum, entry) => sum + entry.alwaysShareCount, 0),
