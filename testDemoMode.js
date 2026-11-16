@@ -36,9 +36,13 @@ import {
   demoActivityPause,
   demoAnswerAmount,
   pickScenario,
+  refreshedShelf,
   runDemoActivity,
   shelfChange,
+  uploadChangeWords,
 } from './lib/demoActivity.js';
+import { readFileSync } from 'node:fs';
+
 import { DEMO_VIEWER_TTL_MS, activeDemoViewers, noteViewer } from './lib/demoPresence.js';
 import {
   DEMO_ASK_TTL_MS,
@@ -1343,6 +1347,96 @@ check('a demo page marks itself so the sandbox knows somebody is watching', () =
   assert(
     !ordinaryPage.includes('data-demo'),
     'an ordinary page must not keep the sandbox alive'
+  );
+});
+
+// The refresh scenario: the one upload the demo could not show, where nothing arrives and
+// nothing leaves but a stack is re-counted.
+const refreshShelf = () => [
+  { itemName: 'Soul Gem', itemCount: 3 },
+  { itemName: 'Dreugh Wax', itemCount: 1 },
+  { itemName: 'Rubedite Ingot', itemCount: 2 },
+];
+
+check('a re-saved file moves a stack, up or down, and keeps every piece', () => {
+  const shelf = refreshShelf();
+  // The stack, then whether it goes down: 3 -> 4, then 1 -> 2.
+  const { items, moved } = refreshedShelf(shelf, { random: sequence([0, 0.9, 0.2, 0.9]) });
+
+  assert(items.length === 3, 'nothing is added or removed');
+  assert(
+    items.map((item) => item.itemName).join(',') === 'Soul Gem,Dreugh Wax,Rubedite Ingot',
+    'the same three pieces, in the same order'
+  );
+  assert(moved.length === 2, 'two stacks re-counted');
+  assert(
+    moved[0].from === 3 && moved[0].to === 4,
+    'the first went up'
+  );
+  assert(
+    moved[1].from === 1 && moved[1].to === 2,
+    'and a shelf of single copies only ever grows'
+  );
+  assert(shelf[0].itemCount === 3, 'the shelf it was given is not written over');
+
+  const down = refreshedShelf(refreshShelf(), { random: sequence([0, 0.1]), moves: 1 });
+
+  assert(down.moved.length === 1, 'one move when only one is asked for');
+  assert(down.moved[0].to === 2, 'a stack can also come down');
+  // 2 -> 1 is the floor: zero would be the piece leaving the shelf, which is not a refresh.
+  const floor = refreshedShelf([{ itemName: 'Ancient Silk', itemCount: 2 }], {
+    random: sequence([0, 0.1, 0.1]),
+  });
+
+  assert(floor.items[0].itemCount === 1, 'the last copy is never taken');
+  assert(
+    refreshedShelf([{ itemName: 'Ancient Silk', itemCount: 1 }], {
+      random: sequence([0, 0.1]),
+    }).items[0].itemCount === 2,
+    'and a lone copy is re-counted upwards instead'
+  );
+});
+
+check('a refresh never counts one row twice', () => {
+  for (const pick of [0, 0.3, 0.6, 0.9]) {
+    const { moved } = refreshedShelf(refreshShelf(), {
+      random: sequence([pick, 0.2, pick, 0.7]),
+    });
+    const names = moved.map((move) => move.name);
+
+    assert(
+      new Set(names).size === names.length,
+      `${pick}: two moves are two rows, not one row re-counted`
+    );
+  }
+});
+
+check('the refresh summary reads exactly like the upload box does', () => {
+  // The browser's half of the same sentence, sliced out of the file it actually loads.
+  const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const start = app.indexOf('// ------------------------------------------------- upload change summary');
+  const end = app.indexOf('// ---------------------------------------------- end upload change summary');
+  const { uploadChangeSummary } = new Function(
+    `${app.slice(start, end)}\nreturn { uploadChangeSummary };`
+  )();
+
+  for (const entry of [
+    { removedItems: 0, addedItems: 0, refreshedItems: 2 },
+    { removedItems: 1, addedItems: 0, refreshedItems: 3 },
+    { removedItems: 0, addedItems: 0, refreshedItems: 1 },
+    { removedItems: 2, addedItems: 1, refreshedItems: 0 },
+    {},
+  ]) {
+    assert(
+      uploadChangeWords(entry) === uploadChangeSummary(entry),
+      `${JSON.stringify(entry)}: the demo says what a real upload says`
+    );
+  }
+
+  assert(
+    uploadChangeWords({ removedItems: 0, addedItems: 0, refreshedItems: 2 }) ===
+      '0 items removed, 0 items added, 2 items refreshed',
+    'and says all three numbers, in the order the page does'
   );
 });
 

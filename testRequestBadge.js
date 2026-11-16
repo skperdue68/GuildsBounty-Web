@@ -290,5 +290,83 @@ await t('the count is a number whatever the driver hands back', async () => {
   assert.equal(await countOwnerRequests(fakeConnection([]), ['@Eva']), 0);
 });
 
+// ------------------------------------------------ where the number is kept in step
+// A badge that only ever goes up is worse than none, so what is checked here is that every
+// way the waiting count can move tells the person it moved. Sliced out of server.js, the
+// file that is actually started, rather than copied into the test.
+const serverSource = readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+
+function sourceBetween(startText, endText) {
+  const start = serverSource.indexOf(startText);
+
+  assert.ok(start >= 0, `${startText} is in the file`);
+
+  const end = serverSource.indexOf(endText, start);
+
+  return serverSource.slice(start, end > start ? end : undefined);
+}
+
+await t('answering on the site brings the owner\'s own count down', () => {
+  const route = sourceBetween("app.post('/owner/requests'", '\napp.post(');
+
+  assert.match(route, /recordOwnerGroupAnswer\(/, 'the owner\'s own answer');
+  assert.match(
+    route,
+    /await announcePendingRequests\(answeredAccounts\)/,
+    'and the number on their avatar is worked out again afterwards'
+  );
+});
+
+await t('answering from an email link does too', () => {
+  const route = sourceBetween("app.post('/requests/fulfill/:token'", '\napp.post(');
+
+  assert.match(route, /recordFulfillment\(/, 'the answer the link carries');
+  assert.match(
+    route,
+    /await announcePendingRequests\(outcome\.rows\.map\(\(row\) => row\.ownerAccountName\)\)/,
+    'each owner named on the rows it closed'
+  );
+});
+
+await t('the demo visitor\'s count moves as the cast asks them for things', () => {
+  const tick = sourceBetween('async function tickDemoActivity', 'function scheduleDemoActivity');
+
+  assert.match(
+    tick,
+    /pendingRequestBadges\(connection, \[DEMO_ACCOUNT\]\)/,
+    'counted in the demo\'s own copy, not the real database'
+  );
+  assert.match(
+    tick,
+    /realtime\.notifyPendingRequests\(badge\.userId, badge\.count\)/,
+    'and pushed to that person\'s pages'
+  );
+  assert.match(
+    tick,
+    /demoBadgeCount !== badge\.count/,
+    'only when it moved, so an unchanged tick is not announced'
+  );
+});
+
+await t('an upload that drops a piece drops the asks for it, and says so', () => {
+  const upload = sourceBetween('async function applySavedVariablesUpload', '\napp.post(');
+
+  assert.match(
+    upload,
+    /await announcePendingRequests\(uploadedAccounts\)/,
+    'a file without the piece cancels its asks, so the count moves without an answer'
+  );
+});
+
+await t('an answered row knows whose shelf it left', () => {
+  const store = readFileSync(new URL('./lib/store.js', import.meta.url), 'utf8');
+
+  assert.match(
+    store,
+    /answered\.push\(\{[\s\S]{0,800}?ownerAccountName: row\.owner_account_name \|\| ''/,
+    'the badge is worked out from the row, and an email answer has no other way to say'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 process.exitCode = failures === 0 ? 0 : 1;

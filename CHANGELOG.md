@@ -7,6 +7,13 @@ landed on `main`.
 
 ### Fixed
 
+- **The count on the avatar keeps up with the list.** Answering a request took the row off the
+  owner's own list but left the number on their avatar where it was, and only a reload put it
+  right; the same was true of an answer given from the email link, of an upload that dropped a
+  piece somebody was waiting for, and of the demo copy when one of its guildmates asked the
+  visitor for something. All four now work the count out again and push it to every page that
+  person has open.
+
 - **A count as `9 of 10` stays on one line.** The Qty cell is 58px wide with its padding counted
   in, so `8 of 10` had 38px for seven characters and folded onto two lines in the middle of the
   row. A numeric cell is never wrapped now, and an auto-laid-out table gives the column at least
@@ -158,6 +165,13 @@ landed on `main`.
   fold opens even if the search has nothing to say about it.
 
 ### Changed
+
+- **The demo's file refresh shows what an upload shows.** A guildmate re-saving their file used to
+  rewrite the same rows and report nothing, so the one thing the site calls a refresh - a piece
+  that stays on the list with its quantity moved - could not be seen at all. The file now comes
+  back with a stack or two re-counted, and the summary reads the way the page under the file drop
+  does: "0 items removed, 0 items added, 2 items refreshed (Soul Gem 3 to 4, Dreugh Wax 1 to 2)".
+  A stack never goes to zero, because that is the piece leaving the shelf rather than a re-count.
 
 - **The guilds you are browsing are named under the count.** The line above the tabs says how many
   items are shared by "members of @X's guilds" and left you to remember which guilds those were;
