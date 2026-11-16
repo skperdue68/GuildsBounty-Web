@@ -793,6 +793,70 @@ t('a tab shows its own filter row before it narrows or counts anything', () => {
   );
 });
 
+t('a ticked box leaves the menu open, and a click outside closes it', () => {
+  const source = read('public/app.js');
+  const changeHandler = source.slice(
+    source.indexOf("document.addEventListener('change'"),
+    source.indexOf("document.addEventListener('input'")
+  );
+
+  assert.ok(changeHandler.includes('applyFilters(form)'), 'the choice still applies as it is made');
+  assert.doesNotMatch(
+    changeHandler,
+    /\.open = false/,
+    'ticking a box must not close the menu it lives in - three types is three reopenings'
+  );
+
+  // The only way out is the click that lands outside the menu.
+  const clickHandler = source.slice(source.indexOf("document.addEventListener('click'"));
+  assert.match(
+    clickHandler,
+    /details\[open\]'\)\.forEach[\s\S]{0,200}?\.open = false/,
+    'a click outside the menu closes it'
+  );
+
+  // The menu has to survive the refresh a choice starts, or it shuts anyway when the region
+  // comes back: the reconciler keeps `open` from the node already on the page.
+  assert.match(
+    source,
+    /current\.matches\('details'\) && name === 'open'/,
+    'a live refresh keeps an open menu open'
+  );
+});
+
+t('Escape closes the open filter menu, and no other key does', () => {
+  const source = read('public/app.js');
+  const escapeClosesFilterMenu = new Function(
+    'document',
+    `${functionSource(source, 'escapeClosesFilterMenu')}; return escapeClosesFilterMenu;`
+  )(undefined);
+
+  const menu = { open: true };
+  const root = (target) => ({
+    querySelector: (selector) => (selector === '[data-filters] details[open]' ? target : null),
+  });
+
+  assert.equal(escapeClosesFilterMenu({ key: 'Escape' }, root(menu)), true, 'Escape is taken');
+  assert.equal(menu.open, false, 'and the menu it was pressed in is shut');
+
+  const untouched = { open: true };
+  assert.equal(escapeClosesFilterMenu({ key: 'Enter' }, root(untouched)), false, 'Enter is not its business');
+  assert.equal(escapeClosesFilterMenu({ key: 'Escape' }, root(untouched)), true, 'Escape still works after');
+  assert.equal(escapeClosesFilterMenu({ key: 'a' }, root(untouched)), false, 'a letter does nothing');
+  assert.equal(
+    escapeClosesFilterMenu({ key: 'Escape' }, root(null)),
+    false,
+    'nothing open means nothing to close'
+  );
+
+  // The key has to be listened for, or the function is never called.
+  assert.match(
+    source,
+    /document\.addEventListener\('keydown', \(event\) => \{\s*escapeClosesFilterMenu\(event\);\s*\}\);/,
+    'and the page listens for the key'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {

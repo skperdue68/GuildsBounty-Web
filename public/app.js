@@ -1365,12 +1365,9 @@ if (listRegion) {
       return;
     }
 
-    // Picking something in a menu closes it; the chip below shows the result.
-    const menu = event.target.closest('details');
-
-    if (menu && (event.target.type === 'checkbox' || event.target.type === 'radio')) {
-      menu.open = false;
-    }
+    // The menu stays open. A filter row is a handful of boxes ticked in one sitting - two
+    // types, a type and an owner - and closing on the first one means hunting the box down
+    // again for every other. It closes when the click lands outside it, further down.
 
     applyFilters(form);
   });
@@ -3661,6 +3658,29 @@ document.addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && accountsModal && !accountsModal.hidden) {
     closeAccountsModal();
   }
+});
+
+// Escape puts an open filter menu away, the way a click outside it does: the summary opens the
+// box from the keyboard, so the keyboard should be able to shut it too. Kept as a plain
+// function taking its own root, so the key can be tried on its own - see test:filter-rows.
+function escapeClosesFilterMenu(event, root = document) {
+  if (!event || event.key !== 'Escape') {
+    return false;
+  }
+
+  const open = root.querySelector('[data-filters] details[open]');
+
+  if (!open) {
+    return false;
+  }
+
+  open.open = false;
+
+  return true;
+}
+
+document.addEventListener('keydown', (event) => {
+  escapeClosesFilterMenu(event);
 });
 
 // -------------------------------------------------------------- item tooltips

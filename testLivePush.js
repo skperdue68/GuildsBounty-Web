@@ -14,6 +14,8 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
+import { assetUrl, BUILD_STAMP } from './lib/views.js';
+
 const read = (path) => fs.readFileSync(new URL(`./${path}`, import.meta.url), 'utf8');
 
 let total = 0;
@@ -147,6 +149,35 @@ t('the new region is applied whole, then the numbers are read back off it', () =
   assert.match(apply, /reconcileLiveNode\(listRegion, next\)/, 'the list region is reconciled');
   assert.match(apply, /syncFilterCard\(\);\n    applyListSearch\(\);/s, 'the filter row is decided for the open tab');
   assert.match(apply, /applyListSearch\(\);\n    \/\/ The rows are new[\s\S]{0,200}syncCounts\(\);/s, 'and the counts follow the new rows');
+});
+
+// ------------------------------------------------------------ the browser gets this build
+
+t('every stylesheet and script is asked for at the build this page was made with', () => {
+  const views = read('lib/views.js');
+  const shell = views.slice(views.indexOf('function pageShell('), views.indexOf('function pageShell(') + 4200);
+
+  // A URL with no version on it is the one thing a deploy cannot change inside a cache, and a
+  // browser holding yesterday's stylesheet is a fix that never arrives: the menu renders under
+  // the search row and the dropdown keeps hiding its own options, exactly as before.
+  assert.doesNotMatch(
+    shell,
+    /(?:href|src)="\/(?:styles\.css|app\.js|header-menu\.js|requests-sort\.js|password-toggle\.js|password-check\.js|auth-panel\.js|rebrand-notice\.js)[^"]*"/,
+    'nothing is linked without the stamp'
+  );
+  assert.match(shell, /assetUrl\('\/styles\.css'\)/, 'including the stylesheet');
+  assert.match(shell, /assetUrl\('\/app\.js'\)/, 'and the script that runs the list');
+  assert.match(views, /statSync\(path\.join\(PUBLIC_DIR, name\)\)/, 'the stamp is the files\' own size and time');
+});
+
+t('the same stamp is on the page, so a stale page can be told by eye', () => {
+  const views = read('lib/views.js');
+
+  assert.match(views, /<span class="build-stamp"[^>]*>build \$\{BUILD_STAMP\}<\/span>/, 'the footer carries it');
+  assert.match(read('public/styles.css'), /\.build-stamp \{[^}]*font-size: 11px/, 'small enough to ignore');
+  assert.match(assetUrl('/app.js'), /^\/app\.js\?v=[0-9a-f]{10}$/, 'a versioned URL');
+  assert.equal(assetUrl('/app.js'), assetUrl('/app.js'), 'the same file, the same URL');
+  assert.equal(assetUrl('/app.js').split('?v=')[1], BUILD_STAMP, 'one stamp for the page and its files');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

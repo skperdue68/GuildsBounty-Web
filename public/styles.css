@@ -985,6 +985,18 @@ th.num {
   text-align: center;
 }
 
+/* Which build this page came from, small enough to ignore and there when a fix does not seem
+   to have arrived: it is the same stamp the stylesheet and scripts are asked for by. */
+.build-stamp {
+  display: inline-block;
+  margin-left: 10px;
+  font-size: 11px;
+  color: var(--muted);
+  opacity: 0.55;
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+}
+
 @media (max-width: 720px) {
   .top-bar {
     height: auto;

@@ -7,6 +7,35 @@ landed on `main`.
 
 ### Changed
 
+### Added
+
+- **The page says which build it is.** The stylesheet and every script are now asked for by
+  the version of the files this build was made with (`/styles.css?v=…`, `/app.js?v=…`,
+  stamped from their own size and modification time), and the same short stamp sits in the
+  footer as `build 1a2b3c4d5e`. A fix that does not seem to have arrived can be told apart from
+  a browser - or anything between it and the server - still holding yesterday's copy: reload,
+  and the stamp plus every file it loads should be the new one.
+
+### Added
+
+- **Escape closes an open filter menu.** The summary opens the box from the keyboard, so the
+  keyboard can put it away again: the menu shuts on Escape exactly as it does on a click
+  outside it, and on nothing else.
+
+- **The demo's guildmates now change their shelves, so the menus move while you watch.** One
+  of the demo's actions puts a piece in somebody's bags or takes one away through the ordinary
+  upload path - and an arriving piece prefers a type nobody is sharing yet - so the filter
+  options, their numbers and any chip for a type that has just left all move on the next push
+  without a reload. A shelf is never taken below two pieces, so an open demo cannot run itself
+  empty.
+
+### Changed
+
+- **A filter menu stays open while you fill it in.** Ticking a type closed the box, so two
+  types meant opening it twice, and a type and an owner meant twice more. The menu is left
+  open now, its numbers and rows still updating as each box is ticked, and it closes when the
+  click lands outside it (or on RESET, or on the summary).
+
 - **The standing-offers heading is a heading again, not a bar as deep as the whole pinned
   strip.** It was given the height of the tabs, the filter band and the search row together so
   that it could cover the tabs while a long list scrolled under it - which left roughly 90px of
