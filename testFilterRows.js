@@ -998,6 +998,46 @@ t('any scrollbar the page draws is drawn in the site\u2019s blues', () => {
   assert.doesNotMatch(css, /scrollbar-color:\s*rgba/, 'and nothing sets a colour of its own');
 });
 
+t('the controls the browser draws itself are drawn the site\u2019s way', () => {
+  const css = read('public/styles.css');
+
+  // Every select, named by the control it sits under, so a sixth one cannot be left with the
+  // browser's black chevron on a dark box - and its open list asked to be dark too.
+  assert.match(
+    css,
+    /\.filter select,\n\.browsing-picker select,\n\.account-menu-select,\n\.auth-field select,\n\.guild-code-form select \{[^}]*appearance: none;[^}]*color-scheme: dark;[^}]*background-image: url\("data:image\/svg\+xml/,
+    'one chevron for every select, and the list asked to be dark'
+  );
+  assert.match(
+    css,
+    /input\[type='checkbox'\],\ninput\[type='radio'\] \{[^}]*accent-color: #3b82f6;/,
+    'a tick keyed to the palette rather than the browser'
+  );
+
+  // The count boxes are typed into, never stepped: the arrows go once, for both of them.
+  assert.match(
+    css,
+    /input\[type='number'\]::-webkit-inner-spin-button \{[^}]*margin: 0;/,
+    'a number box carries no stepper'
+  );
+  assert.doesNotMatch(
+    css,
+    /\.reserve-amount::-webkit-inner-spin-button/,
+    'and no control keeps a copy of that rule of its own'
+  );
+
+  assert.match(
+    css,
+    /\.auth-signup summary \{[^}]*list-style: none;[\s\S]*\.auth-signup summary::before \{[^}]*content: "\\25b8";/,
+    'the sign-up disclosure takes the guide drawer\u2019s caret'
+  );
+  assert.match(
+    css,
+    /^:focus-visible \{[^}]*outline: 2px solid rgba\(148, 197, 255, 0\.85\);/m,
+    'one focus ring for everything that does not write its own'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {

@@ -85,6 +85,8 @@ const history = [
     quality: 2,
     owner_account_name: '@Eva',
     requester_account_name: '@Dee',
+    // The old code wrote the ask into the handover, so a cancelled row from before the fix
+    // still says two were sent when two were asked for and none left the bag.
     quantity: 2,
     quantity_requested: 2,
     status: 'cancelled',
@@ -375,6 +377,73 @@ t('all four tables sort by their own headings and remember it in their own cooki
   assert.match(mine, /data-sort-status="Not requested"/);
   assert.match(html, /data-sort-requested="3"/, 'asked for, on the answered row');
   assert.match(html, /data-sort-amount="1"/, 'and how many arrived');
+});
+
+t('a refused ask reads 0 on both tables, old rows and new', () => {
+  // A cancellation from before the fix still holds the ask in `quantity`; one answered since
+  // holds 0, and the table has to read both the same way.
+  const cancelled = (id, name, quantity, asked) => ({
+    id,
+    item_name: name,
+    item_type_name: 'Weapons',
+    quality: 2,
+    owner_account_name: '@Eva',
+    requester_account_name: '@Dee',
+    quantity,
+    quantity_requested: asked,
+    status: 'cancelled',
+    closed_at: '2026-11-12T10:00:00Z',
+  });
+  const html = render({
+    requests: [cancelled(11, 'Hunting Bow', 2, 2), cancelled(12, 'Ancient Silk', 0, 4)],
+    receivedHistory: [cancelled(11, 'Hunting Bow', 2, 2), cancelled(12, 'Ancient Silk', 0, 1)],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = panel(html, 'mine');
+  const answered = panel(html, 'received');
+  const oldRow = answered.slice(answered.indexOf('Hunting Bow'));
+
+  assert.match(mine, /<td class="num">0 of 2<\/td>/, 'the requester sees that nothing arrived');
+  assert.match(mine, /<td class="num">0 of 4<\/td>/, 'and how many were asked for');
+  assert.equal(
+    (mine.match(/data-sort-qty="0"/g) || []).length,
+    2,
+    'both sort as the 0 they show'
+  );
+  assert.match(
+    oldRow,
+    /<td class="num">2<\/td>\s*<td class="num">0<\/td>\s*<td>Not fulfilled<\/td>/,
+    'asked 2, sent 0, on the owner\u2019s own table'
+  );
+  assert.match(oldRow, /data-sort-amount="0"/, 'and its Amount column sorts as nothing');
+  assert.match(oldRow, /data-sort-requested="2"/, 'while the ask stays what it was');
+});
+
+t('a craft taken back out of the basket keeps the copies it was holding', () => {
+  const html = render({
+    requests: [],
+    basketRows: [
+      { id: 9, item_name: 'Soul Gem', owner_account_name: '@Owner', quantity: 2, status: 'cancelled' },
+    ],
+    requestHistory: { page: 1, totalPages: 1 },
+  });
+  const mine = panel(html, 'mine');
+
+  assert.match(mine, /<td class="num">2<\/td>/, 'a basket row is not an answer: it still holds two');
+  assert.match(mine, /data-sort-qty="2"/);
+});
+
+t('the one-off backfill zeroes what old cancellations recorded as sent', () => {
+  const sql = read('migrations/031_guildsbounty_cancelled_quantity.sql');
+
+  assert.match(sql, /SET quantity = 0/, 'the handover becomes nothing');
+  assert.match(
+    sql,
+    /WHERE status IN \('cancelled', 'declined'\)/,
+    'only refused asks - the ask itself is in quantity_requested'
+  );
+  assert.match(sql, /AND submitted_at IS NOT NULL/, 'and only the ones that were sent');
+  assert.match(sql, /AND quantity > 0/, 'leaving a basket row its copies, and a fixed row alone');
 });
 
 t('each table carries the words its search box looks through', () => {

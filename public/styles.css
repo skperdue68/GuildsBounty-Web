@@ -3279,14 +3279,7 @@ th.action-cell {
   font-weight: 700;
   text-align: center;
   font-variant-numeric: tabular-nums;
-  -moz-appearance: textfield;
-  appearance: textfield;
-}
-
-.reserve-amount::-webkit-outer-spin-button,
-.reserve-amount::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
+  /* The stepper arrows are taken out of every number box at the end of this file. */
 }
 
 .reserve-amount:focus {
@@ -3817,4 +3810,75 @@ a.history-page:hover, .history-page.is-current {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* ========================= the parts of a control the browser paints for the site
+   A select's arrow, a tick box, a number box's stepper, a disclosure's triangle and the focus
+   ring arrive in the browser's own colours, which on this page read as "not from here". One
+   block, after the controls' own rules so it wins on equal footing, and nothing in it more
+   specific than what it overrides. */
+
+/* Every select - the filter bar's, the account picker over the tabs, the avatar menu's person
+   picker, the sign-up account picker and the guild code's - gets one drawn chevron, and asks
+   for its open list to be dark. The options are the operating system's; `color-scheme` is the
+   only say a page has over them. */
+.filter select,
+.browsing-picker select,
+.account-menu-select,
+.auth-field select,
+.guild-code-form select {
+  appearance: none;
+  color-scheme: dark;
+  padding-right: 30px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%2394a3b8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  background-size: 10px 6px;
+}
+
+/* The palette's blue for a tick, and a dark empty box rather than a white hole in a dark menu.
+   The filter menus' radios are clipped, so their dot is never seen. */
+input[type='checkbox'],
+input[type='radio'] {
+  accent-color: #3b82f6;
+  color-scheme: dark;
+}
+
+/* A number box here is typed into, never stepped: the arrows are grey on this background and
+   eat the width the number needs. */
+input[type='number'] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+input[type='number']::-webkit-outer-spin-button,
+input[type='number']::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* The sign-up disclosure gets the guide drawer's caret instead of the browser's black
+   triangle. */
+.auth-signup summary {
+  list-style: none;
+}
+
+.auth-signup summary::-webkit-details-marker {
+  display: none;
+}
+
+.auth-signup summary::before {
+  content: "\25b8";
+  display: inline-block;
+  margin-right: 6px;
+  font-size: 11px;
+  color: #8fb4ff;
+}
+
+/* Most controls write no focus ring of their own, so a keyboard walk drew the browser's white
+   halo, in whatever accent the operating system uses. One ring for the site; a control that
+   writes its own is more specific and keeps it. */
+:focus-visible {
+  outline: 2px solid rgba(148, 197, 255, 0.85);
+  outline-offset: 2px;
 }
