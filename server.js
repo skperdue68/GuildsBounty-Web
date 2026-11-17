@@ -2664,7 +2664,7 @@ app.post('/auth/email', async (req, res) => {
       // The demo person is looked up in the demo database, where it is created if it is
       // missing: a sign-in must never write rows into the real one.
       const login = await withDatabaseOn(DEMO_DATABASE, async (connection) => {
-        await ensureDemoData(connection, { sourceDatabase: config.database });
+        await ensureDemoData(connection, { sourceDatabase: readConfig().database });
         // Somebody arriving finds the shelves as full as the catalogues allow, whatever
         // the last visitor's session or the activity loop left behind. Debounced, so
         // signing in twice does not write them twice.
