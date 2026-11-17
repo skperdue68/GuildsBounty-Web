@@ -656,6 +656,62 @@ await checkAsync('one damaged table does not cost the rest of the copy', async (
   assert(result.failed[0].error === 'Table is damaged', 'the reason must travel with it');
 });
 
+// A site database can hold a table this build never creates - an old Discord table, or the
+// `guidsbounty_` one a typo left behind. Copying it only ever failed with "table doesn't
+// exist", which read as a broken demo on every boot and hid the failures that matter.
+await checkAsync('a table the demo does not have is left out, not called broken', async () => {
+  const statements = [];
+
+  const connection = {
+    async query(sql, params = []) {
+      statements.push({ sql, params });
+
+      if (/^SHOW TABLES FROM `guildsbounty`$/.test(sql)) {
+        return [
+          [
+            { 'Tables_in_guildsbounty': 'guildsbounty_users' },
+            { 'Tables_in_guildsbounty': 'guidsbounty_discord_interactions' },
+          ],
+          {},
+        ];
+      }
+
+      if (/^SHOW TABLES FROM `guildsbounty-demo`$/.test(sql)) {
+        return [[{ 'Tables_in_guildsbounty-demo': 'guildsbounty_users' }], {}];
+      }
+
+      if (/SELECT @@SESSION\.sql_mode/.test(sql)) {
+        return [[{ sql_mode: 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION' }], {}];
+      }
+
+      return [[], {}];
+    },
+  };
+
+  const result = await copyDemoData(connection, { sourceDatabase: 'guildsbounty' });
+  const sql = statements.map((entry) => entry.sql).join('\n');
+
+  assert(result.copied === 1, `expected the one shared table copied, got ${result.copied}`);
+  assert(result.failed.length === 0, 'skipping a table is not a failure');
+  assert(
+    result.skipped.length === 1 && result.skipped[0] === 'guidsbounty_discord_interactions',
+    `expected the stray table named as skipped, got ${result.skipped.join(', ') || 'nothing'}`
+  );
+  assert(
+    !sql.includes('INSERT INTO `guildsbounty-demo`.`guidsbounty_discord_interactions`'),
+    'and never attempted'
+  );
+  // The demo database is built from this build's migrations and the site's may be older: a
+  // column that is an integer here can hold anything there. Strict mode off for the copy is
+  // what turns a legacy `'bank'` in held_quantity into a 0 instead of a lost table.
+  assert(sql.includes("SET SESSION sql_mode = ''"), 'strict mode must be off while copying');
+  assert(
+    statements.some((entry) => /SET SESSION sql_mode = \?/.test(entry.sql) &&
+      entry.params[0] === 'STRICT_TRANS_TABLES,NO_ENGINE_SUBSTITUTION'),
+    'and put back afterwards, so nothing else inherits it'
+  );
+});
+
 // ------------------------------------------------------------------- the sign-in
 await checkAsync('the demo signs in as a person marked demo', async () => {
   const connection = {
@@ -1887,6 +1943,26 @@ check('the pinned header re-measures when its own block wraps', () => {
   assert(
     /observer\.observe\(document\.body\)/.test(block),
     'the body still has to be watched, because the list region is replaced'
+  );
+});
+
+// The bars over the tables are this page's own furniture and the server renders none of them.
+// Left in place while the region is reconciled, each unkeyed bar was matched to the search row
+// arriving in its place, which took the row's class and left the table without headings.
+check('a refreshed region is reconciled without the bars this page invented', () => {
+  const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+
+  const drop = app.indexOf('function dropPinnedTableHeads');
+  assert(drop > 0, 'the bars have to be removable');
+  assert(
+    /\.querySelectorAll\('\.table-head'\)/.test(app.slice(drop, drop + 600)),
+    'and removing them means all of them'
+  );
+
+  assertMatch(
+    app,
+    /dropPinnedTableHeads\(listRegion\);[\s\S]{0,80}reconcileLiveNode\(listRegion, next\)/,
+    'they must be out of the region before it is reconciled'
   );
 });
 

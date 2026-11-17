@@ -831,9 +831,9 @@ t('the header block above the tabs is what pins, and the tabs hang off it', () =
 // Requests Received tables - so a floor that stopped binding would drop their copy onto a pinned
 // row. The function is lifted out of public/app.js and run against a stub page, because what it
 // reads - rects, a computed `top` - only exists in a browser.
-function floorFor(bars, shell) {
+function floorFor(bars, shell, ceiling) {
   const source = fs.readFileSync('public/app.js', 'utf8');
-  const start = source.indexOf('function pinnedFloor(shell) {');
+  const start = source.indexOf('function pinnedFloor(shell, ceiling = Infinity) {');
   assert.ok(start > -1, 'pinnedFloor is still in public/app.js');
 
   let depth = 0;
@@ -855,7 +855,7 @@ function floorFor(bars, shell) {
   const win = { getComputedStyle: (bar) => ({ top: `${bar.own}px` }) };
   const node = { DOCUMENT_POSITION_FOLLOWING: 4 };
 
-  return new Function('document', 'window', 'Node', `${body}\nreturn pinnedFloor;`)(doc, win, node)(shell);
+  return new Function('document', 'window', 'Node', `${body}\nreturn pinnedFloor;`)(doc, win, node)(shell, ceiling);
 }
 
 function stubBar({ name, top, own = 0, bottom, following = true, visible = true }) {
@@ -873,7 +873,7 @@ t('the pinned copy clears the lowest bar pinned over the table', () => {
 
   assert.match(
     app,
-    /const line = Math\.max\(\s*parseFloat\(window\.getComputedStyle\(heading\)\.top\) \|\| 0,\s*pinnedFloor\(shell\)\s*\)/,
+    /const line = Math\.max\(headingLine, pinnedFloor\(shell, headingLine\)\)/,
     'the bar takes the lower of its headings line and the bar above it, and never sits above it'
   );
 
@@ -912,6 +912,23 @@ t('a bar that has not reached its line yet is not a floor', () => {
     ),
     447,
     'the pinned band above it still counts'
+  );
+});
+
+t('a bar standing below the copy\'s line is not a floor', () => {
+  // The frame after a live refresh once reported a bar at 919px while the headings' own line
+  // was 506px. Whatever that rectangle was, a bar that begins below the copy cannot stand over
+  // it, so the copy stays on its line instead of dropping hundreds of pixels down the page.
+  assert.equal(
+    floorFor([stubBar({ name: 'bar left behind', top: 919, own: 919, bottom: 978 })], {}, 506),
+    0,
+    'a bar pinned below the line is passed over'
+  );
+
+  assert.equal(
+    floorFor([stubBar({ name: 'search row', top: 447, own: 447, bottom: 506 })], {}, 447),
+    506,
+    'a bar pinned at the line still lifts the copy under its bottom'
   );
 });
 
