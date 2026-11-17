@@ -948,8 +948,6 @@ th {
   /* Above the rows and the table's own headings, below the standing-offers bar that passes
      over both. */
   z-index: 14;
-  /* A copy for the eye. The headings that carry the sort buttons are the table's own. */
-  pointer-events: none;
 }
 
 /* A table that carries its own search row has one more bar above it to clear. The bar is
@@ -977,7 +975,10 @@ th {
   box-shadow: 0 1px 0 rgba(148, 163, 184, 0.22);
 }
 
-/* The copy is the bar; the table's own heading row does the pinning everywhere else. */
+/* The copy is the bar; the table's own heading row does the pinning everywhere else. The
+   copy's buttons carry the same data-sort the table's do, so a press on one is a press on
+   that column - the list's click handler takes the field from the button that was clicked,
+   wherever it stands. Nothing is added to the tab order: the copied buttons are tabindex -1. */
 .table-head th {
   position: static;
   border-bottom: 0;

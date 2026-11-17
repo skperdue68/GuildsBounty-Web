@@ -125,6 +125,16 @@ function buildTableHead(shell) {
     control.tabIndex = -1;
   }
 
+  // A press on the copy is a press on the column: the buttons it holds carry the table's own
+  // data-sort, and the list's click handler reads the field off whichever one was pressed. Only
+  // the focus is stopped - a copy is out of sight the moment the list moves under it, so the
+  // caret is left where the reader had it.
+  bar.addEventListener('mousedown', (event) => {
+    if (event.target.closest && event.target.closest('button')) {
+      event.preventDefault();
+    }
+  });
+
   inner.append(copy);
   bar.append(inner);
 

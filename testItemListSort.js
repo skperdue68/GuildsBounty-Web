@@ -440,6 +440,27 @@ t('the search shares the row with the grouping switch', () => {
 
 const appSource = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
 
+// The copy of the heading row only earns its place if a press on it does what a press on the
+// real heading does - and it must not add a second way round the page with the keyboard.
+t('a pinned heading takes a press, and no second tab stop', () => {
+  const css = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+  const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const bar = css.match(/\.table-head\s*\{[^}]*\}/)?.[0] || '';
+
+  assert.ok(bar, 'the pinned copy is styled');
+  assert.doesNotMatch(
+    bar,
+    /pointer-events:\s*none/,
+    'nothing stands between a press and the pinned headings'
+  );
+  assert.match(app, /control\.tabIndex = -1/, 'the copied buttons stay out of the tab order');
+  assert.match(
+    app,
+    /addEventListener\('mousedown'/,
+    'a press on a copy does not leave the caret on a row that is about to move'
+  );
+});
+
 // The bars that pin the list have to be fully opaque. The block over the tabs was painted with
 // the card's panel - 44% - so a row scrolling under it read straight through the line that
 // counts what is shared, and the bars below it at 92-96% still let a row edge show.

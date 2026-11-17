@@ -14,7 +14,10 @@ landed on `main`.
   heading row in the pinned stack above it, drawn from the table's own colgroup and moved
   sideways with the shell as it scrolls, so every column stays over its own cells at any
   scroll position. Where the columns do fit, the table's own heading row pins as before and
-  the copy stays out of the way.
+  the copy stays out of the way. A press on the pinned copy sorts the column exactly as a press
+  on the real heading does - the copied buttons carry the same `data-sort` - and the copied
+  buttons are `tabindex="-1"` with the press's focus suppressed, so the bar adds no second stop
+  to the tab order and cannot pull the reader's caret onto a row that is about to move.
 
 - **The bars that pin are opaque.** The block that holds the count line, the guild pills and the
   account picker was painted with the card's 44%-opaque panel, so rows scrolling underneath it
