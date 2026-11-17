@@ -7,6 +7,13 @@ landed on `main`.
 
 ### Added
 
+- **The log says when a proxy is eating the websocket.** A websocket request that arrives
+  without its `Upgrade` header is answered by Node with `400 "Bad request"`, which reaches
+  the browser as a failed connection and nothing else. The server now names it once a
+  minute, with the two proxy settings that fix it, so a console error and a `journalctl`
+  line are the same problem twice rather than a mystery. Nothing changes for a site whose
+  proxy passes the upgrade through.
+
 - **The block above the tabs folds away.** The count line, the guild pills and the account line are
   three lines of context that cost a long list the top of every screen. A chevron in the block's
   corner folds it down to the live pill, which stays where it was on the right; the tabs, the

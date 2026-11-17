@@ -184,6 +184,27 @@ t('the same stamp is on the page, so a stale page can be told by eye', () => {
   assert.equal(assetUrl('/app.js').split('?v=')[1], BUILD_STAMP, 'one stamp for the page and its files');
 });
 
+// A proxy that forwards the websocket request without its Upgrade header turns a working
+// socket into a 400 in the browser's console, and nothing on this side can accept it. The log
+// says so, in the words the person running the site can act on.
+t('a websocket refused for a missing Upgrade header is named in the log', () => {
+  assert.match(
+    realtime,
+    /url\.includes\('transport=websocket'\)/,
+    'the guard looks at websocket requests'
+  );
+  assert.match(
+    realtime,
+    /toLowerCase\(\) === 'websocket'[\s\S]{0,80}return;/,
+    'and only at the ones that arrived without the header'
+  );
+  assert.match(
+    realtime,
+    /proxy_set_header Upgrade \$http_upgrade/,
+    'the line names the proxy setting that fixes it'
+  );
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {

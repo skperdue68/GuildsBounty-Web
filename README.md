@@ -1675,6 +1675,25 @@ address, not just `localhost`.
 once so the account and its guilds are known; `npm run seed:demo` gives the Request tab
 something in it before a second person uploads.
 
+**The console shows `WebSocket ... failed: Unexpected response code: 400`.** The page lives
+on long-polling and still updates, so this is noise - but it means no websocket is being
+opened, and the upgrade is being dropped between the browser and Node. Node answers a
+websocket request that arrives without its `Upgrade` header with `400 {"code":3,"message":
+"Bad request"}`, and the log names the same thing with `Live updates: a websocket was asked
+for without its Upgrade header`. Fix the hop in front:
+
+```bash
+# does the handshake get through? 101 = yes, 400 = something is rewriting it
+curl -i -H "Connection: Upgrade" -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+     https://your-host/socket.io/?EIO=4&transport=websocket | head -3
+```
+
+nginx needs `proxy_http_version 1.1`, `proxy_set_header Upgrade $http_upgrade` and
+`proxy_set_header Connection upgrade` (the deploy section has the full location); a
+Cloudflare zone needs **Network → WebSockets** on. Nothing in this app has to change -
+Socket.IO already shares Express's HTTP server.
+
 **`Email: N request emails not sent`** - no transport, or mail turned off. `EMAIL_FROM` is
 blank, `EMAIL_TRANSPORT=none` is set, or there is neither a `sendmail` on the host nor a
 `RESEND_API_KEY`. `npm run email:test -- you@example.com` reports which, including an
