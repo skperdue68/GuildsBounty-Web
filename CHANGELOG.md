@@ -22,12 +22,6 @@ landed on `main`.
 
 ### Fixed
 
-- **The console's failed websocket is gone.** The page used to open a long-poll session
-  first and then ask Socket.IO to upgrade it, which a process that had restarted since - or
-  a second one behind the proxy - refused with 400 "Session ID unknown", so every restart
-  left a failed connection in the console before the page quietly reconnected. The page now
-  asks for a websocket directly, with no handshake to upgrade; the server still accepts
-  polling for a browser that cannot open one.
 - **Signing in as the demo person works again.** The sign-in step that tells the demo where
   the site's own rows live was reading a variable that only exists in the startup function,
   so it threw `config is not defined` and the browser was shown "The demo could not be

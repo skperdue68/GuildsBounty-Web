@@ -2911,14 +2911,13 @@ if (listRegion) {
   // ------------------------------------------------------ end pending requests badge
 
   // ------------------------------------------------------------------- socket
-  // Straight to a websocket, with no polling handshake to upgrade. Socket.IO otherwise opens a
-  // long-poll session first and then asks to upgrade it, and a process that has restarted since
-  // - or a second one behind the proxy - answers that upgrade with 400 "Session ID unknown",
-  // which lands in the console as a failed connection even though the page then reconnects. The
-  // server still offers polling for a browser that cannot open a websocket at all.
+  // Both transports, so the page works on a host that cannot carry a websocket upgrade: it
+  // starts on long-polling, which always gets through, and asks for a websocket on top. A host
+  // whose proxy refuses the upgrade answers 400 and the page simply stays on polling - keeping
+  // its live updates - where asking only for a websocket would fail to connect at all.
   const socket =
     typeof window.io === 'function'
-      ? window.io({ withCredentials: true, transports: ['websocket'] })
+      ? window.io({ withCredentials: true, transports: ['polling', 'websocket'] })
       : null;
 
   if (socket) {
