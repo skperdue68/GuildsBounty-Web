@@ -1869,6 +1869,16 @@ rows, and nothing it does can reach them; signing in as anybody else switches ba
 `GUILDSBOUNTY_DATABASE` on the next request. Sessions stay in the real database, because a
 session has to be read before the site knows who is asking.
 
+**The copy takes what it can and says what it left.** A site database can hold a table this
+build never creates - Discord rows from an older deployment, or a `guidsbounty_` name a typo
+left behind - and the demo has nothing to read it with, so those are listed once and skipped
+rather than reported as failures on every boot. A value the demo's own schema cannot hold is
+written as best it can instead: the demo database is built from this build's migrations and
+the site's may be older, so a column that is an integer here can still be a legacy string
+there, and strict mode is switched off for the length of the copy so one odd row cannot cost
+a whole table. The summary line counts the tables copied, the ones that would not copy, and
+the ones left out.
+
 **The demo's database is granted as it is made.** MariaDB grants per database name, so the
 account the site runs as can create `guildsbounty-demo` on its CREATE privilege and then be
 refused every table inside it: an operator who granted `guildsbounty.*` never granted the

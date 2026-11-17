@@ -903,12 +903,21 @@ async function prepareDatabase() {
     logLine(
       `Demo database: ${demoConfig.database} on ${demoConfig.host}:${demoConfig.port} ` +
         `(recreated, ${copied.copied} table${copied.copied === 1 ? '' : 's'} copied from ${config.database}` +
-        `${copied.failed.length ? `, ${copied.failed.length} failed` : ''}; ` +
+        `${copied.failed.length ? `, ${copied.failed.length} failed` : ''}` +
+        `${copied.skipped.length ? `, ${copied.skipped.length} not in the demo` : ''}; ` +
         `migrations: ${opened.migrations.length ? opened.migrations.length : 'none pending'})`
     );
 
     for (const failure of copied.failed) {
       warnLine(`Demo database: could not copy ${failure.table} - ${failure.error}`);
+    }
+    // Not a fault: an operator's database can hold a table this build never creates (an old
+    // Discord table, a name with a typo in it), and the demo has nothing to read it with.
+    if (copied.skipped.length) {
+      logLine(
+        `Demo database: left out ${copied.skipped.length} table(s) this build does not create - ` +
+          copied.skipped.join(', ')
+      );
     }
     logLine(
       `Demo sign-in: ${demo.created ? 'created' : 'already there'}, ` +

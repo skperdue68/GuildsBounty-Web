@@ -287,10 +287,33 @@ function pinnedFloor(shell) {
   return floor;
 }
 
+/**
+ * Takes this page's own bars out of a region that is about to be reconciled.
+ *
+ * The server draws no `.table-head`, and the reconciler matches an element it cannot key by tag
+ * alone - so the bar, an unkeyed <div> standing exactly where the search row arrives, was taken
+ * for that row: the search row came back wearing the bar's inline top and the table lost its
+ * headings entirely. That is the strip of rows above the search row and the headings pinned
+ * over nothing. They are derived from the markup that is arriving, so they go and are built
+ * again once it is in.
+ */
+function dropPinnedTableHeads(root = document) {
+  for (const bar of root.querySelectorAll('.table-head')) {
+    bar.remove();
+  }
+
+  pinnedTableHeads.clear();
+}
+
 function syncPinnedTableHeads() {
-  for (const gone of pinnedTableHeads.keys()) {
-    if (!gone.isConnected) {
-      pinnedTableHeads.delete(gone);
+  // A refreshed region arrives as the server drew it, and the server draws no bars: the one
+  // this page put there is gone with the rest of the old markup. The shell can survive that
+  // replacement (the region is reconciled in place), so the entry has to be dropped for either
+  // half going away - a bar that is no longer in the document is one nothing can position, and
+  // the table below it would scroll with no headings over it at all.
+  for (const [shell, entry] of pinnedTableHeads) {
+    if (!shell.isConnected || !entry.bar.isConnected) {
+      pinnedTableHeads.delete(shell);
     }
   }
 
@@ -312,7 +335,12 @@ function syncPinnedTableHeads() {
 
     // The bar pins on the line the table's own headings pin on. They already know what stands
     // above them - a search row, a standing-offers bar, neither - so nothing here has to guess.
-    const line = Math.max(parseFloat(window.getComputedStyle(heading).top) || 0, pinnedFloor(shell));
+    // The headings' own line first. It is a CSS expression over the bars' measured heights, so
+    // it is right the instant the region lands; the floor below is read off live rectangles and
+    // is a frame or two behind a replacement, which put the copy hundreds of pixels down the
+    // page - over the rows, under the search row - until the next frame put it back.
+    const headingLine = parseFloat(window.getComputedStyle(heading).top) || 0;
+    const line = headingLine > 0 ? headingLine : pinnedFloor(shell);
     const top = `${Math.round(line)}px`;
     if (bar.style.top !== top) {
       bar.style.top = top;
@@ -2057,6 +2085,7 @@ if (listRegion) {
       panel.getBoundingClientRect().height
     );
 
+    dropPinnedTableHeads(listRegion);
     reconcileLiveNode(listRegion, next);
     // The block comes back from the server expanded; a reader who folded it keeps it folded.
     applyListTopState(listRegion);
@@ -2073,6 +2102,10 @@ if (listRegion) {
     // The rows are new, so the numbers that count them are read back off the page: a menu
     // that still says what it said before the push is the one thing a reader cannot check.
     syncCounts();
+    // The region brought new shells, and the bars over them were not part of what arrived:
+    // rebuilt here rather than left to the mutation observer, so the copy stands over the
+    // headings in the same frame the rows do.
+    schedulePinnedTableHeads();
   }
 
   /**

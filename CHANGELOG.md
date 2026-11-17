@@ -31,6 +31,16 @@ landed on `main`.
 
 ### Fixed
 
+- **A live refresh keeps the list's headings where they were.** The bar of column headings over
+  each table is drawn by the page, not by the server, and a refresh reconciles the list against
+  what the server sent - so the bar, standing exactly where the search row arrives, was taken
+  for that row. The search row came back wearing the bar's inline offset, the table lost its
+  headings, and a strip of rows showed between the filter band and the search box while the
+  rest of the list scrolled under both. The bars are now lifted out before the list is
+  reconciled and built again straight after, and they pin on the headings' own line instead of
+  on rectangles that are a frame behind the replacement. Nothing else about a refresh changed:
+  the rows, the anchor and the numbers arrive exactly as they did.
+
 - **The demo shows its icons.** Its rows borrowed a picture per kind from the site's, but the
   bytes lived in the site's icon cache while a demo page is answered from the demo's own - so
   the rows carried paths and the tiles stayed blank. The pictures the site already holds are
@@ -41,6 +51,13 @@ landed on `main`.
   hand these out whenever they have one, one copy at a time" - repeated what every row
   already says under its name. It is gone; the bar that names the table is the whole
   introduction.
+
+- **The demo copy stops reporting tables it never had.** Startup used to list four tables it
+  could not copy - Discord tables the demo database does not create, a `guidsbounty_` name with
+  a typo in it, and the standing offers, whose `held_quantity` holds an old build's `'bank'`.
+  Tables the demo has no schema for are now named once and skipped, and the copy runs with
+  strict mode off so a value the demo's column cannot hold is stored as best it can be instead
+  of taking the table with it. The boot line counts copied, failed and left out.
 
 - **The console's failed websocket is gone.** The page used to open a long-poll session
   first and then ask Socket.IO to upgrade it, which a process that had restarted since - or
