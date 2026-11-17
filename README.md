@@ -1679,8 +1679,33 @@ something in it before a second person uploads.
 on long-polling and still updates, so this is noise - but it means no websocket is being
 opened, and the upgrade is being dropped between the browser and Node. Node answers a
 websocket request that arrives without its `Upgrade` header with `400 {"code":3,"message":
-"Bad request"}`, and the log names the same thing with `Live updates: a websocket was asked
-for without its Upgrade header`. Fix the hop in front:
+"Bad request"}`. The server log names the same thing, and says **which hop** dropped the
+header, from the address the request arrived from and the headers it carried:
+
+```
+Live updates: a websocket was asked for without its Upgrade header, so Node refused it (400 "Bad request").
+  arrived from 127.0.0.1, through Cloudflare (cf-ray a5be1db5…-SJC), x-forwarded-for 203.0.113.9.
+  A proxy on this machine took the request from Cloudflare and re-issued it without the
+  upgrade headers, so that local proxy - not Cloudflare - is the hop that dropped them.
+  to fix it, in that proxy:
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+```
+
+Read the first line of that block to know which box to open:
+
+- `arrived from <a Cloudflare address>` - Cloudflare opened the connection to Node itself, so
+  the zone is not carrying the upgrade.
+- `arrived from 127.0.0.1` / `10.x` / `192.168.x` with a `cf-ray` - Cloudflare is fine and the
+  proxy on this machine is dropping it (an nginx Proxy Manager host with "Websockets Support"
+  off looks exactly like this).
+- private address and **no** `cf-ray` - nothing of Cloudflare is in the path; the local proxy is it.
+
+Fix the hop it names:
 
 ```bash
 # does the handshake get through? 101 = yes, 400 = something is rewriting it
