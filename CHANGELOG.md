@@ -30,6 +30,13 @@ landed on `main`.
   copy as the fallback, and its line in the log says which database it read and how many
   live rows it found, so an empty answer can be told from a missing one.
 
+- **The bars from the tabs down are as wide as the block above them.** The tabs, the filter
+  band, the search row and the table with its heading were laid out inside the card's side
+  padding, so each one stopped 24px short of the card's edge while the block above ran edge
+  to edge - four bars, four slightly different places to end. They now reach the card's edge
+  and carry the same 24px inside, so nothing written in them moved: only the backgrounds,
+  borders and table edges did, and the table's first and last columns keep that room too.
+
 - **Answering a request leaves the page where it was.** Fulfilled and Not fulfilled are form
   posts, so the page came back new and started at the top - working down a column of requests
   meant scrolling back to your place after every one. The position is kept across that load,
@@ -53,12 +60,12 @@ landed on `main`.
   happened - how many rows were filled, cached, unfetchable, or left blank for want of a live row
   of that kind.
 
-- **The standing-offers bar no longer lands on top of the filter band and the search row, and no
-  longer pins in the wrong place.** It stays on the tab bar's line - the line it was written to
-  take over - but one step *under* the band and the search row, so scrolling back up through a
-  list takes it behind them instead of over them. An earlier attempt moved its pinning line below
-  the whole stack, which put it in the middle of the page and slid it up out of the way at the end
-  of its section; that is undone.
+- **The standing-offers heading stays where it is.** It used to pin - first on the tab bar's line,
+  covering the tabs for as long as its table was being read, then, after a failed attempt to move
+  it, in the middle of the page, where it jumped and slid about at the end of its section. It is a
+  heading over the second table now and scrolls with everything else: the two standing-offers
+  lists still sit under the ordinary rows, and a section nobody has anything in still draws
+  nothing at all.
 
 - **The pinned heading copy no longer paints over the search row.** It sat a step above the search
   row in the stacking order and could be drawn across it where the two met. Every bar that hangs

@@ -1918,39 +1918,6 @@ a.primary-button {
   color: var(--muted-strong);
 }
 
-/* The standing-offers heading takes the pinned row over from the tabs once it reaches them:
-   it comes later in the page and one step higher in the stack, so a bar of its own colour
-   covers the tab bar for as long as its own table is being read, and the tabs come back
-   when this section has passed. It bleeds out over the card's side padding, or the rows
-   still scrolling behind it would show beside the bar. */
-.subhead.list-sticky {
-  position: sticky;
-  /* On the tab bar's line, as it has always been: this bar takes the tabs' place while its own
-     table is being read. Adding the band and the search row to this offset put it deeper than
-     anything above it, so it pinned in the middle of the page and slid up out of the way at the
-     end of its section. */
-  top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px));
-  /* Below the filter band (15) and the search row (13) it meets on the way past, so it slides
-     under them instead of painting over them, and level with the tab bar (12) - later in the
-     page, so it still covers the tabs while its own table is being read, which is what it is
-     for. */
-  z-index: 12;
-  /* As tall as the line of tabs it replaces, so the column headings below pin at the same
-     line either way and nothing shows between the two bars. It used to be as tall as the tabs
-     and the filter band and the search row together, which left a bar of empty colour as deep
-     as all three around one line of words - the space the reader was looking at. The space
-     under it is padding, for the same reason the tab bar's is. */
-  display: flex;
-  align-items: center;
-  min-height: var(--list-head-h, 0px);
-  margin: 14px -24px 0;
-  padding: 0 24px;
-  background: var(--panel-solid);
-  backdrop-filter: blur(10px);
-  border-top: 1px solid rgba(148, 163, 184, 0.18);
-  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
-}
-
 .filter-clear {
   height: 38px;
   padding: 0 16px;
@@ -3553,6 +3520,38 @@ th.action-cell {
   background: var(--panel-solid);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+/* The bars from the tabs down - the tabs themselves, the filter band, the search row, and the
+   table with its heading - were laid out inside the card's 24px side padding, so they stopped
+   short of its edges while the block above them bled out and ran edge to edge. Four bars, four
+   slightly different places to end. They bleed out by exactly the card's own padding and carry
+   it back inside, so their backgrounds and borders reach the edge of the card and nothing
+   written in them moves a pixel. */
+.list-head,
+.filter-band,
+.list-tools,
+.table-shell,
+.table-head {
+  margin-inline: -24px;
+}
+
+.list-head,
+.filter-band,
+.list-tools {
+  padding-inline: 24px;
+}
+
+/* A table that reaches the card's edge keeps its own first and last columns off it: the 10px a
+   cell already has, plus the 24px the card used to supply around it. */
+.table-shell th:first-child,
+.table-shell td:first-child {
+  padding-left: 34px;
+}
+
+.table-shell th:last-child,
+.table-shell td:last-child {
+  padding-right: 34px;
 }
 
 .group-toggle {
