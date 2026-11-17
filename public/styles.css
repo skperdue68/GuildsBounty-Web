@@ -1925,14 +1925,15 @@ a.primary-button {
    still scrolling behind it would show beside the bar. */
 .subhead.list-sticky {
   position: sticky;
-  /* Under the whole stack above it, not on the tab bar's line. It used to pin as high as the
-     tabs and cover what was between: scrolling back up put this one line of words over the
-     filter band and the search row, which read as the rows painting through the bars. */
-  top: calc(
-    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
-      var(--list-band-h, 0px) + var(--list-tools-h, 0px)
-  );
-  /* Below the search row (13) and the band (15) it hangs under, above the column headings. */
+  /* On the tab bar's line, as it has always been: this bar takes the tabs' place while its own
+     table is being read. Adding the band and the search row to this offset put it deeper than
+     anything above it, so it pinned in the middle of the page and slid up out of the way at the
+     end of its section. */
+  top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px));
+  /* Below the filter band (15) and the search row (13) it meets on the way past, so it slides
+     under them instead of painting over them, and level with the tab bar (12) - later in the
+     page, so it still covers the tabs while its own table is being read, which is what it is
+     for. */
   z-index: 12;
   /* As tall as the line of tabs it replaces, so the column headings below pin at the same
      line either way and nothing shows between the two bars. It used to be as tall as the tabs

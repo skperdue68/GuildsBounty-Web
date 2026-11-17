@@ -23,6 +23,7 @@ import {
   demoRemovalRestores,
   ensureDemoData,
   findDemoSignIn,
+  repairDemoIcons,
 } from './lib/demo.js';
 import {
   DEMO_CAST,
@@ -168,6 +169,63 @@ check('a catalogue row borrows an icon of its own kind from the live rows', () =
   assert(buildItem(ITEMS[0], 0, [DEMO_GUILD.id], { icon }).icon === icon, 'the path reaches the item row');
   assert(buildOffer(OFFERS[0], 0, [DEMO_GUILD.id], { icon }).icon === icon, 'and an always-share row');
   assert(buildItem(ITEMS[0], 0, [DEMO_GUILD.id]).icon === '', 'and a row with no kind over it stays blank');
+});
+
+// The borrow only happened while the catalogue was being written, so a demo that already had its
+// rows - or one built at a moment when the live copy had nothing of a kind - kept its blank
+// squares however many times it was rebuilt. This pass is what fills them afterwards.
+await checkAsync('blank demo rows are given a picture later, and rows that have one are left alone', async () => {
+  const weapon = '/esoui/art/icons/gear_breton_staff_d.dds';
+  const armor = '/esoui/art/icons/gear_breton_heavy_chest_d.dds';
+  const called = [];
+  const cached = [];
+
+  const connection = {
+    async execute(sql, params = []) {
+      called.push({ sql, params });
+
+      if (/COUNT\(\*\).*AS blank/.test(sql)) {
+        return [[{ item_type_name: 'Weapon', blank: 2 }, { item_type_name: 'Style', blank: 1 }], {}];
+      }
+      if (/FROM guildsbounty_shared_items[\s\S]*WHERE icon <> ''/.test(sql)) {
+        return [[{ item_type_name: 'Weapons', icon: weapon }, { item_type_name: 'armor', icon: armor }], {}];
+      }
+      if (/^\s*SELECT DISTINCT icon/.test(sql)) {
+        return [[{ icon: weapon }], {}];
+      }
+      if (/^\s*UPDATE/.test(sql)) {
+        return [{ affectedRows: 2 }, {}];
+      }
+      return [[], {}];
+    },
+  };
+
+  const result = await repairDemoIcons(connection, {
+    cacheIcons: async (_connection, paths) => {
+      cached.push(...paths);
+      return { fetched: 1, skipped: 0, failed: 0 };
+    },
+  });
+
+  const updates = called.filter((entry) => /^\s*UPDATE/.test(entry.sql));
+
+  assert(updates.length > 0, 'a blank row of a kind the live copy has should be filled');
+  assert(
+    updates.every((entry) => /\(icon IS NULL OR icon = ''\)/.test(entry.sql)),
+    'a row that already has a picture must not be written over'
+  );
+  assert(
+    updates.every((entry) => entry.params.includes(weapon)),
+    'the row borrows the live copy\'s weapon picture'
+  );
+  assert(
+    updates.every((entry) => !entry.params.includes('Style')),
+    'a kind with nothing to borrow stays blank rather than borrowing another sort of thing'
+  );
+  assert(result.filled === 4, `expected both shelves written, got ${result.filled} row(s)`);
+  assert(result.leftBlank === 1, `expected one row left blank, got ${result.leftBlank}`);
+  assert(cached.includes(weapon), `expected the borrowed picture to be cached, got ${cached.join(', ')}`);
+  assert(result.cached === 1, `expected one picture cached, got ${result.cached}`);
 });
 
 check('the demo account is not the one seedDemo.js writes into real guilds', () => {
