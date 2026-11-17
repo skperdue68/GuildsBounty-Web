@@ -22,6 +22,13 @@ landed on `main`.
 
 ### Fixed
 
+- **The bars from the tabs down are as wide as the block above them.** The tabs, the filter
+  band, the search row and the table with its heading were laid out inside the card's side
+  padding, so each one stopped 24px short of the card's edge while the block above ran edge
+  to edge - four bars, four slightly different places to end. They now reach the card's edge
+  and carry the same 24px inside, so nothing written in them moved: only the backgrounds,
+  borders and table edges did, and the table's first and last columns keep that room too.
+
 - **Answering a request leaves the page where it was.** Fulfilled and Not fulfilled are form
   posts, so the page came back new and started at the top - working down a column of requests
   meant scrolling back to your place after every one. The position is kept across that load,

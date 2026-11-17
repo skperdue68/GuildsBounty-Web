@@ -3522,6 +3522,38 @@ th.action-cell {
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+/* The bars from the tabs down - the tabs themselves, the filter band, the search row, and the
+   table with its heading - were laid out inside the card's 24px side padding, so they stopped
+   short of its edges while the block above them bled out and ran edge to edge. Four bars, four
+   slightly different places to end. They bleed out by exactly the card's own padding and carry
+   it back inside, so their backgrounds and borders reach the edge of the card and nothing
+   written in them moves a pixel. */
+.list-head,
+.filter-band,
+.list-tools,
+.table-shell,
+.table-head {
+  margin-inline: -24px;
+}
+
+.list-head,
+.filter-band,
+.list-tools {
+  padding-inline: 24px;
+}
+
+/* A table that reaches the card's edge keeps its own first and last columns off it: the 10px a
+   cell already has, plus the 24px the card used to supply around it. */
+.table-shell th:first-child,
+.table-shell td:first-child {
+  padding-left: 34px;
+}
+
+.table-shell th:last-child,
+.table-shell td:last-child {
+  padding-right: 34px;
+}
+
 .group-toggle {
   display: inline-flex;
   align-items: center;
