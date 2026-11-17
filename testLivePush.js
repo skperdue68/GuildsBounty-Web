@@ -15,6 +15,11 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
 import { assetUrl, BUILD_STAMP } from './lib/views.js';
+import {
+  describeDroppedUpgrade,
+  isCloudflareAddress,
+  isLocalAddress,
+} from './lib/realtime.js';
 
 const read = (path) => fs.readFileSync(new URL(`./${path}`, import.meta.url), 'utf8');
 
@@ -182,6 +187,77 @@ t('the same stamp is on the page, so a stale page can be told by eye', () => {
   assert.match(assetUrl('/app.js'), /^\/app\.js\?v=[0-9a-f]{10}$/, 'a versioned URL');
   assert.equal(assetUrl('/app.js'), assetUrl('/app.js'), 'the same file, the same URL');
   assert.equal(assetUrl('/app.js').split('?v=')[1], BUILD_STAMP, 'one stamp for the page and its files');
+});
+
+// A proxy that forwards the websocket request without its Upgrade header turns a working
+// socket into a 400 in the browser's console, and nothing on this side can accept it. The log
+// names the hop that dropped it, from the headers the request arrived with, so the person
+// running the site knows which box to open - Cloudflare, or the proxy of their own.
+t('a websocket refused for a missing Upgrade header is caught at the server', () => {
+  assert.match(
+    realtime,
+    /url\.includes\('transport=websocket'\)/,
+    'the guard looks at websocket requests'
+  );
+  assert.match(
+    realtime,
+    /toLowerCase\(\) === 'websocket'[\s\S]{0,80}return;/,
+    'and only at the ones that arrived without the header'
+  );
+  assert.match(realtime, /describeDroppedUpgrade\(req\)/, 'the line is built from the request');
+});
+
+t('Cloudflare is named when Cloudflare itself connects to Node', () => {
+  const said = describeDroppedUpgrade({
+    socket: { remoteAddress: '162.158.10.5' },
+    headers: { 'cf-ray': 'a5be1db54e1e1ed2-SJC', 'x-forwarded-for': '203.0.113.9' },
+  });
+
+  assert.match(said, /through Cloudflare \(cf-ray a5be1db54e1e1ed2-SJC\)/, 'the evidence is quoted');
+  assert.match(said, /Cloudflare is the hop that dropped it/, 'Cloudflare is named');
+  assert.match(said, /Network -> WebSockets: On/, 'and the setting that fixes it is given');
+  assert.doesNotMatch(said, /proxy_http_version/, 'no nginx advice is mixed in');
+});
+
+t('the local proxy is named when Cloudflare is one hop further out', () => {
+  const said = describeDroppedUpgrade({
+    socket: { remoteAddress: '::ffff:127.0.0.1' },
+    headers: { 'cf-ray': 'a5be1db54e1e1ed2-SJC', 'x-forwarded-for': '203.0.113.9' },
+  });
+
+  assert.match(said, /A proxy on this machine/, 'the hop on this machine is named');
+  assert.match(said, /not Cloudflare/, 'and Cloudflare is cleared');
+  assert.match(said, /proxy_set_header Upgrade \$http_upgrade/, 'with the nginx lines that fix it');
+});
+
+t('a plain local proxy is named without Cloudflare in the sentence', () => {
+  const said = describeDroppedUpgrade({
+    socket: { remoteAddress: '10.0.0.4' },
+    headers: { 'x-forwarded-for': '198.51.100.7' },
+  });
+
+  assert.match(said, /with no cf-ray header/, 'the absence is evidence too');
+  assert.match(said, /A local proxy is the last hop/, 'the local proxy is named');
+  assert.match(said, /proxy_http_version 1\.1/, 'with the setting that fixes it');
+});
+
+t('an unrecognised hop is named by its address', () => {
+  const said = describeDroppedUpgrade({ socket: { remoteAddress: '198.51.100.20' }, headers: {} });
+
+  assert.match(said, /last hop before Node is 198\.51\.100\.20/, 'the address is the name');
+  assert.match(said, /proxy_set_header Connection "upgrade"/, 'the settings are still given');
+});
+
+t('Cloudflare and private addresses are recognised', () => {
+  assert.ok(isCloudflareAddress('162.158.10.5'), 'a Cloudflare range');
+  assert.ok(isCloudflareAddress('104.16.1.1'), 'another Cloudflare range');
+  assert.ok(!isCloudflareAddress('8.8.8.8'), 'not Cloudflare');
+  assert.ok(isLocalAddress('127.0.0.1'), 'loopback');
+  assert.ok(isLocalAddress('::1'), 'loopback over IPv6');
+  assert.ok(isLocalAddress('10.1.2.3'), 'private');
+  assert.ok(isLocalAddress('192.168.0.9'), 'private');
+  assert.ok(isLocalAddress('172.16.5.4'), 'private');
+  assert.ok(!isLocalAddress('8.8.8.8'), 'public');
 });
 
 console.log(`\n${total - failures}/${total} checks passed`);

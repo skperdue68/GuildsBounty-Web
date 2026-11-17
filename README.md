@@ -1675,6 +1675,50 @@ address, not just `localhost`.
 once so the account and its guilds are known; `npm run seed:demo` gives the Request tab
 something in it before a second person uploads.
 
+**The console shows `WebSocket ... failed: Unexpected response code: 400`.** The page lives
+on long-polling and still updates, so this is noise - but it means no websocket is being
+opened, and the upgrade is being dropped between the browser and Node. Node answers a
+websocket request that arrives without its `Upgrade` header with `400 {"code":3,"message":
+"Bad request"}`. The server log names the same thing, and says **which hop** dropped the
+header, from the address the request arrived from and the headers it carried:
+
+```
+Live updates: a websocket was asked for without its Upgrade header, so Node refused it (400 "Bad request").
+  arrived from 127.0.0.1, through Cloudflare (cf-ray a5be1db5…-SJC), x-forwarded-for 203.0.113.9.
+  A proxy on this machine took the request from Cloudflare and re-issued it without the
+  upgrade headers, so that local proxy - not Cloudflare - is the hop that dropped them.
+  to fix it, in that proxy:
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+```
+
+Read the first line of that block to know which box to open:
+
+- `arrived from <a Cloudflare address>` - Cloudflare opened the connection to Node itself, so
+  the zone is not carrying the upgrade.
+- `arrived from 127.0.0.1` / `10.x` / `192.168.x` with a `cf-ray` - Cloudflare is fine and the
+  proxy on this machine is dropping it (an nginx Proxy Manager host with "Websockets Support"
+  off looks exactly like this).
+- private address and **no** `cf-ray` - nothing of Cloudflare is in the path; the local proxy is it.
+
+Fix the hop it names:
+
+```bash
+# does the handshake get through? 101 = yes, 400 = something is rewriting it
+curl -i -H "Connection: Upgrade" -H "Upgrade: websocket" \
+     -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" \
+     https://your-host/socket.io/?EIO=4&transport=websocket | head -3
+```
+
+nginx needs `proxy_http_version 1.1`, `proxy_set_header Upgrade $http_upgrade` and
+`proxy_set_header Connection upgrade` (the deploy section has the full location); a
+Cloudflare zone needs **Network → WebSockets** on. Nothing in this app has to change -
+Socket.IO already shares Express's HTTP server.
+
 **`Email: N request emails not sent`** - no transport, or mail turned off. `EMAIL_FROM` is
 blank, `EMAIL_TRANSPORT=none` is set, or there is neither a `sendmail` on the host nor a
 `RESEND_API_KEY`. `npm run email:test -- you@example.com` reports which, including an

@@ -7,6 +7,15 @@ landed on `main`.
 
 ### Added
 
+- **The log names the hop that eats the websocket.** A websocket request that arrives
+  without its `Upgrade` header is answered by Node with `400 "Bad request"`, which reaches
+  the browser as a failed connection and nothing else. Once a minute the server now says
+  where that request really came from - the address it arrived from, whether Cloudflare's
+  `cf-ray` was on it, and the proxy it was forwarded for - and turns that into the one box
+  to open: Cloudflare itself, the proxy on this machine, or a proxy further out. The
+  settings for that hop are printed with it, so the fix does not need translating. Nothing
+  changes for a site whose proxy passes the upgrade through.
+
 - **The block above the tabs folds away.** The count line, the guild pills and the account line are
   three lines of context that cost a long list the top of every screen. A chevron in the block's
   corner folds it down to the live pill, which stays where it was on the right; the tabs, the
