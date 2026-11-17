@@ -39,12 +39,12 @@ landed on `main`.
   happened - how many rows were filled, cached, unfetchable, or left blank for want of a live row
   of that kind.
 
-- **The standing-offers bar no longer lands on top of the filter band and the search row, and no
-  longer pins in the wrong place.** It stays on the tab bar's line - the line it was written to
-  take over - but one step *under* the band and the search row, so scrolling back up through a
-  list takes it behind them instead of over them. An earlier attempt moved its pinning line below
-  the whole stack, which put it in the middle of the page and slid it up out of the way at the end
-  of its section; that is undone.
+- **The standing-offers heading stays where it is.** It used to pin - first on the tab bar's line,
+  covering the tabs for as long as its table was being read, then, after a failed attempt to move
+  it, in the middle of the page, where it jumped and slid about at the end of its section. It is a
+  heading over the second table now and scrolls with everything else: the two standing-offers
+  lists still sit under the ordinary rows, and a section nobody has anything in still draws
+  nothing at all.
 
 - **The pinned heading copy no longer paints over the search row.** It sat a step above the search
   row in the stacking order and could be drawn across it where the two met. Every bar that hangs

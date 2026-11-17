@@ -67,8 +67,8 @@ function slice(html, from, to) {
 
 const offerPanel = (html) => slice(html, 'id="panelOffer"', 'id="panelMine"');
 const requestPanel = (html) => slice(html, 'id="panelRequest"', 'id="panelOffer"');
-const ownOffersHeading = '<h3 class="subhead list-sticky">Your standing offers</h3>';
-const othersOffersHeading = '<h3 class="subhead list-sticky">Standing offers</h3>';
+const ownOffersHeading = '<h3 class="subhead">Your standing offers</h3>';
+const othersOffersHeading = '<h3 class="subhead">Standing offers</h3>';
 const offeredTabCount = (html) => {
   const tab = slice(html, 'id="tabOffer"', '</button>');
   return Number((tab.match(/tab-count">(\d+)/) || [])[1]);
