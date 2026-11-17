@@ -22,6 +22,14 @@ landed on `main`.
 
 ### Fixed
 
+- **The demo's pictures are read from the site's own rows, not only from the demo's copy of
+  them.** The copy is rebuilt from the site on every start, so it is usually current - but a
+  demo database that outlived a restart, or one copied before anybody had shared an item,
+  lent nothing while the site itself was full of pictures, and the demo's blank squares
+  stayed blank. The pass that fills them now asks the site database by name and keeps the
+  copy as the fallback, and its line in the log says which database it read and how many
+  live rows it found, so an empty answer can be told from a missing one.
+
 - **Answering a request leaves the page where it was.** Fulfilled and Not fulfilled are form
   posts, so the page came back new and started at the top - working down a column of requests
   meant scrolling back to your place after every one. The position is kept across that load,

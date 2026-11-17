@@ -228,6 +228,79 @@ await checkAsync('blank demo rows are given a picture later, and rows that have 
   assert(result.cached === 1, `expected one picture cached, got ${result.cached}`);
 });
 
+// The demo database is built from a copy of the site's rows, but the copy is only as current as
+// the last rebuild: one that survived a restart, or one taken before anybody had shared an item,
+// has nothing to lend while the site itself is full of pictures. The pass reads the site's own
+// database where it knows the name, and keeps the copy for the rest.
+await checkAsync('pictures are borrowed from the site database itself, not only from its copy', async () => {
+  const weapon = '/esoui/art/icons/gear_breton_staff_d.dds';
+  const called = [];
+
+  const connection = {
+    async execute(sql, params = []) {
+      called.push({ sql, params });
+
+      if (/COUNT\(\*\).*AS blank/.test(sql)) {
+        return [[{ item_type_name: 'Weapon', blank: 1 }], {}];
+      }
+      if (/FROM `guildsbounty_site`\.guildsbounty_shared_items[\s\S]*WHERE icon <> ''/.test(sql)) {
+        return [[{ item_type_name: 'Weapons', icon: weapon }], {}];
+      }
+      if (/^\s*UPDATE/.test(sql)) {
+        return [{ affectedRows: 1 }, {}];
+      }
+      if (/^\s*SELECT DISTINCT icon/.test(sql)) {
+        return [[], {}];
+      }
+      return [[], {}];
+    },
+  };
+
+  const result = await repairDemoIcons(connection, {
+    sourceDatabase: 'guildsbounty_site',
+    cacheIcons: async () => ({ fetched: 0, skipped: 0, failed: 0 }),
+  });
+
+  assert(result.source === 'guildsbounty_site', `expected the site database named, got ${result.source}`);
+  assert(result.liveRows === 1, `expected one live row read, got ${result.liveRows}`);
+  assert(result.filled === 2, `expected both shelves filled from the site database, got ${result.filled}`);
+  assert(
+    !called.some((entry) => /FROM guildsbounty_shared_items[\s\S]*WHERE icon <> ''/.test(entry.sql)),
+    'the borrow must not read the copy while the site database is answering'
+  );
+});
+
+await checkAsync('a database that cannot read the site falls back to its own copy', async () => {
+  const connection = {
+    async execute(sql, params = []) {
+      if (/COUNT\(\*\).*AS blank/.test(sql)) {
+        return [[{ item_type_name: 'Weapon', blank: 1 }], {}];
+      }
+      if (/FROM `guildsbounty_site`\.guildsbounty_shared_items/.test(sql)) {
+        throw new Error("SELECT command denied to user 'site'@'localhost'");
+      }
+      if (/FROM guildsbounty_shared_items[\s\S]*WHERE icon <> ''/.test(sql)) {
+        return [[{ item_type_name: 'Weapons', icon: '/esoui/art/icons/copied_axe.dds' }], {}];
+      }
+      if (/^\s*UPDATE/.test(sql)) {
+        return [{ affectedRows: 1 }, {}];
+      }
+      if (/^\s*SELECT DISTINCT icon/.test(sql)) {
+        return [[], {}];
+      }
+      return [[], {}];
+    },
+  };
+
+  const result = await repairDemoIcons(connection, {
+    sourceDatabase: 'guildsbounty_site',
+    cacheIcons: async () => ({ fetched: 0, skipped: 0, failed: 0 }),
+  });
+
+  assert(result.source === 'the demo copy', `expected the copy named as the source, got ${result.source}`);
+  assert(result.filled === 2, `expected both shelves filled from the copy, got ${result.filled}`);
+});
+
 check('the demo account is not the one seedDemo.js writes into real guilds', () => {
   assert(DEMO_ACCOUNT !== '@DemoTrader', 'the demo must use its own account');
 });
