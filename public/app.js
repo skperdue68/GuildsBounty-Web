@@ -22,13 +22,14 @@ function refreshAfterChange() {
 }
 
 // ------------------------------------------------------------------ sticky bars
-// The line of tabs, the search row under it and the column headings under that pin to the
-// top of the window as one block, so a long list keeps which list it is, what is in it and
-// what each column is. None of the three offsets can live in the stylesheet: the site header
-// is as tall as the account line and the basket bar make it, the tab row is as tall as the
-// tabs in it, and the search row is as tall as the box in it (and is not there at all on a
-// table that carries no search). All three are measured here and published as custom
-// properties for the stylesheet to add up.
+// The block above the tabs, the line of tabs, the filter band, the search row and the column
+// headings pin to the top of the window one under another, so a long list keeps what there is
+// to browse, whose guilds it comes from, which list is open, what is in it and what each column
+// is. None of the offsets can live in the stylesheet: the site header is as tall as the account
+// line and the basket bar make it, the block above the tabs is as tall as its three lines, the
+// tab row is as tall as the tabs in it, and the search row is as tall as the box in it (and is
+// not there at all on a table that carries no search). All of them are measured here and
+// published as custom properties for the stylesheet to add up.
 function measureStickyBars() {
   const root = document.documentElement;
 
@@ -37,12 +38,14 @@ function measureStickyBars() {
     if (root.style.getPropertyValue(name) !== value) root.style.setProperty(name, value);
   };
 
+  // A bar that is not on the page is 0px tall, not the height it had on the last page or in
+  // the last state: a stale offset would push everything below it down into empty space.
   const publish = (name, element) => {
-    if (!element) return;
-    publishPixels(name, element.getBoundingClientRect().height);
+    publishPixels(name, element ? element.getBoundingClientRect().height : 0);
   };
 
   publish('--sticky-top', document.querySelector('.top-bar'));
+  publish('--list-top-h', document.querySelector('.list-top'));
   publish('--list-head-h', document.querySelector('.list-head'));
 
   // The filter band sits between the two: a tab with no row of its own - My Requests,
@@ -66,8 +69,16 @@ measureStickyBars();
 
 if (typeof ResizeObserver === 'function') {
   const observer = new ResizeObserver(measureStickyBars);
-  const stickyHeader = document.querySelector('.top-bar');
-  if (stickyHeader) observer.observe(stickyHeader);
+
+  // Every bar whose height is published, watched directly. The one that moves without the
+  // window doing anything is the block above the tabs: its guild pills wrap onto a second
+  // line as the window narrows, and the block grows by a whole line - the tabs and headings
+  // below it have to move down with it, or they pin over its last line.
+  for (const selector of ['.top-bar', '.list-top', '.list-head', '.filter-band']) {
+    const bar = document.querySelector(selector);
+    if (bar) observer.observe(bar);
+  }
+
   // The list region is replaced when it refreshes, so the body is watched for it: the tab
   // row can come back at a different height, and a stale offset would leave the headings a
   // few pixels away from the tabs pinned above them.
@@ -2565,7 +2576,23 @@ if (listRegion) {
 
     socket.on('disconnect', () => setLiveState('wait'));
     socket.on('connect_error', () => setLiveState('wait'));
-    socket.on('items:changed', () => scheduleRefresh());
+    socket.on('items:changed', (payload) => {
+      scheduleRefresh();
+
+      // The demo copy's guildmates act on their own, and until now what they had done was
+      // only in the server's log. It is written into the demo banner rather than shown as a
+      // toast: one of these arrives every fifteen seconds or so, and a toast that replaces
+      // whatever the visitor is reading - including their own "3 copies reserved" - is
+      // noise. The marker is only on demo pushes, so an ordinary page never shows one.
+      if (payload && payload.demo && payload.message) {
+        const line = document.querySelector('[data-demo-activity]');
+
+        if (line) {
+          line.textContent = payload.message;
+          line.hidden = false;
+        }
+      }
+    });
     // Addressed to this person only, and carrying the total rather than a change: two tabs
     // and a phone all end up showing the same number.
     socket.on('requests:pending', (payload) => {

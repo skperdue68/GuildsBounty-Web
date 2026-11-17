@@ -697,6 +697,57 @@ t('the line above the tabs names the browsed-as account and counts properly', ()
     /different item|other members/);
 });
 
+t('the guilds being browsed are named under the line, one pill each', () => {
+  const accounts = [
+    {
+      accountName: '@eva',
+      guildCount: 3,
+      guilds: [
+        { guild_id: 1, guild_name: 'Alphabet Mafia', invited: 0 },
+        { guild_id: 2, guild_name: 'Wandering Merchants', invited: 1 },
+        // A guild the upload could not name is not a pill, so it is not counted either.
+        { guild_id: 3, guild_name: '   ', invited: 0 },
+      ],
+    },
+  ];
+  const html = renderListRegion({
+    user: { id: 1, username: 'eva', provider: 'password' },
+    accounts,
+    sharedItems: [],
+    requestItems: [item(1, 'Briarheart Dagger', 'Weapons', { account_name: '@sender2' })],
+    alwaysShare: [],
+    requestOffers: [],
+    facets: { types: [], owners: [] },
+    filters: {},
+    requests: [],
+    basketRows: [],
+  });
+  const pills = html.match(/<div class="guild-pills">.*?<\/div>/s)?.[0] || '';
+
+  assert.match(html, /<div class="list-top"><p class="offer-summary">1 item shared by members of @eva&rsquo;s guilds<\/p>/, 'the block starts at the count line');
+  assert.equal(
+    (pills.match(/<span class="chip">/g) || []).length,
+    2,
+    'one pill per named guild, and none for the nameless one'
+  );
+  assert.match(pills, /<span class="chip">Alphabet Mafia<\/span>/, 'the guild the game reports');
+  assert.match(pills, /<span class="chip">Wandering Merchants<\/span>/, 'and the slot a code opened');
+  assert.ok(
+    html.indexOf('guild-pills') < html.indexOf('browsing-picker'),
+    'the pills sit between the line they belong to and the account line'
+  );
+});
+
+t('the header block above the tabs is what pins, and the tabs hang off it', () => {
+  const css = fs.readFileSync('public/styles.css', 'utf8');
+  const block = css.match(/\.list-top \{[^}]*\}/)?.[0] || '';
+  const tabs = css.match(/\.list-head \{[^}]*\}/)?.[0] || '';
+
+  assert.match(block, /position: sticky;/, 'the count line and guilds stay on top');
+  assert.match(tabs, /top: calc\(var\(--sticky-top, 0px\) \+ var\(--list-top-h, 0px\)\)/, 'with the tabs pinned under its measured height');
+  assert.match(css, /--list-top-h/, 'an offset the page measures rather than a guessed number');
+});
+
 console.log(`\n${total - failures}/${total} passed`);
 
 process.exit(failures ? 1 : 0);

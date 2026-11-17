@@ -403,8 +403,13 @@ t('a refused ask reads 0 on both tables, old rows and new', () => {
   const answered = panel(html, 'received');
   const oldRow = answered.slice(answered.indexOf('Hunting Bow'));
 
-  assert.match(mine, /<td class="num">0 of 2<\/td>/, 'the requester sees that nothing arrived');
-  assert.match(mine, /<td class="num">0 of 4<\/td>/, 'and how many were asked for');
+  const cell = (name) => {
+    const found = mine.split('<tr data-my-request').find((part) => part.includes(name));
+    return found.match(/<td class="num">([^<]*)<\/td>/)[1];
+  };
+
+  assert.equal(cell('Hunting Bow'), '0', 'the old row reads nothing, not "0 of 2"');
+  assert.equal(cell('Ancient Silk'), '0', 'and the new one too: a refusal has no ask beside it');
   assert.equal(
     (mine.match(/data-sort-qty="0"/g) || []).length,
     2,
@@ -444,6 +449,71 @@ t('the one-off backfill zeroes what old cancellations recorded as sent', () => {
   );
   assert.match(sql, /AND submitted_at IS NOT NULL/, 'and only the ones that were sent');
   assert.match(sql, /AND quantity > 0/, 'leaving a basket row its copies, and a fixed row alone');
+});
+
+t('a short handover is confirmed with both numbers, and a whole one with one', () => {
+  const answered = (asked, sent) => ({
+    rows: [{ itemName: 'Hunting Bow', requesterAccount: '@Dee', asked, sent, status: 'fulfilled' }],
+    fulfilled: 1,
+    cancelled: 0,
+    copies: sent,
+  });
+
+  assert.match(
+    render({ answered: answered(2, 1) }),
+    /Fulfilled 1 of 2 \u00d7 Hunting Bow for @Dee\./,
+    'one of two says so'
+  );
+  assert.match(
+    render({ answered: answered(2, 2) }),
+    /Fulfilled 2 \u00d7 Hunting Bow for @Dee\./,
+    'and a whole ask is just its number'
+  );
+});
+
+t('a count says both numbers only when a fulfilled ask came up short', () => {
+  const row = (id, name, quantity, asked, status) => ({
+    id,
+    item_name: name,
+    item_type_name: 'Weapons',
+    quality: 2,
+    owner_account_name: '@Eva',
+    requester_account_name: '@Dee',
+    quantity,
+    quantity_requested: asked,
+    status,
+    closed_at: '2026-11-12T10:00:00Z',
+  });
+  const mine = panel(
+    render({
+      requests: [
+        row(21, 'Hunting Bow', 1, 2, 'fulfilled'),
+        row(22, 'Ancient Silk', 2, 2, 'fulfilled'),
+        row(23, 'Soul Gem', 0, 5, 'cancelled'),
+      ],
+      receivedHistory: [],
+      requestHistory: { page: 1, totalPages: 1 },
+    }),
+    'mine'
+  );
+  const cell = (name) => {
+    const found = mine.split('<tr data-my-request').find((part) => part.includes(name));
+    return found.match(/<td class="num">([^<]*)<\/td>/)[1];
+  };
+
+  assert.equal(cell('Hunting Bow'), '1 of 2', 'one of two says both');
+  assert.equal(cell('Ancient Silk'), '2', 'a whole ask is just the one number');
+  assert.equal(cell('Soul Gem'), '0', 'and a refusal is 0, whatever was asked for');
+});
+
+t('a count like "9 of 10" is never broken over two lines', () => {
+  const css = read('public/styles.css');
+
+  assert.match(
+    css,
+    /td\.num,\s*th\.num \{[^}]*white-space: nowrap;/,
+    'a numeric column takes the width the value needs instead of folding it'
+  );
 });
 
 t('each table carries the words its search box looks through', () => {

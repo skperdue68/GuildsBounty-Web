@@ -910,7 +910,10 @@ th {
    while the rows scroll: one block from the tabs down to OFFERED BY. It sits a step below
    the tab bar in the stack, and both offsets are measured in app.js. */
 .list-table thead th {
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px));
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px)
+  );
   z-index: 11;
 }
 
@@ -919,8 +922,8 @@ th {
    closing offers table without a search of its own has no bar to clear. */
 .list-tools + .table-shell .list-table thead th {
   top: calc(
-    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px) +
-      var(--list-tools-h, 0px)
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px) + var(--list-tools-h, 0px)
   );
 }
 
@@ -928,10 +931,18 @@ tbody tr:hover {
   background: rgba(37, 99, 235, 0.08);
 }
 
+/* A count is read at a glance, so it is never broken over two lines: the width is a hint to
+   an auto-laid-out table, not a ceiling, and "0 of 10" in a 38px content box used to fold in
+   the middle of the row. The column takes what the value needs. */
 td.num,
 th.num {
   text-align: right;
   width: 58px;
+  /* The floor, not the width: an auto-laid-out table gives the column at least this much, so
+     "10 of 10" has room beyond the 45px it measures, and the item list's fixed layout keeps
+     the 58px above unchanged. */
+  min-width: 70px;
+  white-space: nowrap;
 }
 
 .account-block {
@@ -1376,7 +1387,7 @@ a.primary-button {
    the column headings pin directly under it; it is 0px on a tab that has no row at all. */
 .filter-band {
   position: sticky;
-  top: calc(var(--sticky-top, 0px) + var(--list-head-h, 0px));
+  top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px));
   /* Above the search row it sits over (13): an open dropdown is a child of this band, so the
      band's own layer decides whether the menu can be seen at all - at 12 the menu was below
      the search row and the bottom of a long list of types disappeared behind it. */
@@ -1474,15 +1485,53 @@ a.primary-button {
   color: var(--muted);
 }
 
+/* The count line, the guilds behind it and the account being browsed as pin as one block under
+   the site header: a list long enough to scroll should never cost you the answer to "whose guild
+   is this, and who am I asking as". It is the card's own top edge rather than a bar laid over it
+   - it reaches the card's sides and carries the card's gradient - so a pinned header reads as
+   the card continuing instead of as a strip that came loose. --list-top-h is its height,
+   measured in app.js, because the tab bar pins directly under it. */
+.list-top {
+  position: sticky;
+  top: var(--sticky-top, 0px);
+  /* Above the tab bar (12) it covers, below the filter band (15) that pins under it. */
+  z-index: 14;
+  margin: -22px -24px 0;
+  padding: 18px 24px 10px;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.07) 0%, rgba(59, 130, 246, 0) 40%),
+    var(--panel);
+  border-radius: 18px 18px 0 0;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.18);
+}
+
+/* The last line of that block keeps the air its own rule gave it above the tab bar; the 10px
+   padding is the space between the two. */
+.list-top > :last-child {
+  margin-bottom: 0;
+}
+
+/* Live sits level with the line that counts what is shared, in the corner of the block that
+   pins over the tabs. It is here rather than in the tab bar because the tab bar has no room
+   beside it: four tabs with counts take the width of the card, and a pill laid over them
+   covers the last one. The block is `sticky`, so it is already a containing block for this. */
+.list-top .live-pill {
+  position: absolute;
+  right: 24px;
+  top: 15px;
+  margin-left: 0;
+}
+
 /* The tab bar pins under the site header while a long list scrolls beneath it, so an
    account with hundreds of rows never loses the way to the other tab. --sticky-top is the
    header's own height, measured in app.js: the header grows when a basket joins it, and a
    number guessed here would either leave a gap under the bar or hide the bar behind it.
    The blur is the header's own treatment, so rows passing underneath do not smear through
-   the line of tabs. */
+   the line of tabs. It pins under the block above it rather than under the site header, so
+   that block keeps its own place in the stack. */
 .list-head {
   position: sticky;
-  top: var(--sticky-top, 0px);
+  top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px));
   z-index: 12;
   display: flex;
   align-items: center;
@@ -1497,11 +1546,12 @@ a.primary-button {
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+/* Only used when there is no block above the tabs to put the pill in - a page with nothing
+   to count yet. It trails the tabs rather than floating over them, which is where it used to
+   be drawn and where the last tab went missing under it. */
 .list-head .live-pill {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  position: static;
+  transform: none;
   margin-left: 0;
 }
 
@@ -1580,10 +1630,25 @@ a.primary-button {
    "how much is there for me here?", above the tabs and below the basket clock. */
 .offer-summary {
   margin: 0 0 14px;
+  /* Room for the Live pill in the block's top corner. The line is centred, so the space is
+     taken from both sides rather than shoving the text off centre; without it the count runs
+     under the pill once the window is narrow enough for it to wrap. */
+  padding-inline: 72px;
   text-align: center;
   font-size: 16px;
   font-weight: 800;
   color: #e5ecff;
+}
+
+/* One pill per guild the account is in, under the line that counts what they share: the same
+   pill the accounts card uses, so a guild reads the same in both places. Centered with the two
+   lines around it, and wrapping rather than scrolling for an account whose sixth slot is full. */
+.guild-pills {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 0 12px;
 }
 
 /* An empty tab body is a message about the list, not another row of the tabs, so it
@@ -1743,8 +1808,8 @@ a.primary-button {
    the jump lands with the heading it aimed at hidden behind them. */
 .subhead[id] {
   scroll-margin-top: calc(
-    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px) +
-      var(--list-tools-h, 0px)
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px) + var(--list-tools-h, 0px)
   );
 }
 
@@ -1764,7 +1829,7 @@ a.primary-button {
    still scrolling behind it would show beside the bar. */
 .subhead.list-sticky {
   position: sticky;
-  top: var(--sticky-top, 0px);
+  top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px));
   /* Above the filter band (15), which it can meet on the way past. */
   z-index: 16;
   /* As tall as the line of tabs it replaces, so the column headings below pin at the same
@@ -2952,6 +3017,20 @@ th .sort-link {
 
 /* The demo pair is the one thing somebody may want before they have an account, so it is
    a box and a size up rather than another grey hint. */
+/* What the demo copy's guildmates have just done, in the banner: the sentence an upload
+   result gives ("0 items removed, 0 items added, 2 items refreshed"), one line, replaced by
+   the next. It sits here rather than in a toast because it arrives every fifteen seconds or
+   so, and a toast would keep taking the screen from whatever the visitor is reading. */
+.demo-activity {
+  margin: 10px 0 0;
+  padding: 8px 12px;
+  border-left: 2px solid rgba(96, 165, 250, 0.55);
+  border-radius: 6px;
+  background: rgba(37, 99, 235, 0.1);
+  font-size: 12.5px;
+  color: var(--muted-strong);
+}
+
 .demo-callout {
   margin: 16px 0 0;
   padding: 16px 18px;
@@ -3354,7 +3433,8 @@ th.action-cell {
 .list-tools {
   position: sticky;
   top: calc(
-    var(--sticky-top, 0px) + var(--list-head-h, 0px) + var(--list-band-h, 0px)
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px)
   );
   /* Above the column headings it pins over, below the subhead that takes the pinned row over
      further down the page. */

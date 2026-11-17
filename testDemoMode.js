@@ -11,6 +11,7 @@ import {
   DEMO_DATABASE,
   DEMO_EMAIL,
   DEMO_GUILD,
+  DEMO_GUILD_SERVER,
   DEMO_LOGIN,
   DEMO_PASSWORD,
   DEMO_WORLD,
@@ -36,20 +37,27 @@ import {
   demoActivityPause,
   demoAnswerAmount,
   pickScenario,
+  refreshedShelf,
   runDemoActivity,
   shelfChange,
+  uploadChangeWords,
 } from './lib/demoActivity.js';
+import { readFileSync } from 'node:fs';
+
 import { DEMO_VIEWER_TTL_MS, activeDemoViewers, noteViewer } from './lib/demoPresence.js';
 import {
   DEMO_ASK_TTL_MS,
   DEMO_RESTOCK_MS,
   abandonedAsksSql,
+  demoOwnAccount,
+  ownShelfCounts,
   shouldRestock,
 } from './lib/demoShelf.js';
 import { AGE_HOURS, planAges, untouchedRowsSql } from './lib/itemAges.js';
 import { stamp } from './lib/log.js';
 import { platformName, readAccountServer, serverChoices, serverLabel } from './lib/serverLabel.js';
-import { linkAccountToUser, listAccountServers } from './lib/store.js';
+import { hashItemKey, linkAccountToUser, listAccountServers } from './lib/store.js';
+import { seedDemoRequestHistory } from './lib/demoRequests.js';
 import {
   emailLine,
   inventoryTable,
@@ -598,11 +606,14 @@ check('the demo lets go of asks nobody was going to answer', () => {
   assert(DEMO_ASK_TTL_MS === 120000, `two minutes, not ${DEMO_ASK_TTL_MS}`);
 });
 
-check('a demo restock runs at most once a minute', () => {
+check('a demo restock runs at most every few minutes', () => {
   assert(shouldRestock(0, 5000), 'the first call always runs');
-  assert(!shouldRestock(1000, 1000 + DEMO_RESTOCK_MS - 1), 'never twice inside the minute');
-  assert(shouldRestock(1000, 1000 + DEMO_RESTOCK_MS), 'the next minute it runs again');
-  assert(DEMO_RESTOCK_MS === 60000, `a minute, not ${DEMO_RESTOCK_MS}`);
+  assert(!shouldRestock(1000, 1000 + DEMO_RESTOCK_MS - 1), 'never twice inside the window');
+  assert(shouldRestock(1000, 1000 + DEMO_RESTOCK_MS), 'once the window is up it runs again');
+  assert(
+    DEMO_RESTOCK_MS === 3 * 60 * 1000,
+    `three minutes, not ${DEMO_RESTOCK_MS}: a restock puts every count back, so doing it often is visible`
+  );
 });
 
 check('every line the site prints carries the time it happened', () => {
@@ -955,6 +966,18 @@ await checkAsync('a guildmate who already shares is left alone', async () => {
 });
 
 // ----------------------------------------------------------------- the activity
+
+/**
+ * A draw that lands in the middle of the shelf change's slice of the rotation.
+ *
+ * A test that wants one scenario has to ask for that scenario's slice: the value that used
+ * to mean "the last one" means a different thing as soon as another action is added.
+ */
+function stockDraw() {
+  const index = DEMO_ACTIVITY_SCENARIOS.indexOf('stock');
+  return (index + 0.5) / DEMO_ACTIVITY_SCENARIOS.length;
+}
+
 check('every action is reachable, and a request is seen from both sides', () => {
   // One draw from the middle of each scenario's slice of the range, so a scenario added to the
   // rotation has to be reachable here as well.
@@ -990,29 +1013,35 @@ check('a guildmate sometimes gains a piece and sometimes loses one', () => {
   );
 });
 
-check('a guildmate sometimes sends nothing back, so a refusal is seen too', () => {
+check('a guildmate sometimes sends nothing back, and sometimes sends short', () => {
   assert(demoAnswerAmount(2, { random: () => 0 }) === 0, 'the low third is a refusal');
+  assert(demoAnswerAmount(2, { random: () => 0.5 }) === 1, 'the middle third is one short');
   assert(demoAnswerAmount(2, { random: () => 0.9 }) === 2, 'the rest hands over the whole ask');
   assert(demoAnswerAmount(0, { random: () => 0.9 }) === 1, 'an ask with no number is one copy');
   assert(demoAnswerAmount('3', { random: () => 0.9 }) === 3, 'and a posted number is read');
 
-  // Both answers, within a third of the wheel: a refusal has to turn up in an afternoon of the
-  // demo, and a handover has to keep turning up beside it.
+  // One copy cannot be sent short: "0 of 1" is a refusal, and a handover of none is not one.
+  assert(demoAnswerAmount(1, { random: () => 0.5 }) === 1, 'a single copy is still handed over');
+  assert(demoAnswerAmount(10, { random: () => 0.5 }) === 9, 'a stack of ten arrives as nine');
+
+  // All three answers, inside one wheel: each has to turn up in an afternoon of the demo.
   const answers = [0, 0.2, 0.5, 0.8, 0.99].map((value) =>
     demoAnswerAmount(2, { random: () => value })
   );
 
   assert(answers.includes(0), 'a refusal happens');
-  assert(answers.includes(2), 'and so does a handover');
+  assert(answers.includes(1), 'and so does a handover one short');
+  assert(answers.includes(2), 'and the whole ask');
 });
 
 await checkAsync('a shelf that changes is written the way a file is written', async () => {
   const connection = fakeConnection();
-  // 0.9 lands on the last scenario in the rotation, the shelf change, and a guildmate holding
+  // Drawn from the middle of the shelf change's slice of the rotation, and past the halfway
+  // point so the change is a piece going rather than another arriving: a guildmate holding
   // three pieces has one to let go of.
   const outcome = await runDemoActivity(connection, {
     cast: [{ account: '@SomebodyElse', character: 'Somebody-Else', items: [0, 1, 2], offers: [] }],
-    random: () => 0.9,
+    random: () => stockDraw(),
   });
 
   assert(
@@ -1052,7 +1081,7 @@ await checkAsync('the piece that leaves is the one the message names', async () 
   const connection = fakeConnection();
   const outcome = await runDemoActivity(connection, {
     cast: [{ account: '@SomebodyElse', character: 'Somebody-Else', items: shelf, offers: [] }],
-    random: () => 0.9,
+    random: () => stockDraw(),
   });
 
   assert(
@@ -1126,6 +1155,25 @@ await checkAsync('once in three the guildmate has nothing to send, and the ask i
   );
 });
 
+await checkAsync('once in three it is one short, and the row reads 1 of 2', async () => {
+  const connection = fakeConnection({ pendingRows: pendingAsk(2) });
+  const outcome = await runDemoActivity(connection, {
+    cast: [
+      { userId: 5, account: '@SomebodyElse', character: 'Somebody-Else', items: [], offers: [] },
+    ],
+    random: sequence([0, 0, 0.5]),
+  });
+
+  assert(outcome && outcome.kind === 'answer', `expected an answer, got ${outcome && outcome.kind}`);
+  assert(/1 copy/.test(outcome.summary), `the message should say one copy, got "${outcome.summary}"`);
+
+  const fulfilled = connection.calls(/SET status = 'fulfilled'/);
+  const [, sent, asked, reason] = [null, ...fulfilled[0].params];
+
+  assert(Number(sent) === 1 && Number(asked) === 2, `expected 1 of 2, got ${sent} of ${asked}`);
+  assert(reason === '1 of 2 sent', `the row carries the short handover, got "${reason}"`);
+});
+
 await checkAsync('and the rest of the time the whole ask is handed over', async () => {
   const connection = fakeConnection({ pendingRows: pendingAsk(2) });
   const outcome = await runDemoActivity(connection, {
@@ -1193,16 +1241,30 @@ check('a piece arriving prefers a type nobody is sharing yet', () => {
 });
 
 check('the pause between actions is drawn fresh rather than fixed', () => {
-  const shortest = demoActivityPause(15000, () => 0);
-  const longest = demoActivityPause(15000, () => 1);
+  const shortest = demoActivityPause(45000, () => 0);
+  const longest = demoActivityPause(45000, () => 1);
 
-  assert(shortest === 9000, `expected 60% of the base, got ${shortest}`);
-  assert(longest === 21000, `expected 140% of the base, got ${longest}`);
+  assert(shortest === 27000, `expected 60% of the base, got ${shortest}`);
+  assert(longest === 63000, `expected 140% of the base, got ${longest}`);
   assert(
-    shortest !== longest && demoActivityPause(15000, () => 0.5) === 15000,
+    shortest !== longest && demoActivityPause(45000, () => 0.5) === 45000,
     'each action must wait a random time, with the configured interval as the average'
   );
   assert(demoActivityPause(0) === 0, '0 means no activity at all');
+});
+
+check('the demo acts about once a minute rather than every quarter of one', () => {
+  const server = readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const block = server.slice(
+    server.indexOf('const DEMO_ACTIVITY_MS'),
+    server.indexOf('let demoActivityBusy')
+  );
+
+  assert(
+    /DEMO_ACTIVITY_MS \?\? 45000/.test(block) && /return 45000;/.test(block),
+    '45s by default, because every action but one moves a quantity somebody may be reading'
+  );
+  assert(!/15000/.test(block), 'and not the fifteen seconds that made the board churn');
 });
 
 check('a demo page counts as watching until it goes quiet', () => {
@@ -1319,6 +1381,321 @@ check('a demo page marks itself so the sandbox knows somebody is watching', () =
   assert(
     !ordinaryPage.includes('data-demo'),
     'an ordinary page must not keep the sandbox alive'
+  );
+});
+
+// The refresh scenario: the one upload the demo could not show, where nothing arrives and
+// nothing leaves but a stack is re-counted.
+const refreshShelf = () => [
+  { itemName: 'Soul Gem', itemCount: 3 },
+  { itemName: 'Dreugh Wax', itemCount: 1 },
+  { itemName: 'Rubedite Ingot', itemCount: 2 },
+];
+
+check('a re-saved file moves a stack, up or down, and keeps every piece', () => {
+  const shelf = refreshShelf();
+  // The stack, then whether it goes down: 3 -> 4, then 1 -> 2.
+  const { items, moved } = refreshedShelf(shelf, { random: sequence([0, 0.9, 0.2, 0.9]) });
+
+  assert(items.length === 3, 'nothing is added or removed');
+  assert(
+    items.map((item) => item.itemName).join(',') === 'Soul Gem,Dreugh Wax,Rubedite Ingot',
+    'the same three pieces, in the same order'
+  );
+  assert(moved.length === 2, 'two stacks re-counted');
+  assert(
+    moved[0].from === 3 && moved[0].to === 4,
+    'the first went up'
+  );
+  assert(
+    moved[1].from === 1 && moved[1].to === 2,
+    'and a shelf of single copies only ever grows'
+  );
+  assert(shelf[0].itemCount === 3, 'the shelf it was given is not written over');
+
+  const down = refreshedShelf(refreshShelf(), { random: sequence([0, 0.1]), moves: 1 });
+
+  assert(down.moved.length === 1, 'one move when only one is asked for');
+  assert(down.moved[0].to === 2, 'a stack can also come down');
+  // 2 -> 1 is the floor: zero would be the piece leaving the shelf, which is not a refresh.
+  const floor = refreshedShelf([{ itemName: 'Ancient Silk', itemCount: 2 }], {
+    random: sequence([0, 0.1, 0.1]),
+  });
+
+  assert(floor.items[0].itemCount === 1, 'the last copy is never taken');
+  assert(
+    refreshedShelf([{ itemName: 'Ancient Silk', itemCount: 1 }], {
+      random: sequence([0, 0.1]),
+    }).items[0].itemCount === 2,
+    'and a lone copy is re-counted upwards instead'
+  );
+});
+
+check('a shelf with nothing on it is a refresh that does nothing', () => {
+  const empty = refreshedShelf([]);
+
+  assert(empty.items.length === 0 && empty.moved.length === 0, 'no pieces, no moves, no crash');
+  assert(refreshedShelf(null).moved.length === 0, 'and nothing handed in is not a crash either');
+});
+
+check('a refresh never counts one row twice', () => {
+  for (const pick of [0, 0.3, 0.6, 0.9]) {
+    const { moved } = refreshedShelf(refreshShelf(), {
+      random: sequence([pick, 0.2, pick, 0.7]),
+    });
+    const names = moved.map((move) => move.name);
+
+    assert(
+      new Set(names).size === names.length,
+      `${pick}: two moves are two rows, not one row re-counted`
+    );
+  }
+});
+
+check('the demo says what its guildmates did, in the banner rather than as a toast', () => {
+  const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const from = app.indexOf("socket.on('items:changed'");
+  const handler = app.slice(from, from + 800);
+  const views = readFileSync(new URL('./lib/views.js', import.meta.url), 'utf8');
+
+  assert(from > 0, 'the list still listens for a change');
+  assertMatch(handler, /payload\.demo/, 'only a push from the demo copy says anything');
+  assertMatch(
+    handler,
+    /querySelector\('\[data-demo-activity\]'\)/,
+    'and the sentence goes into the banner'
+  );
+  assert(
+    !/showToast/.test(handler),
+    'not into a toast, which would replace whatever the visitor is reading every tick'
+  );
+  assertMatch(views, /class="demo-activity" data-demo-activity hidden/, 'the banner carries the line');
+});
+
+check('the demo re-reads your own file, and that is the only thing it announces', () => {
+  const activity = readFileSync(new URL('./lib/demoActivity.js', import.meta.url), 'utf8');
+  const server = readFileSync(new URL('./server.js', import.meta.url), 'utf8');
+  const refresh = activity.slice(activity.indexOf('async function refreshMyShelf'));
+  const own = demoOwnAccount();
+
+  assert(
+    own.accountName === DEMO_ACCOUNT,
+    `the file re-saved must be the demo person's, not ${own.accountName}`
+  );
+  assert(
+    own.items.length === ITEMS.length && own.alwaysShare.length === OFFERS.length,
+    'the whole catalogue, so the shelf is as full as the seeded one'
+  );
+  assert(own.expireDays === DEMO_EXPIRE_DAYS, 'and the LAST CHANCE window travels with it');
+  assert(
+    /kind: 'refresh',\s*mine: true/.test(refresh),
+    "the re-save is marked as the visitor's own"
+  );
+
+  const tick = server.slice(
+    server.indexOf('if (outcome?.activity)'),
+    server.indexOf('Demo activity: nothing happened')
+  );
+
+  assert(
+    /if \(outcome\.activity\.mine\) \{\s*realtime\.notifyDemoChange/.test(tick),
+    "only the visitor's own file reaches the page as a message"
+  );
+  assert(
+    !/if \(outcome\?\.activity\) \{\s*realtime\.notifyDemoChange/.test(server),
+    "a guildmate's stack moving under the list says nothing - the rows just update"
+  );
+});
+
+check('the demo guild is described once, not rebuilt by each caller', () => {
+  assert(
+    DEMO_GUILD_SERVER.id === DEMO_GUILD.id &&
+      DEMO_GUILD_SERVER.name === DEMO_GUILD.name &&
+      DEMO_GUILD_SERVER.platform === DEMO_WORLD.platform &&
+      DEMO_GUILD_SERVER.worldName === DEMO_WORLD.worldName,
+    'the shorthand has to say exactly what the guild and its world say'
+  );
+
+  for (const file of ['./lib/demoActivity.js', './lib/demoShelf.js']) {
+    const source = readFileSync(new URL(file, import.meta.url), 'utf8');
+
+    assert(
+      !/platform: DEMO_WORLD\.platform/.test(source),
+      `${file} builds its own copy of the guild instead of using DEMO_GUILD_SERVER`
+    );
+  }
+});
+
+check('a re-count survives the restock that follows it', () => {
+  const plain = demoOwnAccount();
+  const first = plain.items[0];
+  const counted = Math.max(1, Number(first.itemCount) || 1) + 3;
+  const kept = demoOwnAccount({ counts: new Map([[hashItemKey(first.itemKey), counted]]) });
+
+  assert(
+    kept.items[0].itemCount === counted,
+    `the count the file last said has to be written back, got ${kept.items[0].itemCount}`
+  );
+  assert(
+    kept.items[1].itemCount === plain.items[1].itemCount,
+    'a row with no stored count still takes the catalogue number'
+  );
+  assert(kept.items.length === plain.items.length, 'the shelf is neither longer nor shorter');
+});
+
+await checkAsync('the restock reads the counts that are already there', async () => {
+  const statements = [];
+  const connection = {
+    async execute(sql, params) {
+      statements.push({ sql, params });
+      if (/SELECT item_key_hash, item_count/.test(sql)) {
+        return [[{ item_key_hash: 'a'.repeat(40), item_count: 4 }], {}];
+      }
+      return [{ affectedRows: 1 }, {}];
+    },
+  };
+
+  const counts = await ownShelfCounts(connection, DEMO_ACCOUNT);
+  const read = statements[0];
+
+  assert(counts.get('a'.repeat(40)) === 4, 'the stored count is what comes back');
+  assert(
+    /FROM guildsbounty_shared_items WHERE account_name = \?/.test(read.sql),
+    'read from the rows that are about to be rewritten'
+  );
+  assert(read.params[0] === DEMO_ACCOUNT, "and for the visitor's own account");
+});
+
+await checkAsync('the demo history starts with a whole handover, a short one and a refusal', async () => {
+  const statements = [];
+  const connection = {
+    async execute(sql, params) {
+      statements.push({ sql, params });
+      if (/COUNT\(\*\) AS n FROM guildsbounty_requests/.test(sql)) {
+        return [[{ n: 0 }], {}];
+      }
+      return [{ affectedRows: 1 }, {}];
+    },
+  };
+
+  const written = await seedDemoRequestHistory(connection, {
+    userId: 42,
+    demoAccount: DEMO_ACCOUNT,
+  });
+  const inserts = statements.filter((entry) => /INSERT INTO guildsbounty_requests/.test(entry.sql));
+
+  assert(written === 3 && inserts.length === 3, `expected three rows, got ${written}`);
+
+  const shapes = inserts.map((entry) => ({
+    status: entry.params[4],
+    sent: entry.params[2],
+    asked: entry.params[3],
+  }));
+
+  assert(
+    shapes.some((shape) => shape.status === 'fulfilled' && shape.sent === shape.asked),
+    'a whole handover, so a plain number is on screen from the first page load'
+  );
+  assert(
+    shapes.some((shape) => shape.status === 'fulfilled' && shape.sent < shape.asked),
+    'one sent short, so the tab shows "1 of 2"'
+  );
+  assert(
+    shapes.some((shape) => shape.status === 'cancelled' && shape.sent === 0),
+    'and one refused, which reads a bare 0'
+  );
+  assert(
+    inserts.every((entry) => entry.params[1] === DEMO_ACCOUNT && entry.params[0] === 42),
+    "every row is the visitor's own ask, addressed to the demo person"
+  );
+  assert(
+    inserts.every((entry) => /FROM guildsbounty_shared_items s/.test(entry.sql)),
+    'and each borrows a real shared row, so the name and quality are real'
+  );
+
+  const guard = {
+    async execute(sql) {
+      assert(
+        !/INSERT INTO guildsbounty_requests/.test(sql),
+        'a history that already has rows must not be rewritten'
+      );
+      return [[{ n: 3 }], {}];
+    },
+  };
+
+  assert(
+    (await seedDemoRequestHistory(guard, { userId: 42, demoAccount: DEMO_ACCOUNT })) === 0,
+    'and the second run writes nothing'
+  );
+});
+
+check("the visitor's own file can also lose a row, and that is announced too", () => {
+  const activity = readFileSync(new URL('./lib/demoActivity.js', import.meta.url), 'utf8');
+  const lose = activity.slice(
+    activity.indexOf('async function loseMyRow'),
+    activity.indexOf('The shelf a re-save reports')
+  );
+
+  assert(lose.length > 0, 'MISSING ANCHOR: loseMyRow');
+  assert(
+    /kind: 'stock',\s*mine: true/.test(lose),
+    "a row leaving the visitor's own file is their news, like the re-count"
+  );
+  assert(/removedItems\) > 0/.test(lose), 'and a row the store held back is not announced as lost');
+  assert(
+    /myStock: \(\) => loseMyRow/.test(activity),
+    'the rotation has to include it, or the number is never reached'
+  );
+  assert(
+    DEMO_ACTIVITY_SCENARIOS.filter((name) => name === 'myStock' || name === 'refresh').length === 2,
+    "both of the visitor's own actions are in the rotation"
+  );
+});
+
+check('the pinned header re-measures when its own block wraps', () => {
+  const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const block = app.slice(
+    app.indexOf('new ResizeObserver(measureStickyBars)'),
+    app.indexOf("window.addEventListener('resize', measureStickyBars)")
+  );
+
+  assert(
+    block.includes("'.list-top'"),
+    'the block the guild pills sit in has to be watched itself, not only through the page'
+  );
+  assert(block.includes("'.top-bar'"), 'and the site header that pushes it down');
+  assert(
+    /observer\.observe\(document\.body\)/.test(block),
+    'the body still has to be watched, because the list region is replaced'
+  );
+});
+
+check('the refresh summary reads exactly like the upload box does', () => {
+  // The browser's half of the same sentence, sliced out of the file it actually loads.
+  const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const start = app.indexOf('// ------------------------------------------------- upload change summary');
+  const end = app.indexOf('// ---------------------------------------------- end upload change summary');
+  const { uploadChangeSummary } = new Function(
+    `${app.slice(start, end)}\nreturn { uploadChangeSummary };`
+  )();
+
+  for (const entry of [
+    { removedItems: 0, addedItems: 0, refreshedItems: 2 },
+    { removedItems: 1, addedItems: 0, refreshedItems: 3 },
+    { removedItems: 0, addedItems: 0, refreshedItems: 1 },
+    { removedItems: 2, addedItems: 1, refreshedItems: 0 },
+    {},
+  ]) {
+    assert(
+      uploadChangeWords(entry) === uploadChangeSummary(entry),
+      `${JSON.stringify(entry)}: the demo says what a real upload says`
+    );
+  }
+
+  assert(
+    uploadChangeWords({ removedItems: 0, addedItems: 0, refreshedItems: 2 }) ===
+      '0 items removed, 0 items added, 2 items refreshed',
+    'and says all three numbers, in the order the page does'
   );
 });
 

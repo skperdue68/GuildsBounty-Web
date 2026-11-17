@@ -2133,11 +2133,13 @@ app.post('/owner/requests', upload.none(), async (req, res) => {
   }
 
   try {
+    let answeredAccounts = [];
     const outcome = await withDatabase(async (connection) => {
       const accounts = await getViewerAccounts(connection, user.id);
+      answeredAccounts = accounts.map((row) => row.eso_account_name);
 
       return recordOwnerGroupAnswer(connection, {
-        accountNames: accounts.map((row) => row.eso_account_name),
+        accountNames: answeredAccounts,
         anchorId: answer.anchorId,
         sent: answer.sent,
       });
@@ -2150,6 +2152,11 @@ app.post('/owner/requests', upload.none(), async (req, res) => {
           outcome.copies === 1 ? 'y' : 'ies'
         } handed over, ${outcome.cancelled} cancelled`
       );
+      // Answering is what takes a row off this owner's own list, so the number on their
+      // avatar has to come down with it - on every page they have open, not on the next
+      // reload. The count is read back rather than adjusted by one, the same as when a
+      // request arrives.
+      await announcePendingRequests(answeredAccounts);
     }
 
     // The person who asked hears about it too: the copies are waiting in their in-game
@@ -2415,6 +2422,9 @@ app.post('/requests/fulfill/:token', async (req, res) => {
           outcome.copies === 1 ? 'y' : 'ies'
         } handed over, ${outcome.cancelled} cancelled`
       );
+      // Answered from a phone on the way to work, this still closes rows on a list that may
+      // be open on a desk at home: the badge follows wherever the answer came from.
+      await announcePendingRequests(outcome.rows.map((row) => row.ownerAccountName));
     }
 
     await emailAnswered(outcome.rows, {
@@ -3432,6 +3442,12 @@ async function applySavedVariablesUpload({ fileText, sourceFile, user }) {
     }`
   );
 
+  // A file that no longer holds a piece takes the asks for it with it, so the owner's own
+  // count can fall without anybody answering anything - and the piece coming back later
+  // does not bring those asks back. Every way the number can move is announced, or the
+  // circle would only ever be right on a reload.
+  await announcePendingRequests(uploadedAccounts);
+
   // One fetch per new icon, ever: afterwards /icons serves the stored bytes.
   let icons = { fetched: 0, skipped: 0, failed: 0 };
 
@@ -3909,11 +3925,14 @@ if (SWEEP_INTERVAL_MS > 0) {
 // The sandbox's other people. One small action per tick, while a demo page is open, taken
 // against the demo database and announced to the demo room only. A quiet copy with no
 // page open costs one comparison per tick.
+// Forty-five seconds on average, not fifteen: every action that is not the visitor's own
+// re-save moves a quantity on the board, and a stack changing under a reader every quarter of
+// a minute is a copy that looks like it is malfunctioning rather than one somebody uses.
 const DEMO_ACTIVITY_MS = (() => {
-  const configured = Number(process.env.DEMO_ACTIVITY_MS ?? 15000);
+  const configured = Number(process.env.DEMO_ACTIVITY_MS ?? 45000);
 
   if (!Number.isFinite(configured)) {
-    return 15000;
+    return 45000;
   }
 
   return configured <= 0 ? 0 : Math.max(3000, Math.trunc(configured));
@@ -3921,6 +3940,8 @@ const DEMO_ACTIVITY_MS = (() => {
 
 let demoActivityBusy = false;
 let demoActivityQuiet = true;
+// The count last pushed to the demo's own pages, so an unchanged one is not announced again.
+let demoBadgeCount = null;
 
 async function tickDemoActivity() {
   if (!demoDatabaseReady) {
@@ -3959,12 +3980,34 @@ async function tickDemoActivity() {
       // everything there to request. Cheap, and only while a demo page is open.
       await keepDemoShelfFull(connection);
 
-      return runDemoActivity(connection);
+      const activity = await runDemoActivity(connection);
+      // The cast asking the visitor for something is a real ask on the visitor's own items,
+      // so the number on their avatar moves with it. Read here, on the demo's connection
+      // rather than the real one, which has nothing to say about this copy.
+      const badges = await pendingRequestBadges(connection, [DEMO_ACCOUNT]);
+
+      return { activity, badges };
     });
 
-    if (outcome) {
-      realtime.notifyDemoChange('simulation', outcome.summary);
-      logLine(`[DEMO] ${outcome.summary}`);
+    // Only when it moved: a tick that announced the same number every fifteen seconds would
+    // fill the log with an event nobody can see.
+    for (const badge of outcome?.badges || []) {
+      if (demoBadgeCount !== badge.count) {
+        demoBadgeCount = badge.count;
+        realtime.notifyPendingRequests(badge.userId, badge.count);
+      }
+    }
+
+    if (outcome?.activity) {
+      // Only the visitor's own file being read again is announced: that is the one thing a
+      // saved upload would tell them, and the banner is where the demo says it. Everything
+      // else is a guildmate going about their business - a real site notifies nobody about
+      // another owner's stack, the tabs just show the new number on the next push.
+      if (outcome.activity.mine) {
+        realtime.notifyDemoChange('simulation', outcome.activity.summary);
+      }
+
+      logLine(`[DEMO] ${outcome.activity.summary}`);
     }
   } catch (error) {
     warnLine(`Demo activity: nothing happened - ${error.message}`);

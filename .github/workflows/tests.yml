@@ -1,0 +1,70 @@
+# Every test in the repository, including the ones that need a database.
+#
+# Most suites run on nothing but Node. Five of them - fulfillment, reopen-requests,
+# delete-user, database-names and email - build a real schema and exercise the store
+# against MariaDB, which is why they were the ones nobody ran: they need a server, and a
+# laptop usually has none. Here the server is a service container, and each suite picks
+# its own database name (they drop and rebuild one, so they must not share).
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  node:
+    runs-on: ubuntu-latest
+
+    services:
+      mariadb:
+        image: mariadb:11
+        env:
+          MARIADB_ROOT_PASSWORD: root
+          MARIADB_ROOT_HOST: '%'
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=30
+
+    env:
+      MARIADB_HOST: 127.0.0.1
+      MARIADB_PORT: '3306'
+      MARIADB_USER: root
+      MARIADB_PASSWORD: root
+      # GUILDSBOUNTY_DATABASE is deliberately not set: each suite names its own database
+      # and drops it first, so one suite cannot delete the one another is using.
+      GUILDSBOUNTY_DATABASE: ''
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - run: npm ci
+
+      # One file at a time, so a failure names the suite it came from and the rest still
+      # report: a suite that cannot run is information, not a reason to hide the others.
+      - name: Run every test
+        run: |
+          set -o pipefail
+          failed=0
+          for file in test*.js; do
+            # testEmail.js is not a suite: it is the mail preview CLI (`npm run email:test --
+            # you@example.com`) and refuses to run without an address.
+            case "$file" in testEmail.js) continue;; esac
+            echo "::group::$file"
+            if node "$file"; then
+              echo "::endgroup::"
+            else
+              echo "::error file=$file::$file failed"
+              echo "::endgroup::"
+              failed=1
+            fi
+          done
+          exit "$failed"
