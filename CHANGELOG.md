@@ -22,6 +22,14 @@ landed on `main`.
 
 ### Fixed
 
+- **The demo's pictures are read from the site's own rows, not only from the demo's copy of
+  them.** The copy is rebuilt from the site on every start, so it is usually current - but a
+  demo database that outlived a restart, or one copied before anybody had shared an item,
+  lent nothing while the site itself was full of pictures, and the demo's blank squares
+  stayed blank. The pass that fills them now asks the site database by name and keeps the
+  copy as the fallback, and its line in the log says which database it read and how many
+  live rows it found, so an empty answer can be told from a missing one.
+
 - **The bars from the tabs down are as wide as the block above them.** The tabs, the filter
   band, the search row and the table with its heading were laid out inside the card's side
   padding, so each one stopped 24px short of the card's edge while the block above ran edge
