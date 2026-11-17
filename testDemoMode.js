@@ -33,6 +33,7 @@ import {
   ensureDemoCast,
 } from './lib/demoCast.js';
 import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer, iconKind } from './lib/demoItems.js';
+import { iconCacheKey } from './lib/icons.js';
 import {
   DEMO_ACTIVITY_SCENARIOS,
   demoActivityPause,
@@ -219,6 +220,10 @@ await checkAsync('blank demo rows are given a picture later, and rows that have 
     'the row borrows the live copy\'s weapon picture'
   );
   assert(
+    updates.every((entry) => entry.params.includes(iconCacheKey(weapon))),
+    'and its cache key with it, or the page has no <img> to build'
+  );
+  assert(
     updates.every((entry) => !entry.params.includes('Style')),
     'a kind with nothing to borrow stays blank rather than borrowing another sort of thing'
   );
@@ -299,6 +304,75 @@ await checkAsync('a database that cannot read the site falls back to its own cop
 
   assert(result.source === 'the demo copy', `expected the copy named as the source, got ${result.source}`);
   assert(result.filled === 2, `expected both shelves filled from the copy, got ${result.filled}`);
+});
+
+// The demo database is a different database, so a borrowed path draws only when its bytes are in
+// the demo's own cache. The site has almost always fetched them already - the path is its own -
+// and asking UESP for a second copy was what left the demo with paths on its rows and nothing in
+// the browser. This moves the picture across instead.
+await checkAsync('a picture the site already holds is copied into the demo, not fetched again', async () => {
+  const weapon = '/esoui/art/icons/gear_breton_staff_d.dds';
+  const called = [];
+
+  const connection = {
+    async execute(sql, params = []) {
+      called.push({ sql, params });
+
+      if (/COUNT\(\*\).*AS blank/.test(sql)) {
+        return [[], {}];
+      }
+      if (/^\s*SELECT DISTINCT icon/.test(sql)) {
+        return [[{ icon: weapon }], {}];
+      }
+      if (/INSERT IGNORE INTO guildsbounty_item_icons/.test(sql)) {
+        return [{ affectedRows: 1 }, {}];
+      }
+      return [[], {}];
+    },
+  };
+
+  const result = await repairDemoIcons(connection, {
+    sourceDatabase: 'guildsbounty_site',
+    cacheIcons: async () => ({ fetched: 0, skipped: 1, failed: 0 }),
+  });
+
+  const copy = called.find((entry) => /INSERT IGNORE INTO guildsbounty_item_icons/.test(entry.sql));
+
+  assert(copy, 'the demo should ask its own cache to take the site\'s picture');
+  assert(
+    /FROM `guildsbounty_site`\.guildsbounty_item_icons/.test(copy.sql),
+    'and it must read the site database, not its own copy'
+  );
+  assert(
+    copy.params.includes(iconCacheKey(weapon)),
+    `expected the picture\'s own key, got ${copy.params.join(', ')}`
+  );
+  assert(result.copied === 1, `expected one copied picture, got ${result.copied}`);
+});
+
+await checkAsync('with no site database named there is nothing to copy from', async () => {
+  const called = [];
+
+  const connection = {
+    async execute(sql, params = []) {
+      called.push({ sql, params });
+
+      if (/^\s*SELECT DISTINCT icon/.test(sql)) {
+        return [[{ icon: '/esoui/art/icons/gear_breton_staff_d.dds' }], {}];
+      }
+      return [[], {}];
+    },
+  };
+
+  const result = await repairDemoIcons(connection, {
+    cacheIcons: async () => ({ fetched: 1, skipped: 0, failed: 0 }),
+  });
+
+  assert(result.copied === 0, 'a copy from nobody is not a copy');
+  assert(
+    !called.some((entry) => /INSERT IGNORE INTO guildsbounty_item_icons/.test(entry.sql)),
+    'the copy must not be attempted without a database to read'
+  );
 });
 
 check('the demo account is not the one seedDemo.js writes into real guilds', () => {
