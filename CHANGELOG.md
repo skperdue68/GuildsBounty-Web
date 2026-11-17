@@ -22,6 +22,11 @@ landed on `main`.
 
 ### Fixed
 
+- **The standing offers say it once, not twice.** The sentence above the table - "They will
+  hand these out whenever they have one, one copy at a time" - repeated what every row
+  already says under its name. It is gone; the bar that names the table is the whole
+  introduction.
+
 - **The console's failed websocket is gone.** The page used to open a long-poll session
   first and then ask Socket.IO to upgrade it, which a process that had restarted since - or
   a second one behind the proxy - refused with 400 "Session ID unknown", so every restart
