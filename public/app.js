@@ -90,6 +90,46 @@ if (typeof ResizeObserver === 'function') {
   window.addEventListener('resize', measureStickyBars);
 }
 
+// -------------------------------------------------------------- folding the block
+// The block above the tabs - what is shared, whose guilds it comes from, which account is
+// asking - can be folded down to the live pill. It is three lines of context and the tallest
+// bar in the pinned stack, so a reader who wants the rows can have the space back. The choice
+// lives here rather than in the markup because a live refresh replaces the region: the block
+// comes back expanded, and this puts it back the way the reader left it.
+let listTopCollapsed = false;
+
+function applyListTopState(root = document) {
+  const block = root.querySelector('.list-top');
+  if (!block) return;
+
+  block.toggleAttribute('data-collapsed', listTopCollapsed);
+
+  const button = block.querySelector('[data-list-top-toggle]');
+  if (!button) return;
+
+  const label = listTopCollapsed ? 'Expand the list header' : 'Collapse the list header';
+  button.setAttribute('aria-expanded', String(!listTopCollapsed));
+  button.title = label;
+
+  const caption = button.querySelector('.visually-hidden');
+  if (caption) caption.textContent = label;
+}
+
+document.addEventListener('click', (event) => {
+  const target = event.target;
+  const button = target && target.closest ? target.closest('[data-list-top-toggle]') : null;
+
+  if (!button) return;
+
+  event.preventDefault();
+  listTopCollapsed = !listTopCollapsed;
+  applyListTopState();
+  // The block has just changed height, and everything pinned under it moves with it: measured
+  // here rather than left to the observer, so the tabs and headings do not lag a frame behind.
+  measureStickyBars();
+  schedulePinnedTableHeads();
+});
+
 // ------------------------------------------------------- pinned table headings
 // A sticky <th> pins to the nearest scroll container. On a window too narrow for the ten
 // columns that container is the table's own shell - it scrolls sideways and never down - so
@@ -1946,6 +1986,8 @@ if (listRegion) {
     );
 
     reconcileLiveNode(listRegion, next);
+    // The block comes back from the server expanded; a reader who folded it keeps it folded.
+    applyListTopState(listRegion);
 
     restoreAnchor(anchor);
     animatePanelHeights(listRegion, panelHeights);

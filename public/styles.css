@@ -945,9 +945,10 @@ th {
   /* No height of its own: a bar drawn over the table's first row rather than a row added
      above it, so showing and hiding it moves nothing. */
   height: 0;
-  /* Above the rows and the table's own headings, below the standing-offers bar that passes
-     over both. */
-  z-index: 14;
+  /* Above the rows and the table's own headings, and under every bar that hangs over it: the
+     standing-offers subhead (12), the search row (13), the block above the tabs (14) and the
+     filter band (15). It used to sit at 14 and paint over the search row where the two met. */
+  z-index: 11;
 }
 
 .table-head[hidden] {
@@ -1552,6 +1553,54 @@ a.primary-button {
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
+/* The block is three lines of context a reader with a long list does not need on screen the
+   whole time, and it is the tallest thing in the pinned stack. The chevron in its corner folds
+   it away to the live pill: the lines go, the block shrinks, and the offsets app.js measures
+   move the tabs, the band and the column headings up after it. */
+.list-top-toggle {
+  position: absolute;
+  left: 10px;
+  top: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 999px;
+  background: rgba(9, 20, 45, 0.55);
+  color: var(--muted-strong);
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.list-top-toggle:hover,
+.list-top-toggle:focus-visible {
+  color: var(--text);
+  border-color: rgba(148, 163, 184, 0.55);
+}
+
+.list-top-toggle svg {
+  width: 13px;
+  height: 13px;
+  transition: transform 140ms ease;
+}
+
+/* Folded: the pill stays where it was, in the corner of what is left. */
+.list-top[data-collapsed] {
+  padding: 8px 24px;
+  min-height: 40px;
+}
+
+.list-top[data-collapsed] .list-top-body {
+  display: none;
+}
+
+.list-top[data-collapsed] .list-top-toggle svg {
+  transform: rotate(180deg);
+}
+
 /* The last line of that block keeps the air its own rule gave it above the tab bar; the 10px
    padding is the space between the two. */
 .list-top > :last-child {
@@ -1876,9 +1925,15 @@ a.primary-button {
    still scrolling behind it would show beside the bar. */
 .subhead.list-sticky {
   position: sticky;
-  top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px));
-  /* Above the filter band (15), which it can meet on the way past. */
-  z-index: 16;
+  /* Under the whole stack above it, not on the tab bar's line. It used to pin as high as the
+     tabs and cover what was between: scrolling back up put this one line of words over the
+     filter band and the search row, which read as the rows painting through the bars. */
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px) + var(--list-tools-h, 0px)
+  );
+  /* Below the search row (13) and the band (15) it hangs under, above the column headings. */
+  z-index: 12;
   /* As tall as the line of tabs it replaces, so the column headings below pin at the same
      line either way and nothing shows between the two bars. It used to be as tall as the tabs
      and the filter band and the search row together, which left a bar of empty colour as deep

@@ -31,7 +31,7 @@ import {
   castEmail,
   ensureDemoCast,
 } from './lib/demoCast.js';
-import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer } from './lib/demoItems.js';
+import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer, iconKind } from './lib/demoItems.js';
 import {
   DEMO_ACTIVITY_SCENARIOS,
   demoActivityPause,
@@ -150,9 +150,24 @@ check('the demo guild is the one that was asked for, on PC and NA', () => {
   assert(DEMO_WORLD.platform === 2, `expected platform 2 (PC), got ${DEMO_WORLD.platform}`);
   assert(DEMO_WORLD.worldName === 'NA Megaserver', `got ${DEMO_WORLD.worldName}`);
   assert(
-    DEMO_LOGIN === 'demo@example.com' && DEMO_PASSWORD === 'demo',
-    'the pair is demo@example.com / demo'
+    DEMO_LOGIN === 'demo@perdues.me' && DEMO_PASSWORD === 'demo@perdues.me',
+    'the pair is demo@perdues.me / demo@perdues.me'
   );
+});
+
+check('a catalogue row borrows an icon of its own kind from the live rows', () => {
+  // The catalogue invents its item ids, so it cannot look a picture up by id: the demo takes one
+  // per kind from the rows it copies out of the live database. The two names a live upload and
+  // the catalogue disagree about are the ones that would silently borrow nothing.
+  assert(iconKind('Apparel') === 'armor', `apparel is armor to a live row, got ${iconKind('Apparel')}`);
+  assert(iconKind('Armor') === 'armor', `armor stays armor, got ${iconKind('Armor')}`);
+  assert(iconKind('Jewelry') === iconKind('jewellery'), 'jewelry is spelled both ways');
+  assert(iconKind('Furnishing') === 'furnishing', 'anything else keeps its own name');
+
+  const icon = '/esoui/art/icons/gear_breton_staff_d.dds';
+  assert(buildItem(ITEMS[0], 0, [DEMO_GUILD.id], { icon }).icon === icon, 'the path reaches the item row');
+  assert(buildOffer(OFFERS[0], 0, [DEMO_GUILD.id], { icon }).icon === icon, 'and an always-share row');
+  assert(buildItem(ITEMS[0], 0, [DEMO_GUILD.id]).icon === '', 'and a row with no kind over it stays blank');
 });
 
 check('the demo account is not the one seedDemo.js writes into real guilds', () => {
@@ -490,8 +505,8 @@ check('a visitor is shown the three ways in and no items', () => {
   assertMatch(page, /Sign in with Discord/, 'Discord sign-in is missing');
   assertMatch(page, /Sign in with Google/, 'Google sign-in is missing');
   assertMatch(page, /action="\/auth\/email"/, 'the email and password form is missing');
-  assertMatch(page, /demo@example\.com/, 'the demo sign-in is not mentioned');
-  assertMatch(page, /password\s*<strong>demo<\/strong>/, 'the demo password is not mentioned');
+  assertMatch(page, /demo@perdues\.me/, 'the demo sign-in is not mentioned');
+  assertMatch(page, /password\s*<strong>demo@perdues\.me<\/strong>/, 'the demo password is not mentioned');
   assert(!page.includes('data-item-key'), 'no item may be rendered to a visitor');
 });
 
@@ -500,8 +515,8 @@ check('the demo pair is boxed rather than another grey hint', () => {
 
   assertMatch(page, /class="demo-callout"/, 'the demo sign-in must be its own box');
   assertMatch(page, /class="demo-callout-body"/, 'the box must carry the explanation');
-  assertMatch(page, /demo@example\.com/, 'the demo address must still be in it');
-  assertMatch(page, /<strong>demo<\/strong>/, 'the demo password must still be in it');
+  assertMatch(page, /demo@perdues\.me/, 'the demo address must still be in it');
+  assertMatch(page, /<strong>demo@perdues\.me<\/strong>/, 'the demo password must still be in it');
 });
 
 check('the brand is one picture of the whole lockup', () => {
@@ -1342,7 +1357,7 @@ check('removing the demo account puts it straight back', () => {
 check('the demo shows its own address as a verified sign-in, like anybody else', () => {
   const demo = emailLine({ id: 42, username: 'Demo', isDemo: true, email: '', emailVerified: false });
 
-  assertMatch(demo, /demo@example\.com/, 'the demo address must be shown');
+  assertMatch(demo, /demo@perdues\.me/, 'the demo address must be shown');
   assertMatch(demo, /\(verified\)/, 'it must read as verified, the way an ordinary sign-in does');
   assert(
     !demo.includes('not shared with this site'),
