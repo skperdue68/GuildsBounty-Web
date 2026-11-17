@@ -454,11 +454,14 @@ t('a pinned heading takes a press, and no second tab stop', () => {
     'nothing stands between a press and the pinned headings'
   );
   assert.match(app, /control\.tabIndex = -1/, 'the copied buttons stay out of the tab order');
-  assert.match(
-    app,
-    /addEventListener\('mousedown'/,
-    'a press on a copy does not leave the caret on a row that is about to move'
-  );
+  for (const kind of ['mousedown', 'pointerdown']) {
+    assert.match(
+      app,
+      new RegExp(`addEventListener\\('${kind}'`),
+      `a ${kind} press on a copy does not leave the caret on a row that is about to move`
+    );
+  }
+  assert.match(app, /pointerType !== 'mouse'/, 'a finger or a pen is suppressed where it focuses');
 });
 
 // The bars that pin the list have to be fully opaque. The block over the tabs was painted with

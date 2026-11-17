@@ -16,8 +16,10 @@ landed on `main`.
   scroll position. Where the columns do fit, the table's own heading row pins as before and
   the copy stays out of the way. A press on the pinned copy sorts the column exactly as a press
   on the real heading does - the copied buttons carry the same `data-sort` - and the copied
-  buttons are `tabindex="-1"` with the press's focus suppressed, so the bar adds no second stop
-  to the tab order and cannot pull the reader's caret onto a row that is about to move.
+  buttons are `tabindex="-1"` with the press's focus suppressed for every kind of pointer - a
+  mouse is stopped on `mousedown`, a finger or a pen on `pointerdown`, because that is where each
+  of them takes the focus - so the bar adds no second stop to the tab order, cannot pull the
+  reader's caret onto a row that is about to move, and a tap still sorts.
 
 - **The bars that pin are opaque.** The block that holds the count line, the guild pills and the
   account picker was painted with the card's 44%-opaque panel, so rows scrolling underneath it

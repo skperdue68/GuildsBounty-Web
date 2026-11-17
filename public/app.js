@@ -129,8 +129,20 @@ function buildTableHead(shell) {
   // data-sort, and the list's click handler reads the field off whichever one was pressed. Only
   // the focus is stopped - a copy is out of sight the moment the list moves under it, so the
   // caret is left where the reader had it.
+  //
+  // Every kind of pointer is covered, because they focus at different moments: a mouse takes the
+  // focus on mousedown, while a finger or a pen takes it on pointerdown. Cancelling the default
+  // there stops the focus and leaves the click to come through on its own, so a tap still sorts.
+  const onCopiedButton = (event) => Boolean(event.target.closest && event.target.closest('button'));
+
+  bar.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'mouse' && onCopiedButton(event)) {
+      event.preventDefault();
+    }
+  });
+
   bar.addEventListener('mousedown', (event) => {
-    if (event.target.closest && event.target.closest('button')) {
+    if (onCopiedButton(event)) {
       event.preventDefault();
     }
   });
