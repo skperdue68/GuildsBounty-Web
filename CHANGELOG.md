@@ -7,12 +7,22 @@ landed on `main`.
 
 ### Fixed
 
+- **The column headings pin on a narrow window too.** They used to ride away with the rows
+  wherever the table was wider than the card: a sticky heading pins to its nearest scroll
+  container, and there the shell that scrolls sideways was that container - it never scrolls
+  down, so the heading row went up with the table. Each item table now carries a copy of its
+  heading row in the pinned stack above it, drawn from the table's own colgroup and moved
+  sideways with the shell as it scrolls, so every column stays over its own cells at any
+  scroll position. Where the columns do fit, the table's own heading row pins as before and
+  the copy stays out of the way.
+
 - **The bars that pin are opaque.** The block that holds the count line, the guild pills and the
   account picker was painted with the card's 44%-opaque panel, so rows scrolling underneath it
   read straight through the line that counts what is shared - the one place on the page where
   two lines of text sat on top of each other. It and every bar in the stack below it (tabs,
   filter band, search row, the standing-offers heading, the column headings) now use a solid
-  colour, so nothing shows behind them.
+  colour, so nothing shows behind them - and `test:item-sort` fails if any of them is given an
+  alpha again.
 
 - **The Live pill moved out of the tab bar.** It was absolutely positioned against the bar's
   right edge, so as soon as the labels wrapped - a narrow window, four tabs with counts - the

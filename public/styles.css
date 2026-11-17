@@ -931,6 +931,58 @@ th {
   );
 }
 
+/* A sticky <th> pins to the nearest scroll container, and on a window too narrow for the ten
+   columns that container is the table's own shell: it scrolls sideways and never down, so the
+   heading row rode up with the rows instead of staying under the search row. Each item table
+   therefore gets a copy of its heading row in a bar of its own, outside the shell and in the
+   same place in the pinned stack (app.js builds it from the table's own colgroup). */
+.table-head {
+  position: sticky;
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px)
+  );
+  /* No height of its own: a bar drawn over the table's first row rather than a row added
+     above it, so showing and hiding it moves nothing. */
+  height: 0;
+  /* Above the rows and the table's own headings, below the standing-offers bar that passes
+     over both. */
+  z-index: 14;
+  /* A copy for the eye. The headings that carry the sort buttons are the table's own. */
+  pointer-events: none;
+}
+
+/* A table that carries its own search row has one more bar above it to clear. The bar is
+   placed before that row rather than between it and the shell, so the shell's own heading
+   cells keep the offset `.list-tools + .table-shell` gives them. */
+.table-head.under-tools {
+  top: calc(
+    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
+      var(--list-band-h, 0px) + var(--list-tools-h, 0px)
+  );
+}
+
+.table-head[hidden] {
+  display: none;
+}
+
+.table-head-inner {
+  position: absolute;
+  top: 0;
+  /* The shell's own border, so the copy's columns start where the table's do. */
+  left: 1px;
+  right: 1px;
+  overflow: hidden;
+  background: #112246;
+  box-shadow: 0 1px 0 rgba(148, 163, 184, 0.22);
+}
+
+/* The copy is the bar; the table's own heading row does the pinning everywhere else. */
+.table-head th {
+  position: static;
+  border-bottom: 0;
+}
+
 tbody tr:hover {
   background: rgba(37, 99, 235, 0.08);
 }
@@ -3802,7 +3854,8 @@ a.history-page:hover, .history-page.is-current {
    its type size rather than making the reader scroll sideways for the last column. */
 /* Below the width the ten columns want, the shell scrolls sideways again. A sticky heading
    inside a scroll container pins to that container rather than to the window, and this one
-   never scrolls vertically, so the heading row steps back into the table with it. */
+   never scrolls vertically, so the table's own heading row steps back into the table - and
+   the copy in .table-head above it takes over the pinning. */
 @media (max-width: 1120px) {
   .table-shell {
     overflow-x: auto;

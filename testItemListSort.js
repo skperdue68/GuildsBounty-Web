@@ -440,6 +440,49 @@ t('the search shares the row with the grouping switch', () => {
 
 const appSource = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
 
+// The bars that pin the list have to be fully opaque. The block over the tabs was painted with
+// the card's panel - 44% - so a row scrolling under it read straight through the line that
+// counts what is shared, and the bars below it at 92-96% still let a row edge show.
+t('the bars that pin are painted opaque, so rows cannot read through them', () => {
+  const css = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+
+  assert.match(
+    css,
+    /--panel-solid:\s*#[0-9a-f]{6}\s*;/i,
+    'a colour with no alpha in it for the bars to paint with'
+  );
+
+  const solid = (selector, body) => {
+    const background = body.match(/background(?:-color)?:\s*([\s\S]*?);/)?.[1] || '';
+    assert.ok(background, `${selector} is given a background`);
+    assert.match(
+      background.trim(),
+      /(?:var\(--panel-solid\)|#[0-9a-f]{6})$/i,
+      `${selector} is painted with a solid colour, not ${JSON.stringify(background.trim())}`
+    );
+  };
+
+  for (const selector of [
+    '.list-top',
+    '.list-head',
+    '.filter-band',
+    '.list-tools',
+    '.subhead.list-sticky',
+  ]) {
+    const block = css.match(
+      new RegExp(selector.replace(/\./g, '\\.') + '\\s*\\{([^}]*)\\}')
+    );
+    assert.ok(block, `${selector} is drawn`);
+    solid(selector, block[1]);
+  }
+
+  // The column headings carry no class of their own, so they are found by the rule that pins
+  // them rather than by name.
+  const pinned = css.match(/\nth\s*\{[^}]*position:\s*sticky[^}]*\}/)?.[0] || '';
+  assert.ok(pinned, 'the heading cells pin');
+  solid('th', pinned);
+});
+
 function appBetween(start, end) {
   const from = appSource.indexOf(start);
   const to = appSource.indexOf(end, from);

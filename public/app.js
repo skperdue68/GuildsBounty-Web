@@ -87,6 +87,128 @@ if (typeof ResizeObserver === 'function') {
   window.addEventListener('resize', measureStickyBars);
 }
 
+// ------------------------------------------------------- pinned table headings
+// A sticky <th> pins to the nearest scroll container. On a window too narrow for the ten
+// columns that container is the table's own shell - it scrolls sideways and never down - so
+// the heading row went up with the rows instead of staying under the search row. Each item
+// table gets a copy of its heading row in a bar of its own, outside the shell and in the same
+// place in the pinned stack; the copy is drawn from the table's own colgroup under the same
+// fixed layout, so its columns sit exactly over the ones below, and it is moved sideways with
+// the shell as that scrolls.
+const pinnedTableHeads = new Map();
+
+function buildTableHead(shell) {
+  const table = shell.querySelector('table.list-table');
+  if (!table || !table.tHead) {
+    return null;
+  }
+
+  const bar = document.createElement('div');
+  bar.className = 'table-head';
+  bar.hidden = true;
+  // A copy for the eye: the headings that carry the sort buttons are the table's own.
+  bar.setAttribute('aria-hidden', 'true');
+
+  const inner = document.createElement('div');
+  inner.className = 'table-head-inner';
+
+  const copy = document.createElement('table');
+  copy.className = table.className;
+  copy.setAttribute('aria-hidden', 'true');
+
+  const columns = table.querySelector('colgroup');
+  if (columns) {
+    copy.append(columns.cloneNode(true));
+  }
+  copy.append(table.tHead.cloneNode(true));
+  for (const control of copy.querySelectorAll('button, a, input')) {
+    control.tabIndex = -1;
+  }
+
+  inner.append(copy);
+  bar.append(inner);
+
+  // Before the table's search row rather than between it and the shell: the shell's own heading
+  // cells take their offset from standing directly under that row, so the bar must not come
+  // between them. It is given the same offset the cells get, since it pins at the same line.
+  const tools = shell.previousElementSibling;
+  const leads = tools && tools.classList.contains('list-tools');
+  bar.classList.toggle('under-tools', Boolean(leads));
+  (leads ? tools : shell).before(bar);
+
+  return { bar, inner, copy, table };
+}
+
+function syncPinnedTableHeads() {
+  for (const gone of pinnedTableHeads.keys()) {
+    if (!gone.isConnected) {
+      pinnedTableHeads.delete(gone);
+    }
+  }
+
+  for (const shell of document.querySelectorAll('.table-shell')) {
+    let entry = pinnedTableHeads.get(shell);
+    if (!entry) {
+      entry = buildTableHead(shell);
+      if (!entry) {
+        continue;
+      }
+      pinnedTableHeads.set(shell, entry);
+      shell.addEventListener('scroll', schedulePinnedTableHeads, { passive: true });
+    }
+
+    const { bar, inner, copy, table } = entry;
+    const line = parseFloat(window.getComputedStyle(bar).top) || 0;
+    // The cells, not the thead: sticky cells leave the thead's box behind, and it is the
+    // cells that have gone under the bars above when the copy is wanted.
+    const heading = table.tHead.querySelector('th') || table.tHead;
+    const head = heading.getBoundingClientRect();
+    const box = shell.getBoundingClientRect();
+
+    // Wherever the columns fit, the table's own heading row pins itself and this bar stays out
+    // of the way. Once that row has gone under the bars above - and while rows still reach the
+    // bottom of the window - the copy stands in for it.
+    const wanted = head.top < line - 0.5 && box.bottom > line + head.height;
+    bar.hidden = !wanted;
+    if (!wanted) {
+      continue;
+    }
+
+    const width = Math.round(table.getBoundingClientRect().width);
+    if (copy.style.width !== `${width}px`) {
+      copy.style.width = `${width}px`;
+    }
+    inner.style.transform = `translateX(${-shell.scrollLeft}px)`;
+  }
+}
+
+let pinnedTableHeadsQueued = false;
+
+function schedulePinnedTableHeads() {
+  if (pinnedTableHeadsQueued) {
+    return;
+  }
+  pinnedTableHeadsQueued = true;
+  window.requestAnimationFrame(() => {
+    pinnedTableHeadsQueued = false;
+    syncPinnedTableHeads();
+  });
+}
+
+window.addEventListener('scroll', schedulePinnedTableHeads, { passive: true });
+window.addEventListener('resize', schedulePinnedTableHeads);
+
+// The list region is replaced when it refreshes, and redrawn when a filter, a search or a sort
+// changes what it holds, so the bars are built again from whatever shells are there now.
+if (typeof MutationObserver === 'function') {
+  new MutationObserver(schedulePinnedTableHeads).observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+schedulePinnedTableHeads();
+
 // ----------------------------------------------------------------- demo presence
 // A demo page keeps the sandbox alive: the server lets the demo's other guildmates act
 // only while at least one demo page is open, and this is how it knows. Nothing is sent
