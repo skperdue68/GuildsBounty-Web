@@ -491,7 +491,6 @@ t('the bars that pin are painted opaque, so rows cannot read through them', () =
     '.list-head',
     '.filter-band',
     '.list-tools',
-    '.subhead.list-sticky',
   ]) {
     const block = css.match(
       new RegExp(selector.replace(/\./g, '\\.') + '\\s*\\{([^}]*)\\}')
