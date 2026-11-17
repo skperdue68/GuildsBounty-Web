@@ -791,7 +791,18 @@ t('the guilds being browsed are named under the line, one pill each', () => {
   });
   const pills = html.match(/<div class="guild-pills">.*?<\/div>/s)?.[0] || '';
 
-  assert.match(html, /<div class="list-top"><p class="offer-summary">1 item shared by members of @eva&rsquo;s guilds<\/p>/, 'the block starts at the count line');
+  // The fold control comes first, then the three lines it folds away: the count line still
+  // opens the block itself, and the live pill and the control stay outside the part that folds.
+  assert.match(
+    html,
+    /<div class="list-top">\s*<button[^>]*data-list-top-toggle[^>]*aria-expanded="true"[\s\S]*?<\/button>\s*<div class="list-top-body"[^>]*><p class="offer-summary">1 item shared by members of @eva&rsquo;s guilds<\/p>/,
+    'the block opens with the fold control and the count line inside the part that folds'
+  );
+  assert.match(
+    html,
+    /<\/div>\s*<span class="live-pill"/,
+    'the live pill stays outside the body, so folding keeps it'
+  );
   assert.equal(
     (pills.match(/<span class="chip">/g) || []).length,
     2,

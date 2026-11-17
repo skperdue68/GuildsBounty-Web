@@ -1791,7 +1791,7 @@ from their own upload, or a name attached by hand in the **ESO accounts** dialog
 then the page is the upload box, because there are no guilds to compare against and the
 only useful thing is the file that supplies them.
 
-`demo@example.com` with the password `demo` is a sign-in that needs neither. It is a real person row with
+`demo@perdues.me`, with that same address as the password, is a sign-in that needs neither. It is a real person row with
 `guildsbounty_users.is_demo = 1`, one ESO account (`@GuildsBountyDemo`), one guild -
 **Alphabet Mafia** on PC / NA Megaserver - and the curated catalogue in
 `lib/demoItems.js` shared with it. The catalogue carries the fields an upload carries, not
@@ -1801,8 +1801,8 @@ materials, consumables, furnishings and motifs - is level 1, the level an item w
 requirement carries, so no row looks as though its level were unknown. None of them carries
 a champion point requirement, a glyph or a style, because none of those exists for it. It is created at startup, and again on a demo sign-in
 if it is missing, so a fresh database already has it. The address on it is
-`demo@example.com`, on the reserved documentation domain, and creating an ordinary
-account with that address is refused, so nobody can take it over.
+`demo@perdues.me`, and creating an ordinary account with that address is refused, so
+nobody can take it over.
 
 The demo has its own MariaDB database, `guildsbounty-demo`, dropped and rebuilt at every
 startup from the same migrations as the real one. It is then filled with a copy of the
@@ -1834,7 +1834,7 @@ answering a request and adding or removing accounts all really happen, inside th
 which is why the counts move for the demo visitor and never for anybody else. Nothing is
 announced to other people's open pages. No email is sent from the demo at all - a sent
 basket is recorded and the owners are told nothing - and the password cannot be reset:
-the reset request is refused before any link is made, and `demo@example.com` can never
+the reset request is refused before any link is made, and `demo@perdues.me` can never
 receive mail. Uploading stays switched off: the drop zone is still on the page, but
 the card says so and the page script shows that sentence instead of sending the file. A
 banner says the same on every page. Removing its own `@GuildsBountyDemo` is rehearsed too:

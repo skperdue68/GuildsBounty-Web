@@ -5,7 +5,33 @@ landed on `main`.
 
 ## Unreleased
 
+### Added
+
+- **The block above the tabs folds away.** The count line, the guild pills and the account line are
+  three lines of context that cost a long list the top of every screen. A chevron in the block's
+  corner folds it down to the live pill, which stays where it was on the right; the tabs, the
+  filter band, the search row and the column headings move up after it, and the chevron (now
+  pointing the other way) brings it back. The choice is remembered across a live refresh, which
+  replaces the region and would otherwise bring the block back expanded.
+
+### Changed
+
+- **The demo signs in as `demo@perdues.me`, with the same address as its password.** It used to be
+  `demo@example.com` with the password `demo`: one thing to type for a sign-in that exists only to
+  be tried, rather than two.
+
 ### Fixed
+
+- **The standing-offers bar no longer lands on top of the filter band and the search row.** It
+  pinned as high as the tab bar - the line it was written to take over - so scrolling back up
+  through a list put one line of words over the band and the search row, which read as the rows
+  painting through the bars. It now pins under the whole stack, and below those bars in the
+  stacking order.
+
+- **The pinned heading copy no longer paints over the search row.** It sat a step above the search
+  row in the stacking order and could be drawn across it where the two met. Every bar that hangs
+  over a table now comes after the copy.
+
 
 - **Every table's headings pin, not only the item tables'.** The two requests tables - My Requests
   and Requests Received - are drawn from a plain `<table>` with no colgroup, and were left on the

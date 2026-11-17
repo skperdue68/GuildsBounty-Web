@@ -150,8 +150,8 @@ check('the demo guild is the one that was asked for, on PC and NA', () => {
   assert(DEMO_WORLD.platform === 2, `expected platform 2 (PC), got ${DEMO_WORLD.platform}`);
   assert(DEMO_WORLD.worldName === 'NA Megaserver', `got ${DEMO_WORLD.worldName}`);
   assert(
-    DEMO_LOGIN === 'demo@example.com' && DEMO_PASSWORD === 'demo',
-    'the pair is demo@example.com / demo'
+    DEMO_LOGIN === 'demo@perdues.me' && DEMO_PASSWORD === 'demo@perdues.me',
+    'the pair is demo@perdues.me / demo@perdues.me'
   );
 });
 
@@ -490,8 +490,8 @@ check('a visitor is shown the three ways in and no items', () => {
   assertMatch(page, /Sign in with Discord/, 'Discord sign-in is missing');
   assertMatch(page, /Sign in with Google/, 'Google sign-in is missing');
   assertMatch(page, /action="\/auth\/email"/, 'the email and password form is missing');
-  assertMatch(page, /demo@example\.com/, 'the demo sign-in is not mentioned');
-  assertMatch(page, /password\s*<strong>demo<\/strong>/, 'the demo password is not mentioned');
+  assertMatch(page, /demo@perdues\.me/, 'the demo sign-in is not mentioned');
+  assertMatch(page, /password\s*<strong>demo@perdues\.me<\/strong>/, 'the demo password is not mentioned');
   assert(!page.includes('data-item-key'), 'no item may be rendered to a visitor');
 });
 
@@ -500,8 +500,8 @@ check('the demo pair is boxed rather than another grey hint', () => {
 
   assertMatch(page, /class="demo-callout"/, 'the demo sign-in must be its own box');
   assertMatch(page, /class="demo-callout-body"/, 'the box must carry the explanation');
-  assertMatch(page, /demo@example\.com/, 'the demo address must still be in it');
-  assertMatch(page, /<strong>demo<\/strong>/, 'the demo password must still be in it');
+  assertMatch(page, /demo@perdues\.me/, 'the demo address must still be in it');
+  assertMatch(page, /<strong>demo@perdues\.me<\/strong>/, 'the demo password must still be in it');
 });
 
 check('the brand is one picture of the whole lockup', () => {
@@ -1342,7 +1342,7 @@ check('removing the demo account puts it straight back', () => {
 check('the demo shows its own address as a verified sign-in, like anybody else', () => {
   const demo = emailLine({ id: 42, username: 'Demo', isDemo: true, email: '', emailVerified: false });
 
-  assertMatch(demo, /demo@example\.com/, 'the demo address must be shown');
+  assertMatch(demo, /demo@perdues\.me/, 'the demo address must be shown');
   assertMatch(demo, /\(verified\)/, 'it must read as verified, the way an ordinary sign-in does');
   assert(
     !demo.includes('not shared with this site'),

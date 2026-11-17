@@ -912,7 +912,7 @@ async function prepareDatabase() {
     }
     logLine(
       `Demo sign-in: ${demo.created ? 'created' : 'already there'}, ` +
-        `${demo.seeded ? 'items written' : 'items already there'} (demo@example.com / demo)`
+        `${demo.seeded ? 'items written' : 'items already there'} (demo@perdues.me / demo@perdues.me)`
     );
     logLine(
       `Demo cast: ${demo.cast.seeded.length + demo.cast.kept.length} guildmate${
@@ -2681,7 +2681,7 @@ app.post('/auth/email', async (req, res) => {
       if (!login || !matches) {
         sendPage(req, res, 401, {
           heading: 'That demo password does not match',
-          message: 'The demo signs in with demo@example.com and the password demo.',
+          message: 'The demo signs in with demo@perdues.me, and the password is the same address.',
           tone: 'error',
         });
         return;
@@ -2765,7 +2765,7 @@ app.post('/auth/email/signup', async (req, res) => {
     sendPage(req, res, 400, {
       heading: 'That address is the demo',
       message:
-        'demo@example.com is the demo sign-in, with the password demo. Create an account with your own address instead.',
+        'demo@perdues.me is the demo sign-in, with the same address as its password. Create an account with your own address instead.',
       tone: 'notice',
     });
     return;
