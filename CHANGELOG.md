@@ -22,6 +22,12 @@ landed on `main`.
 
 ### Fixed
 
+- **Answering a request leaves the page where it was.** Fulfilled and Not fulfilled are form
+  posts, so the page came back new and started at the top - working down a column of requests
+  meant scrolling back to your place after every one. The position is kept across that load,
+  one row further on: the row you just answered is gone from the rebuilt list, and everything
+  under it moves up by its height, so the next ask sits where the answered one had been.
+
 - **The demo's items have pictures.** Every demo row was a blank square: the demo writes its rows
   from a catalogue rather than from an upload, and an upload is the only thing that ever resolves
   an item's icon and caches the image. Asking UESP by the catalogue's own ids would not have
