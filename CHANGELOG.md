@@ -7,6 +7,41 @@ landed on `main`.
 
 ### Fixed
 
+- **Every table's headings pin, not only the item tables'.** The two requests tables - My Requests
+  and Requests Received - are drawn from a plain `<table>` with no colgroup, and were left on the
+  bare `th { top: 0 }`, so their heading row pinned at the top of the window behind the site
+  header instead of under the bars like everything else. They now take the same offset, get the
+  same pinned copy when their shell scrolls sideways (each copied column given the width the
+  table gave it, since there is no colgroup to follow), and a press on that copy sorts them
+  through their own handler.
+
+- **`--list-tools-h` measures only the search rows on screen.** Every tab's list stays in the
+  document, and a row in a hidden panel was still measured: on My Requests a hidden one 177px
+  tall pushed every visible table's headings, and the pinned copy over them, down by its whole
+  height, leaving a strip of rows showing between the filter band and the headings.
+
+- **The column headings pin on a narrow window too.** They used to ride away with the rows
+  wherever the table was wider than the card: a sticky heading pins to its nearest scroll
+  container, and there the shell that scrolls sideways was that container - it never scrolls
+  down, so the heading row went up with the table. Each item table now carries a copy of its
+  heading row in the pinned stack above it, drawn from the table's own colgroup and moved
+  sideways with the shell as it scrolls, so every column stays over its own cells at any
+  scroll position. Where the columns do fit, the table's own heading row pins as before and
+  the copy stays out of the way. A press on the pinned copy sorts the column exactly as a press
+  on the real heading does - the copied buttons carry the same `data-sort` - and the copied
+  buttons are `tabindex="-1"` with the press's focus suppressed for every kind of pointer - a
+  mouse is stopped on `mousedown`, a finger or a pen on `pointerdown`, because that is where each
+  of them takes the focus - so the bar adds no second stop to the tab order, cannot pull the
+  reader's caret onto a row that is about to move, and a tap still sorts.
+
+- **The bars that pin are opaque.** The block that holds the count line, the guild pills and the
+  account picker was painted with the card's 44%-opaque panel, so rows scrolling underneath it
+  read straight through the line that counts what is shared - the one place on the page where
+  two lines of text sat on top of each other. It and every bar in the stack below it (tabs,
+  filter band, search row, the standing-offers heading, the column headings) now use a solid
+  colour, so nothing shows behind them - and `test:item-sort` fails if any of them is given an
+  alpha again.
+
 - **The Live pill moved out of the tab bar.** It was absolutely positioned against the bar's
   right edge, so as soon as the labels wrapped - a narrow window, four tabs with counts - the
   green pill was drawn over "Requests Received" and hid the end of it: 57px of overlap at 736px

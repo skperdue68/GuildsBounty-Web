@@ -440,6 +440,73 @@ t('the search shares the row with the grouping switch', () => {
 
 const appSource = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
 
+// The copy of the heading row only earns its place if a press on it does what a press on the
+// real heading does - and it must not add a second way round the page with the keyboard.
+t('a pinned heading takes a press, and no second tab stop', () => {
+  const css = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+  const app = fs.readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
+  const bar = css.match(/\.table-head\s*\{[^}]*\}/)?.[0] || '';
+
+  assert.ok(bar, 'the pinned copy is styled');
+  assert.doesNotMatch(
+    bar,
+    /pointer-events:\s*none/,
+    'nothing stands between a press and the pinned headings'
+  );
+  assert.match(app, /control\.tabIndex = -1/, 'the copied buttons stay out of the tab order');
+  for (const kind of ['mousedown', 'pointerdown']) {
+    assert.match(
+      app,
+      new RegExp(`addEventListener\\('${kind}'`),
+      `a ${kind} press on a copy does not leave the caret on a row that is about to move`
+    );
+  }
+  assert.match(app, /pointerType !== 'mouse'/, 'a finger or a pen is suppressed where it focuses');
+});
+
+// The bars that pin the list have to be fully opaque. The block over the tabs was painted with
+// the card's panel - 44% - so a row scrolling under it read straight through the line that
+// counts what is shared, and the bars below it at 92-96% still let a row edge show.
+t('the bars that pin are painted opaque, so rows cannot read through them', () => {
+  const css = fs.readFileSync(new URL('./public/styles.css', import.meta.url), 'utf8');
+
+  assert.match(
+    css,
+    /--panel-solid:\s*#[0-9a-f]{6}\s*;/i,
+    'a colour with no alpha in it for the bars to paint with'
+  );
+
+  const solid = (selector, body) => {
+    const background = body.match(/background(?:-color)?:\s*([\s\S]*?);/)?.[1] || '';
+    assert.ok(background, `${selector} is given a background`);
+    assert.match(
+      background.trim(),
+      /(?:var\(--panel-solid\)|#[0-9a-f]{6})$/i,
+      `${selector} is painted with a solid colour, not ${JSON.stringify(background.trim())}`
+    );
+  };
+
+  for (const selector of [
+    '.list-top',
+    '.list-head',
+    '.filter-band',
+    '.list-tools',
+    '.subhead.list-sticky',
+  ]) {
+    const block = css.match(
+      new RegExp(selector.replace(/\./g, '\\.') + '\\s*\\{([^}]*)\\}')
+    );
+    assert.ok(block, `${selector} is drawn`);
+    solid(selector, block[1]);
+  }
+
+  // The column headings carry no class of their own, so they are found by the rule that pins
+  // them rather than by name.
+  const pinned = css.match(/\nth\s*\{[^}]*position:\s*sticky[^}]*\}/)?.[0] || '';
+  assert.ok(pinned, 'the heading cells pin');
+  solid('th', pinned);
+});
+
 function appBetween(start, end) {
   const from = appSource.indexOf(start);
   const to = appSource.indexOf(end, from);
@@ -746,6 +813,109 @@ t('the header block above the tabs is what pins, and the tabs hang off it', () =
   assert.match(block, /position: sticky;/, 'the count line and guilds stay on top');
   assert.match(tabs, /top: calc\(var\(--sticky-top, 0px\) \+ var\(--list-top-h, 0px\)\)/, 'with the tabs pinned under its measured height');
   assert.match(css, /--list-top-h/, 'an offset the page measures rather than a guessed number');
+});
+
+// The floor under the pinned copy: the bottom of the lowest bar that is actually pinned over the
+// table. Two of the tables on the page pin 59px below their own headings line - the second My
+// Requests table, whose card's search row is pinned above it but is not its neighbour, and both
+// Requests Received tables - so a floor that stopped binding would drop their copy onto a pinned
+// row. The function is lifted out of public/app.js and run against a stub page, because what it
+// reads - rects, a computed `top` - only exists in a browser.
+function floorFor(bars, shell) {
+  const source = fs.readFileSync('public/app.js', 'utf8');
+  const start = source.indexOf('function pinnedFloor(shell) {');
+  assert.ok(start > -1, 'pinnedFloor is still in public/app.js');
+
+  let depth = 0;
+  let end = source.length;
+
+  for (let i = start; i < source.length; i += 1) {
+    if (source[i] === '{') depth += 1;
+    if (source[i] === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        end = i + 1;
+        break;
+      }
+    }
+  }
+
+  const body = source.slice(start, end);
+  const doc = { querySelectorAll: () => bars };
+  const win = { getComputedStyle: (bar) => ({ top: `${bar.own}px` }) };
+  const node = { DOCUMENT_POSITION_FOLLOWING: 4 };
+
+  return new Function('document', 'window', 'Node', `${body}\nreturn pinnedFloor;`)(doc, win, node)(shell);
+}
+
+function stubBar({ name, top, own = 0, bottom, following = true, visible = true }) {
+  return {
+    name,
+    offsetParent: visible ? {} : null,
+    own,
+    compareDocumentPosition: () => (following ? 4 : 0),
+    getBoundingClientRect: () => ({ top, bottom }),
+  };
+}
+
+t('the pinned copy clears the lowest bar pinned over the table', () => {
+  const app = fs.readFileSync('public/app.js', 'utf8');
+
+  assert.match(
+    app,
+    /const line = Math\.max\(\s*parseFloat\(window\.getComputedStyle\(heading\)\.top\) \|\| 0,\s*pinnedFloor\(shell\)\s*\)/,
+    'the bar takes the lower of its headings line and the bar above it, and never sits above it'
+  );
+
+  const floor = floorFor(
+    [
+      stubBar({ name: 'top-bar', top: 0, bottom: 113 }),
+      stubBar({ name: 'filter band', top: 354, own: 354, bottom: 447 }),
+      stubBar({ name: 'search row', top: 425, own: 425, bottom: 484 }),
+      // A shorter bar after it: the last bar is not the lowest one, so the floor has to be a
+      // running maximum rather than whichever bar came last.
+      stubBar({ name: 'standing offers bar', top: 470, own: 470, bottom: 460 }),
+    ],
+    {}
+  );
+
+  assert.equal(floor, 484, 'the lowest bottom wins, not the last bar found');
+});
+
+t('a bar that has not reached its line yet is not a floor', () => {
+  // The case that was wrong on My Requests: the search row sits in flow 59px below where it will
+  // pin, and counting it pushed every visible heading, and the copy over them, down by its whole
+  // height. A floor that took any bar above the table would read 683 here.
+  assert.equal(
+    floorFor([stubBar({ name: 'search row', top: 624, own: 425, bottom: 683 })], {}),
+    0,
+    'a bar still in flow is passed over'
+  );
+
+  assert.equal(
+    floorFor(
+      [
+        stubBar({ name: 'filter band', top: 354, own: 354, bottom: 447 }),
+        stubBar({ name: 'search row', top: 624, own: 425, bottom: 683 }),
+      ],
+      {}
+    ),
+    447,
+    'the pinned band above it still counts'
+  );
+});
+
+t('only bars over this table, and only ones on screen, are a floor', () => {
+  assert.equal(
+    floorFor([stubBar({ name: 'a bar after the table', top: 0, bottom: 900, following: false })], {}),
+    0,
+    'a bar that follows the table in the page is not over it'
+  );
+  assert.equal(
+    floorFor([stubBar({ name: 'a bar in a hidden panel', top: 0, bottom: 900, visible: false })], {}),
+    0,
+    'a bar in a panel nobody is looking at is not over it either'
+  );
 });
 
 console.log(`\n${total - failures}/${total} passed`);

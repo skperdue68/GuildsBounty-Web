@@ -56,12 +56,15 @@ function measureStickyBars() {
   // The tallest search row on the page, because a card can hold two tables that each carry
   // one and the headings have to clear whichever stands over them. Nothing on the page means
   // 0px, which leaves the headings exactly where they were.
+  //
+  // Only the rows that are on screen: every tab's list stays in the document, and a row in a
+  // hidden panel was still measured - a tall one there pushed the headings and the pinned copy
+  // of every visible table down by its whole height, which left the rows above them showing.
   publishPixels(
     '--list-tools-h',
-    [...document.querySelectorAll('.list-tools')].reduce(
-      (tallest, bar) => Math.max(tallest, bar.getBoundingClientRect().height),
-      0
-    )
+    [...document.querySelectorAll('.list-tools')]
+      .filter((bar) => bar.offsetParent !== null)
+      .reduce((tallest, bar) => Math.max(tallest, bar.getBoundingClientRect().height), 0)
   );
 }
 
@@ -86,6 +89,240 @@ if (typeof ResizeObserver === 'function') {
 } else {
   window.addEventListener('resize', measureStickyBars);
 }
+
+// ------------------------------------------------------- pinned table headings
+// A sticky <th> pins to the nearest scroll container. On a window too narrow for the ten
+// columns that container is the table's own shell - it scrolls sideways and never down - so
+// the heading row went up with the rows instead of staying under the search row. Each item
+// table gets a copy of its heading row in a bar of its own, outside the shell and in the same
+// place in the pinned stack; the copy is drawn from the table's own colgroup under the same
+// fixed layout, so its columns sit exactly over the ones below, and it is moved sideways with
+// the shell as that scrolls.
+const pinnedTableHeads = new Map();
+
+function buildTableHead(shell) {
+  // Every table in a shell, not only the item ones: the request tables need this just as much,
+  // and they are drawn from a plain <table> with no colgroup to follow.
+  const table = shell.querySelector('table');
+  if (!table || !table.tHead || !table.tHead.rows.length) {
+    return null;
+  }
+
+  const bar = document.createElement('div');
+  bar.className = 'table-head';
+  bar.hidden = true;
+  // A copy for the eye: the headings that carry the sort buttons are the table's own.
+  bar.setAttribute('aria-hidden', 'true');
+
+  const inner = document.createElement('div');
+  inner.className = 'table-head-inner';
+
+  const copy = document.createElement('table');
+  copy.className = table.className;
+  copy.setAttribute('aria-hidden', 'true');
+
+  // Under auto layout a table sizes its columns from its rows, and the copy has none: each of
+  // its columns is given the width the table itself gave that column, in syncPinnedTableHeads.
+  if (!table.querySelector('colgroup')) {
+    copy.style.tableLayout = 'fixed';
+  }
+
+  const addHead = () => {
+    const head = table.tHead.cloneNode(true);
+    for (const control of head.querySelectorAll('button, a, input')) {
+      control.tabIndex = -1;
+    }
+
+    if (copy.tHead) {
+      copy.replaceChild(head, copy.tHead);
+    } else {
+      copy.append(head);
+    }
+  };
+
+  const columns = table.querySelector('colgroup');
+  if (columns) {
+    copy.append(columns.cloneNode(true));
+  }
+  addHead();
+
+  // A press on the copy is a press on the column: the buttons it holds carry the table's own
+  // data-sort, and the list's click handler reads the field off whichever one was pressed. Only
+  // the focus is stopped - a copy is out of sight the moment the list moves under it, so the
+  // caret is left where the reader had it.
+  //
+  // Every kind of pointer is covered, because they focus at different moments: a mouse takes the
+  // focus on mousedown, while a finger or a pen takes it on pointerdown. Cancelling the default
+  // there stops the focus and leaves the click to come through on its own, so a tap still sorts.
+  const onCopiedButton = (event) => Boolean(event.target.closest && event.target.closest('button'));
+
+  bar.addEventListener('pointerdown', (event) => {
+    if (event.pointerType !== 'mouse' && onCopiedButton(event)) {
+      event.preventDefault();
+    }
+  });
+
+  bar.addEventListener('mousedown', (event) => {
+    if (onCopiedButton(event)) {
+      event.preventDefault();
+    }
+  });
+
+  // Nothing outside this bar can work out what was pressed on: the copy stands outside its
+  // table, so a handler that looks for the table from the pressed button finds nothing. The
+  // press is handed to the heading cell it copies, and the copy is redrawn from the result so
+  // that its arrow and aria-sort follow - in the same tick for a table sorted in place, and on
+  // the next refresh for one whose list is redrawn.
+  bar.addEventListener('click', (event) => {
+    event.stopPropagation();
+
+    const cell = event.target.closest ? event.target.closest('th') : null;
+    if (!cell) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const index = [...copy.tHead.rows[0].cells].indexOf(cell);
+    const real = index < 0 ? null : table.tHead.rows[0].cells[index];
+    const button = real ? real.querySelector('button') : null;
+    if (!button) {
+      return;
+    }
+
+    button.click();
+    addHead();
+  });
+
+  inner.append(copy);
+  bar.append(inner);
+
+  // Before the table's search row rather than between it and the shell: the shell's own heading
+  // cells take their offset from standing directly under that row, so the bar must not come
+  // between them.
+  const tools = shell.previousElementSibling;
+  const leads = tools && tools.classList.contains('list-tools');
+  (leads ? tools : shell).before(bar);
+
+  return { bar, inner, copy, table };
+}
+
+// The lowest pinned bar standing above a table. A table whose own headings sit below the bars
+// it clears can still be reached by a patch of rows when one of those bars has not arrived at
+// its line yet - the strip between them shows the rows scrolling behind. The copy pins on
+// whichever is lower, the headings' own line or the bottom of the bar above it, so there is no
+// strip for rows to show through.
+function pinnedFloor(shell) {
+  let floor = 0;
+
+  for (const bar of document.querySelectorAll(
+    '.top-bar, .list-top, .list-head, .filter-band, .list-tools'
+  )) {
+    if (!bar.offsetParent) continue;
+    if (!(bar.compareDocumentPosition(shell) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+
+    const rect = bar.getBoundingClientRect();
+    const own = parseFloat(window.getComputedStyle(bar).top) || 0;
+
+    if (rect.top <= own + 1) {
+      floor = Math.max(floor, rect.bottom);
+    }
+  }
+
+  return floor;
+}
+
+function syncPinnedTableHeads() {
+  for (const gone of pinnedTableHeads.keys()) {
+    if (!gone.isConnected) {
+      pinnedTableHeads.delete(gone);
+    }
+  }
+
+  for (const shell of document.querySelectorAll('.table-shell')) {
+    let entry = pinnedTableHeads.get(shell);
+    if (!entry) {
+      entry = buildTableHead(shell);
+      if (!entry) {
+        continue;
+      }
+      pinnedTableHeads.set(shell, entry);
+      shell.addEventListener('scroll', schedulePinnedTableHeads, { passive: true });
+    }
+
+    const { bar, inner, copy, table } = entry;
+    // The cells, not the thead: sticky cells leave the thead's box behind, and it is the
+    // cells that have gone under the bars above when the copy is wanted.
+    const heading = table.tHead.querySelector('th') || table.tHead;
+
+    // The bar pins on the line the table's own headings pin on. They already know what stands
+    // above them - a search row, a standing-offers bar, neither - so nothing here has to guess.
+    const line = Math.max(parseFloat(window.getComputedStyle(heading).top) || 0, pinnedFloor(shell));
+    const top = `${Math.round(line)}px`;
+    if (bar.style.top !== top) {
+      bar.style.top = top;
+    }
+
+    const head = heading.getBoundingClientRect();
+    const box = shell.getBoundingClientRect();
+
+    // Wherever the columns fit, the table's own heading row pins itself and this bar stays out
+    // of the way. Once that row has gone under the bars above - and while rows still reach the
+    // bottom of the window - the copy stands in for it.
+    const wanted = head.top < line - 0.5 && box.bottom > line + head.height;
+    bar.hidden = !wanted;
+    if (!wanted) {
+      continue;
+    }
+
+    const width = Math.round(table.getBoundingClientRect().width);
+    if (copy.style.width !== `${width}px`) {
+      copy.style.width = `${width}px`;
+    }
+
+    // A table laid out automatically has no colgroup for this to follow, so every column of the
+    // copy is given the width that column has below it.
+    if (!copy.querySelector('colgroup') && copy.tHead) {
+      const cells = [...table.tHead.rows[0].cells];
+      const copies = [...copy.tHead.rows[0].cells];
+      cells.forEach((cell, index) => {
+        const column = `${Math.round(cell.getBoundingClientRect().width)}px`;
+        if (copies[index] && copies[index].style.width !== column) {
+          copies[index].style.width = column;
+        }
+      });
+    }
+
+    inner.style.transform = `translateX(${-shell.scrollLeft}px)`;
+  }
+}
+
+let pinnedTableHeadsQueued = false;
+
+function schedulePinnedTableHeads() {
+  if (pinnedTableHeadsQueued) {
+    return;
+  }
+  pinnedTableHeadsQueued = true;
+  window.requestAnimationFrame(() => {
+    pinnedTableHeadsQueued = false;
+    syncPinnedTableHeads();
+  });
+}
+
+window.addEventListener('scroll', schedulePinnedTableHeads, { passive: true });
+window.addEventListener('resize', schedulePinnedTableHeads);
+
+// The list region is replaced when it refreshes, and redrawn when a filter, a search or a sort
+// changes what it holds, so the bars are built again from whatever shells are there now.
+if (typeof MutationObserver === 'function') {
+  new MutationObserver(schedulePinnedTableHeads).observe(document.body, {
+    childList: true,
+    subtree: true,
+  });
+}
+
+schedulePinnedTableHeads();
 
 // ----------------------------------------------------------------- demo presence
 // A demo page keeps the sandbox alive: the server lets the demo's other guildmates act

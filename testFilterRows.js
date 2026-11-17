@@ -757,12 +757,12 @@ t('the band pins between the tabs and the search, and neither covers it', () => 
   );
   assert.match(
     css,
-    /\.list-table thead th \{[^}]*var\(--list-band-h, 0px\)/,
+    /\.table-shell thead th \{[^}]*var\(--list-band-h, 0px\)/,
     'and the column headings clear it'
   );
   assert.match(
     css,
-    /\.list-tools \+ \.table-shell \.list-table thead th \{[^}]*var\(--list-band-h, 0px\)[\s\S]*?var\(--list-tools-h, 0px\)/,
+    /\.list-tools \+ \.table-shell thead th \{[^}]*var\(--list-band-h, 0px\)[\s\S]*?var\(--list-tools-h, 0px\)/,
     'both offsets when a search row is above the table'
   );
 
@@ -785,8 +785,8 @@ t('the band pins between the tabs and the search, and neither covers it', () => 
   assert.match(toolsRule, /--list-band-h/, 'and below the band');
 
   const toolsHeading = css.slice(
-    css.indexOf('.list-tools + .table-shell .list-table thead th'),
-    css.indexOf('.list-tools + .table-shell .list-table thead th') + 400
+    css.indexOf('.list-tools + .table-shell thead th'),
+    css.indexOf('.list-tools + .table-shell thead th') + 400
   );
 
   assert.match(toolsHeading, /--list-tools-h/, 'the headings under a search row clear it too');
