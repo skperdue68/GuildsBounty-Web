@@ -56,12 +56,15 @@ function measureStickyBars() {
   // The tallest search row on the page, because a card can hold two tables that each carry
   // one and the headings have to clear whichever stands over them. Nothing on the page means
   // 0px, which leaves the headings exactly where they were.
+  //
+  // Only the rows that are on screen: every tab's list stays in the document, and a row in a
+  // hidden panel was still measured - a tall one there pushed the headings and the pinned copy
+  // of every visible table down by its whole height, which left the rows above them showing.
   publishPixels(
     '--list-tools-h',
-    [...document.querySelectorAll('.list-tools')].reduce(
-      (tallest, bar) => Math.max(tallest, bar.getBoundingClientRect().height),
-      0
-    )
+    [...document.querySelectorAll('.list-tools')]
+      .filter((bar) => bar.offsetParent !== null)
+      .reduce((tallest, bar) => Math.max(tallest, bar.getBoundingClientRect().height), 0)
   );
 }
 
@@ -98,8 +101,10 @@ if (typeof ResizeObserver === 'function') {
 const pinnedTableHeads = new Map();
 
 function buildTableHead(shell) {
-  const table = shell.querySelector('table.list-table');
-  if (!table || !table.tHead) {
+  // Every table in a shell, not only the item ones: the request tables need this just as much,
+  // and they are drawn from a plain <table> with no colgroup to follow.
+  const table = shell.querySelector('table');
+  if (!table || !table.tHead || !table.tHead.rows.length) {
     return null;
   }
 
@@ -116,14 +121,30 @@ function buildTableHead(shell) {
   copy.className = table.className;
   copy.setAttribute('aria-hidden', 'true');
 
+  // Under auto layout a table sizes its columns from its rows, and the copy has none: each of
+  // its columns is given the width the table itself gave that column, in syncPinnedTableHeads.
+  if (!table.querySelector('colgroup')) {
+    copy.style.tableLayout = 'fixed';
+  }
+
+  const addHead = () => {
+    const head = table.tHead.cloneNode(true);
+    for (const control of head.querySelectorAll('button, a, input')) {
+      control.tabIndex = -1;
+    }
+
+    if (copy.tHead) {
+      copy.replaceChild(head, copy.tHead);
+    } else {
+      copy.append(head);
+    }
+  };
+
   const columns = table.querySelector('colgroup');
   if (columns) {
     copy.append(columns.cloneNode(true));
   }
-  copy.append(table.tHead.cloneNode(true));
-  for (const control of copy.querySelectorAll('button, a, input')) {
-    control.tabIndex = -1;
-  }
+  addHead();
 
   // A press on the copy is a press on the column: the buttons it holds carry the table's own
   // data-sort, and the list's click handler reads the field off whichever one was pressed. Only
@@ -147,18 +168,68 @@ function buildTableHead(shell) {
     }
   });
 
+  // Nothing outside this bar can work out what was pressed on: the copy stands outside its
+  // table, so a handler that looks for the table from the pressed button finds nothing. The
+  // press is handed to the heading cell it copies, and the copy is redrawn from the result so
+  // that its arrow and aria-sort follow - in the same tick for a table sorted in place, and on
+  // the next refresh for one whose list is redrawn.
+  bar.addEventListener('click', (event) => {
+    event.stopPropagation();
+
+    const cell = event.target.closest ? event.target.closest('th') : null;
+    if (!cell) {
+      return;
+    }
+
+    event.preventDefault();
+
+    const index = [...copy.tHead.rows[0].cells].indexOf(cell);
+    const real = index < 0 ? null : table.tHead.rows[0].cells[index];
+    const button = real ? real.querySelector('button') : null;
+    if (!button) {
+      return;
+    }
+
+    button.click();
+    addHead();
+  });
+
   inner.append(copy);
   bar.append(inner);
 
   // Before the table's search row rather than between it and the shell: the shell's own heading
   // cells take their offset from standing directly under that row, so the bar must not come
-  // between them. It is given the same offset the cells get, since it pins at the same line.
+  // between them.
   const tools = shell.previousElementSibling;
   const leads = tools && tools.classList.contains('list-tools');
-  bar.classList.toggle('under-tools', Boolean(leads));
   (leads ? tools : shell).before(bar);
 
   return { bar, inner, copy, table };
+}
+
+// The lowest pinned bar standing above a table. A table whose own headings sit below the bars
+// it clears can still be reached by a patch of rows when one of those bars has not arrived at
+// its line yet - the strip between them shows the rows scrolling behind. The copy pins on
+// whichever is lower, the headings' own line or the bottom of the bar above it, so there is no
+// strip for rows to show through.
+function pinnedFloor(shell) {
+  let floor = 0;
+
+  for (const bar of document.querySelectorAll(
+    '.top-bar, .list-top, .list-head, .filter-band, .list-tools'
+  )) {
+    if (!bar.offsetParent) continue;
+    if (!(bar.compareDocumentPosition(shell) & Node.DOCUMENT_POSITION_FOLLOWING)) continue;
+
+    const rect = bar.getBoundingClientRect();
+    const own = parseFloat(window.getComputedStyle(bar).top) || 0;
+
+    if (rect.top <= own + 1) {
+      floor = Math.max(floor, rect.bottom);
+    }
+  }
+
+  return floor;
 }
 
 function syncPinnedTableHeads() {
@@ -180,10 +251,18 @@ function syncPinnedTableHeads() {
     }
 
     const { bar, inner, copy, table } = entry;
-    const line = parseFloat(window.getComputedStyle(bar).top) || 0;
     // The cells, not the thead: sticky cells leave the thead's box behind, and it is the
     // cells that have gone under the bars above when the copy is wanted.
     const heading = table.tHead.querySelector('th') || table.tHead;
+
+    // The bar pins on the line the table's own headings pin on. They already know what stands
+    // above them - a search row, a standing-offers bar, neither - so nothing here has to guess.
+    const line = Math.max(parseFloat(window.getComputedStyle(heading).top) || 0, pinnedFloor(shell));
+    const top = `${Math.round(line)}px`;
+    if (bar.style.top !== top) {
+      bar.style.top = top;
+    }
+
     const head = heading.getBoundingClientRect();
     const box = shell.getBoundingClientRect();
 
@@ -200,6 +279,20 @@ function syncPinnedTableHeads() {
     if (copy.style.width !== `${width}px`) {
       copy.style.width = `${width}px`;
     }
+
+    // A table laid out automatically has no colgroup for this to follow, so every column of the
+    // copy is given the width that column has below it.
+    if (!copy.querySelector('colgroup') && copy.tHead) {
+      const cells = [...table.tHead.rows[0].cells];
+      const copies = [...copy.tHead.rows[0].cells];
+      cells.forEach((cell, index) => {
+        const column = `${Math.round(cell.getBoundingClientRect().width)}px`;
+        if (copies[index] && copies[index].style.width !== column) {
+          copies[index].style.width = column;
+        }
+      });
+    }
+
     inner.style.transform = `translateX(${-shell.scrollLeft}px)`;
   }
 }

@@ -913,7 +913,7 @@ th {
 /* The item tables pin their heading row under the line of tabs, so the columns stay named
    while the rows scroll: one block from the tabs down to OFFERED BY. It sits a step below
    the tab bar in the stack, and both offsets are measured in app.js. */
-.list-table thead th {
+.table-shell thead th {
   top: calc(
     var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
       var(--list-band-h, 0px)
@@ -924,7 +924,7 @@ th {
 /* A table with the search row above it pins its headings under that row as well, or the
    first row of data rides up between the two bars. Only the tables that carry the row: the
    closing offers table without a search of its own has no bar to clear. */
-.list-tools + .table-shell .list-table thead th {
+.list-tools + .table-shell thead th {
   top: calc(
     var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
       var(--list-band-h, 0px) + var(--list-tools-h, 0px)
@@ -938,26 +938,16 @@ th {
    same place in the pinned stack (app.js builds it from the table's own colgroup). */
 .table-head {
   position: sticky;
-  top: calc(
-    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
-      var(--list-band-h, 0px)
-  );
+  /* Left at 0 here and set by app.js from the heading cell the bar copies: each table's own
+     headings already know which bars they stand under - a search row above this one, a
+     standing-offers bar, neither - so the copy pins on exactly their line. */
+  top: 0;
   /* No height of its own: a bar drawn over the table's first row rather than a row added
      above it, so showing and hiding it moves nothing. */
   height: 0;
   /* Above the rows and the table's own headings, below the standing-offers bar that passes
      over both. */
   z-index: 14;
-}
-
-/* A table that carries its own search row has one more bar above it to clear. The bar is
-   placed before that row rather than between it and the shell, so the shell's own heading
-   cells keep the offset `.list-tools + .table-shell` gives them. */
-.table-head.under-tools {
-  top: calc(
-    var(--sticky-top, 0px) + var(--list-top-h, 0px) + var(--list-head-h, 0px) +
-      var(--list-band-h, 0px) + var(--list-tools-h, 0px)
-  );
 }
 
 .table-head[hidden] {
@@ -3853,17 +3843,19 @@ a.history-page:hover, .history-page.is-current {
 
 /* Below the width the nine columns want, the table gives up its padding and a little of
    its type size rather than making the reader scroll sideways for the last column. */
-/* Below the width the ten columns want, the shell scrolls sideways again. A sticky heading
-   inside a scroll container pins to that container rather than to the window, and this one
-   never scrolls vertically, so the table's own heading row steps back into the table - and
-   the copy in .table-head above it takes over the pinning. */
+/* Below the width the ten columns want, the shell scrolls sideways again. A heading that pins
+   inside a scroll container pins to that container, and this one never scrolls down, so the
+   heading row would ride away with the rows: every table's own cells stand back here and the
+   copy in .table-head above them does the pinning. The request tables are plain <table>
+   elements and used to be left out of this, which pinned their headings at the top of the
+   window - behind the site header - instead of under the bars like every other table. */
 @media (max-width: 1120px) {
   .table-shell {
     overflow-x: auto;
     overflow-y: clip;
   }
 
-  .list-table thead th {
+  .table-shell thead th {
     position: static;
   }
 }

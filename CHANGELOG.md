@@ -7,6 +7,19 @@ landed on `main`.
 
 ### Fixed
 
+- **Every table's headings pin, not only the item tables'.** The two requests tables - My Requests
+  and Requests Received - are drawn from a plain `<table>` with no colgroup, and were left on the
+  bare `th { top: 0 }`, so their heading row pinned at the top of the window behind the site
+  header instead of under the bars like everything else. They now take the same offset, get the
+  same pinned copy when their shell scrolls sideways (each copied column given the width the
+  table gave it, since there is no colgroup to follow), and a press on that copy sorts them
+  through their own handler.
+
+- **`--list-tools-h` measures only the search rows on screen.** Every tab's list stays in the
+  document, and a row in a hidden panel was still measured: on My Requests a hidden one 177px
+  tall pushed every visible table's headings, and the pinned copy over them, down by its whole
+  height, leaving a strip of rows showing between the filter band and the headings.
+
 - **The column headings pin on a narrow window too.** They used to ride away with the rows
   wherever the table was wider than the card: a sticky heading pins to its nearest scroll
   container, and there the shell that scrolls sideways was that container - it never scrolls
