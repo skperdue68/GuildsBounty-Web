@@ -7,6 +7,13 @@ landed on `main`.
 
 ### Fixed
 
+- **The bars that pin are opaque.** The block that holds the count line, the guild pills and the
+  account picker was painted with the card's 44%-opaque panel, so rows scrolling underneath it
+  read straight through the line that counts what is shared - the one place on the page where
+  two lines of text sat on top of each other. It and every bar in the stack below it (tabs,
+  filter band, search row, the standing-offers heading, the column headings) now use a solid
+  colour, so nothing shows behind them.
+
 - **The Live pill moved out of the tab bar.** It was absolutely positioned against the bar's
   right edge, so as soon as the labels wrapped - a narrow window, four tabs with counts - the
   green pill was drawn over "Requests Received" and hid the end of it: 57px of overlap at 736px

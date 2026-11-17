@@ -5,6 +5,10 @@
   --muted: #94a3b8;
   --muted-strong: #a6b4cd;
   --panel: rgba(8, 18, 42, 0.44);
+  /* What the bars that pin are painted with. They cannot be translucent: rows scroll behind
+     them, and a 44%-opaque block let the list read straight through the count line. This is
+     the colour the 92%-opaque bars settled on over the card, so the stack reads unchanged. */
+  --panel-solid: #09142d;
   --panel-border: rgba(148, 163, 184, 0.25);
   --panel-border-strong: rgba(148, 163, 184, 0.34);
   --accent-top: #2d6cdf;
@@ -897,7 +901,7 @@ th {
   position: sticky;
   top: 0;
   z-index: 1;
-  background: rgba(17, 34, 70, 0.96);
+  background: #112246;
   color: #dce6f7;
   font-size: 12px;
   font-weight: 800;
@@ -1395,7 +1399,7 @@ a.primary-button {
   /* A little more below the menus than above them: the search row sits directly under this
      band, and with 18px the top of its box read as if it had been cut off by the border. */
   padding: 16px 0 24px;
-  background: rgba(9, 20, 45, 0.92);
+  background: var(--panel-solid);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
@@ -1500,7 +1504,7 @@ a.primary-button {
   padding: 18px 24px 10px;
   background:
     radial-gradient(circle at 50% 0%, rgba(59, 130, 246, 0.07) 0%, rgba(59, 130, 246, 0) 40%),
-    var(--panel);
+    var(--panel-solid);
   border-radius: 18px 18px 0 0;
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
@@ -1541,7 +1545,7 @@ a.primary-button {
      under this bar, and a margin would leave a strip of scrolling rows between them. */
   margin-bottom: 0;
   padding: 10px 0 14px;
-  background: rgba(9, 20, 45, 0.92);
+  background: var(--panel-solid);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
@@ -1842,7 +1846,7 @@ a.primary-button {
   min-height: var(--list-head-h, 0px);
   margin: 14px -24px 0;
   padding: 0 24px;
-  background: rgba(9, 20, 45, 0.95);
+  background: var(--panel-solid);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(148, 163, 184, 0.18);
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
@@ -3447,7 +3451,7 @@ th.action-cell {
      and so is the space above: the row needs a little air under the band it hangs from. */
   margin: 0;
   padding: 10px 0 10px;
-  background: rgba(9, 20, 45, 0.92);
+  background: var(--panel-solid);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
