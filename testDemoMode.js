@@ -1947,11 +1947,8 @@ check('the pinned header re-measures when its own block wraps', () => {
 });
 
 // The bars over the tables are this page's own furniture and the server renders none of them.
-// Left in place while the region is reconciled, the bar - an unkeyed <div> standing exactly
-// where the search row arrives - was matched to that row: the search row came back carrying the
-// bar's inline top, the headings lost their bar, and the rows scrolled through the gap between
-// the band and the search row. The bars go first, and the headings pin on their own CSS line
-// rather than on rectangles a replacement is a frame behind.
+// Left in place while the region is reconciled, each unkeyed bar was matched to the search row
+// arriving in its place, which took the row's class and left the table without headings.
 check('a refreshed region is reconciled without the bars this page invented', () => {
   const app = readFileSync(new URL('./public/app.js', import.meta.url), 'utf8');
 
@@ -1966,11 +1963,6 @@ check('a refreshed region is reconciled without the bars this page invented', ()
     app,
     /dropPinnedTableHeads\(listRegion\);[\s\S]{0,80}reconcileLiveNode\(listRegion, next\)/,
     'they must be out of the region before it is reconciled'
-  );
-  assertMatch(
-    app,
-    /headingLine > 0 \? headingLine : pinnedFloor\(shell\)/,
-    'and the copy must pin on the headings\' own line before any measured floor'
   );
 });
 

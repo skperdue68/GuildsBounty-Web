@@ -37,9 +37,9 @@ landed on `main`.
   for that row. The search row came back wearing the bar's inline offset, the table lost its
   headings, and a strip of rows showed between the filter band and the search box while the
   rest of the list scrolled under both. The bars are now lifted out before the list is
-  reconciled and built again straight after, and they pin on the headings' own line instead of
-  on rectangles that are a frame behind the replacement. Nothing else about a refresh changed:
-  the rows, the anchor and the numbers arrive exactly as they did.
+  reconciled and built again straight after, so no bar this page drew can be mistaken for the
+  server's markup or be measured as one of the bars the copy pins under. Nothing else about a
+  refresh changed: the rows, the anchor and the numbers arrive exactly as they did.
 
 - **The demo shows its icons.** Its rows borrowed a picture per kind from the site's, but the
   bytes lived in the site's icon cache while a demo page is answered from the demo's own - so
