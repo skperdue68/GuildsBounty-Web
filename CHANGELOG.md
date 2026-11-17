@@ -7,6 +7,12 @@ landed on `main`.
 
 ### Fixed
 
+- **The Live pill no longer sits on the last tab.** It was absolutely positioned against the
+  right edge of the tab bar, so as soon as the labels wrapped - a narrow window, four tabs with
+  counts - the green pill was drawn over "Requests Received" and hid the end of it: 57px of
+  overlap at 736px wide. The bar is a three-column grid now, the tabs centred in the middle
+  column and the pill given a column of its own, so the two cannot meet at any width.
+
 - **The count on the avatar keeps up with the list.** Answering a request took the row off the
   owner's own list but left the number on their avatar where it was, and only a reload put it
   right; the same was true of an answer given from the email link, of an upload that dropped a
@@ -619,6 +625,18 @@ landed on `main`.
 - **Clear filters** is now **Reset**.
 
 ### Added
+
+- **A house-placed stack shows in both lists.** The demo has a scenario now that moves one of
+  the visitor's furnishings into their house storage. House storage belongs to the account
+  rather than to a character, so the piece stays the one row the inventory already held - it is
+  not copied - and because that row is shared into the guild it stays in a guildmate's offers.
+  A re-save or a restock used to write the catalogue's location back and quietly carry the piece
+  out of the house again; `demoOwnShelf` now keeps the places its rows already sit in, the way
+  it keeps their counts. `test:demo-database` checks the row is in the owner's own list and in
+  `@NightMarket`'s offers, holding the same copies on both sides, with the `housestorage` key a
+  real scan of that house would match. The scenario asks the row whether it moved before it
+  says anything: the store leaves a stack where it is while somebody is waiting on it, so the
+  first run said a furnishing was in the house while it was still in the vault.
 
 - **The demo starts with each of the three answers already in its history.** A whole handover
   (`2`), one sent short (`1 of 2`) and a refusal (`0`) used to appear whenever a guildmate

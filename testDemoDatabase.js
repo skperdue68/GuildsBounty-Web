@@ -20,9 +20,10 @@ import mysql from 'mysql2/promise';
 import { openDatabase, readConfig } from './lib/database.js';
 import { DEMO_ACCOUNT, ensureDemoData } from './lib/demo.js';
 import { DEMO_CAST } from './lib/demoCast.js';
+import { DEMO_HOUSE } from './lib/demoItems.js';
 import { demoOwnShelf, restockDemoShelf } from './lib/demoShelf.js';
 import { refreshedShelf } from './lib/demoActivity.js';
-import { hashItemKey, replaceAccounts } from './lib/store.js';
+import { getSharedItemsForViewer, hashItemKey, replaceAccounts } from './lib/store.js';
 
 process.env.GUILDSBOUNTY_DATABASE = process.env.GUILDSBOUNTY_DATABASE || 'guildsbounty_demo_test';
 
@@ -142,6 +143,61 @@ t('a row saved out of the file leaves the shelf, and the restock brings it back'
   await restockDemoShelf(connection);
 
   assert.ok(byHash(await ownRows(), dropped), 'the restock puts a row the file stopped sharing back');
+});
+
+t("a stack in the house reads as the owner's row and as a guildmate's offer", async () => {
+  const placed = await demoOwnShelf(connection, { house: true });
+  const houseRow = placed.items.find((item) =>
+    String(item.locationKey || '').toLowerCase().startsWith('housestorage')
+  );
+
+  assert.ok(houseRow, 'the demo needs a furnishing it can put in the house');
+  assert.equal(
+    houseRow.locationLabel,
+    DEMO_HOUSE.locationLabel,
+    'and it has to be labelled the way the addon labels house storage'
+  );
+
+  const [written] = await replaceAccounts(connection, [placed], { sourceFile: 'test house' });
+
+  assert.ok(written, 'the file has to write');
+
+  // The owner's own list: one row, in the house, holding the copies the file reported.
+  const owner = await getSharedItemsForViewer(connection, [DEMO_ACCOUNT]);
+  const mine = owner.find(
+    (row) => row.item_name === houseRow.itemName && row.location_label === DEMO_HOUSE.locationLabel
+  );
+
+  assert.ok(mine, `${houseRow.itemName} has to be in the owner's own list`);
+  assert.equal(Number(mine.item_count), Number(houseRow.itemCount), 'with the count the file gave it');
+
+  // A guildmate's offers: the same row, not a copy of it under another account.
+  const offers = await getSharedItemsForViewer(connection, [DEMO_CAST[0].account]);
+  const seen = offers.find((row) => Number(row.id) === Number(mine.id));
+
+  assert.ok(seen, `and in ${DEMO_CAST[0].account}'s offers`);
+  assert.equal(Number(seen.item_count), Number(mine.item_count), 'offering the same copies');
+  assert.match(
+    String(seen.guild_names || ''),
+    /Alphabet Mafia/,
+    'because the row is shared into the demo guild'
+  );
+
+  const [scoped] = await connection.execute(
+    'SELECT item_scope, location_key FROM guildsbounty_shared_items WHERE id = ?',
+    [mine.id]
+  );
+
+  assert.match(
+    String(scoped[0].item_scope),
+    /^acct:/,
+    'house storage belongs to the account, so the piece is one row rather than two'
+  );
+  assert.equal(
+    scoped[0].location_key,
+    DEMO_HOUSE.locationKey,
+    'and the row carries the key a real scan of that house would match'
+  );
 });
 
 let failures = 0;
