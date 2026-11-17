@@ -22,6 +22,16 @@ landed on `main`.
 
 ### Fixed
 
+- **The demo's items have pictures.** Every demo row was a blank square: the demo writes its rows
+  from a catalogue rather than from an upload, and an upload is the only thing that ever resolves
+  an item's icon and caches the image. Asking UESP by the catalogue's own ids would not have
+  helped - those ids belong to other items (the one it gives for a Dwemer Frame is a tree) - so
+  the demo now borrows a picture per *kind* from the rows it copies out of the live database: a
+  weapon's icon on the weapons, a ring's on the jewelry, a furnishing's on the furnishing, and so
+  on. The images are cached into the demo database at the same moment, so they draw on the first
+  page rather than waiting for a later repair pass. A kind the live rows have nothing for stays a
+  blank square instead of borrowing somebody else's picture.
+
 - **The standing-offers bar no longer lands on top of the filter band and the search row.** It
   pinned as high as the tab bar - the line it was written to take over - so scrolling back up
   through a list put one line of words over the band and the search row, which read as the rows

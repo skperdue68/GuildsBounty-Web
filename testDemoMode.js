@@ -31,7 +31,7 @@ import {
   castEmail,
   ensureDemoCast,
 } from './lib/demoCast.js';
-import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer } from './lib/demoItems.js';
+import { DEMO_EXPIRE_DAYS, ITEMS, OFFERS, buildItem, buildOffer, iconKind } from './lib/demoItems.js';
 import {
   DEMO_ACTIVITY_SCENARIOS,
   demoActivityPause,
@@ -153,6 +153,21 @@ check('the demo guild is the one that was asked for, on PC and NA', () => {
     DEMO_LOGIN === 'demo@perdues.me' && DEMO_PASSWORD === 'demo@perdues.me',
     'the pair is demo@perdues.me / demo@perdues.me'
   );
+});
+
+check('a catalogue row borrows an icon of its own kind from the live rows', () => {
+  // The catalogue invents its item ids, so it cannot look a picture up by id: the demo takes one
+  // per kind from the rows it copies out of the live database. The two names a live upload and
+  // the catalogue disagree about are the ones that would silently borrow nothing.
+  assert(iconKind('Apparel') === 'armor', `apparel is armor to a live row, got ${iconKind('Apparel')}`);
+  assert(iconKind('Armor') === 'armor', `armor stays armor, got ${iconKind('Armor')}`);
+  assert(iconKind('Jewelry') === iconKind('jewellery'), 'jewelry is spelled both ways');
+  assert(iconKind('Furnishing') === 'furnishing', 'anything else keeps its own name');
+
+  const icon = '/esoui/art/icons/gear_breton_staff_d.dds';
+  assert(buildItem(ITEMS[0], 0, [DEMO_GUILD.id], { icon }).icon === icon, 'the path reaches the item row');
+  assert(buildOffer(OFFERS[0], 0, [DEMO_GUILD.id], { icon }).icon === icon, 'and an always-share row');
+  assert(buildItem(ITEMS[0], 0, [DEMO_GUILD.id]).icon === '', 'and a row with no kind over it stays blank');
 });
 
 check('the demo account is not the one seedDemo.js writes into real guilds', () => {
