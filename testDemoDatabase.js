@@ -19,11 +19,18 @@ import mysql from 'mysql2/promise';
 
 import { openDatabase, readConfig } from './lib/database.js';
 import { DEMO_ACCOUNT, ensureDemoData } from './lib/demo.js';
-import { DEMO_CAST } from './lib/demoCast.js';
+import { DEMO_CAST, castUserId } from './lib/demoCast.js';
 import { DEMO_HOUSE } from './lib/demoItems.js';
 import { demoOwnShelf, restockDemoShelf } from './lib/demoShelf.js';
-import { refreshedShelf } from './lib/demoActivity.js';
-import { getSharedItemsForViewer, hashItemKey, replaceAccounts } from './lib/store.js';
+import { DEMO_ACTIVITY_SCENARIOS, refreshedShelf, runDemoActivity } from './lib/demoActivity.js';
+import {
+  cancelOwnRequest,
+  createRequest,
+  getSharedItemsForViewer,
+  hashItemKey,
+  replaceAccounts,
+  submitDrafts,
+} from './lib/store.js';
 
 process.env.GUILDSBOUNTY_DATABASE = process.env.GUILDSBOUNTY_DATABASE || 'guildsbounty_demo_test';
 
@@ -198,6 +205,63 @@ t("a stack in the house reads as the owner's row and as a guildmate's offer", as
     DEMO_HOUSE.locationKey,
     'and the row carries the key a real scan of that house would match'
   );
+});
+
+t('a stack somebody is waiting on stays put, and the house scenario says nothing', async () => {
+  // Back to where the catalogue has it, so there is a move left to refuse.
+  await connection.execute(
+    `UPDATE guildsbounty_shared_items
+        SET location_key = 'demo:7',
+            location_label = 'Furnishing Vault (Hall of the Lunar Champion)'
+      WHERE account_name = ? AND item_name LIKE 'Alinor%'`,
+    [DEMO_ACCOUNT]
+  );
+
+  const [rows] = await connection.execute(
+    `SELECT id, location_key FROM guildsbounty_shared_items
+      WHERE account_name = ? AND item_name LIKE 'Alinor%'`,
+    [DEMO_ACCOUNT]
+  );
+  const before = rows[0];
+
+  // A real ask holding its only copy: the store leaves a stack somebody is waiting on alone.
+  const who = DEMO_CAST[0];
+  const requesterId = await castUserId(connection, who);
+  const ask = await createRequest(connection, {
+    userId: requesterId,
+    requesterAccounts: [who.account],
+    ownAccounts: [who.account],
+    itemKind: 'inventory',
+    itemId: before.id,
+    quantity: 1,
+    holdMinutes: 5,
+  });
+
+  // A draft alone is not somebody waiting: it becomes an ask when it is sent.
+  assert.equal(await submitDrafts(connection, { userId: requesterId }), 1, 'the ask has to be sent');
+
+  const at = DEMO_ACTIVITY_SCENARIOS.indexOf('house');
+  const outcome = await runDemoActivity(connection, {
+    random: () => (at + 0.5) / DEMO_ACTIVITY_SCENARIOS.length,
+  });
+
+  const [after] = await connection.execute(
+    'SELECT location_key FROM guildsbounty_shared_items WHERE id = ?',
+    [before.id]
+  );
+  const [holding] = await connection.execute(
+    `SELECT status FROM guildsbounty_requests
+      WHERE shared_item_id = ? AND item_kind = 'inventory' AND status IN ('pending', 'draft')
+      LIMIT 1`,
+    [before.id]
+  );
+
+  assert.ok(holding[0], 'the ask has to be holding the copy, otherwise nothing was refused');
+  assert.equal(after[0].location_key, before.location_key, 'the row has to stay where it is');
+  assert.notEqual(outcome?.kind, 'house', 'and nothing may be announced as moved into the house');
+
+  // Let the copy go, so the shelf is left the way a restock would leave it.
+  await cancelOwnRequest(connection, { userId: requesterId, requestId: ask.id, holdMinutes: 5 });
 });
 
 let failures = 0;

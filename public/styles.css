@@ -1511,6 +1511,17 @@ a.primary-button {
   margin-bottom: 0;
 }
 
+/* Live sits level with the line that counts what is shared, in the corner of the block that
+   pins over the tabs. It is here rather than in the tab bar because the tab bar has no room
+   beside it: four tabs with counts take the width of the card, and a pill laid over them
+   covers the last one. The block is `sticky`, so it is already a containing block for this. */
+.list-top .live-pill {
+  position: absolute;
+  right: 24px;
+  top: 15px;
+  margin-left: 0;
+}
+
 /* The tab bar pins under the site header while a long list scrolls beneath it, so an
    account with hundreds of rows never loses the way to the other tab. --sticky-top is the
    header's own height, measured in app.js: the header grows when a basket joins it, and a
@@ -1522,15 +1533,10 @@ a.primary-button {
   position: sticky;
   top: calc(var(--sticky-top, 0px) + var(--list-top-h, 0px));
   z-index: 12;
-  /* Three columns rather than a centred row with the pill laid over its right edge: the
-     pill was absolutely positioned, so as soon as the tabs grew to the width of the card -
-     a narrow window, labels wrapping to two lines - it was drawn on top of the last tab.
-     Equal side columns keep the tabs centred and give the pill room of its own at every
-     width, and `1fr` still lets it shrink below the pill when the tabs need the space. */
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  column-gap: 12px;
+  justify-content: center;
+  gap: 12px;
   /* The space below the tabs is padding rather than margin: the heading row pins directly
      under this bar, and a margin would leave a strip of scrolling rows between them. */
   margin-bottom: 0;
@@ -1540,36 +1546,13 @@ a.primary-button {
   border-bottom: 1px solid rgba(148, 163, 184, 0.18);
 }
 
-.list-head .tabs {
-  grid-column: 2;
-}
-
+/* Only used when there is no block above the tabs to put the pill in - a page with nothing
+   to count yet. It trails the tabs rather than floating over them, which is where it used to
+   be drawn and where the last tab went missing under it. */
 .list-head .live-pill {
-  grid-column: 3;
-  justify-self: end;
   position: static;
   transform: none;
   margin-left: 0;
-}
-
-/* The four tabs need most of the card before their labels wrap, and once they take the whole
-   width there is nothing left beside them for the pill. Below this the tab bar keeps its line
-   and the pill drops under it, right-aligned, rather than sitting on top of the last tab. */
-@media (max-width: 820px) {
-  .list-head {
-    grid-template-columns: minmax(0, 1fr);
-    row-gap: 6px;
-  }
-
-  .list-head .tabs {
-    grid-column: 1;
-    justify-self: center;
-  }
-
-  .list-head .live-pill {
-    grid-column: 1;
-    justify-self: end;
-  }
 }
 
 /* The search shares the line with the grouping switch: the box narrows the one table it is
@@ -1647,6 +1630,10 @@ a.primary-button {
    "how much is there for me here?", above the tabs and below the basket clock. */
 .offer-summary {
   margin: 0 0 14px;
+  /* Room for the Live pill in the block's top corner. The line is centred, so the space is
+     taken from both sides rather than shoving the text off centre; without it the count runs
+     under the pill once the window is narrow enough for it to wrap. */
+  padding-inline: 72px;
   text-align: center;
   font-size: 16px;
   font-weight: 800;

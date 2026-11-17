@@ -7,11 +7,12 @@ landed on `main`.
 
 ### Fixed
 
-- **The Live pill no longer sits on the last tab.** It was absolutely positioned against the
-  right edge of the tab bar, so as soon as the labels wrapped - a narrow window, four tabs with
-  counts - the green pill was drawn over "Requests Received" and hid the end of it: 57px of
-  overlap at 736px wide. The bar is a three-column grid now, the tabs centred in the middle
-  column and the pill given a column of its own, so the two cannot meet at any width.
+- **The Live pill moved out of the tab bar.** It was absolutely positioned against the bar's
+  right edge, so as soon as the labels wrapped - a narrow window, four tabs with counts - the
+  green pill was drawn over "Requests Received" and hid the end of it: 57px of overlap at 736px
+  wide. It now sits in the corner of the block that counts what is shared, level with that line
+  and out of the tab bar's way, and that line keeps room for it at both ends so the two cannot
+  meet at any width. It is not unattractive there either.
 
 - **The count on the avatar keeps up with the list.** Answering a request took the row off the
   owner's own list but left the number on their avatar where it was, and only a reload put it
@@ -636,7 +637,9 @@ landed on `main`.
   `@NightMarket`'s offers, holding the same copies on both sides, with the `housestorage` key a
   real scan of that house would match. The scenario asks the row whether it moved before it
   says anything: the store leaves a stack where it is while somebody is waiting on it, so the
-  first run said a furnishing was in the house while it was still in the vault.
+  first run said a furnishing was in the house while it was still in the vault. A second check
+  holds the only copy with a real, sent ask and confirms the row stays put and nothing is
+  announced.
 
 - **The demo starts with each of the three answers already in its history.** A whole handover
   (`2`), one sent short (`1 of 2`) and a refusal (`0`) used to appear whenever a guildmate
