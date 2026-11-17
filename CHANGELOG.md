@@ -32,11 +32,19 @@ landed on `main`.
   page rather than waiting for a later repair pass. A kind the live rows have nothing for stays a
   blank square instead of borrowing somebody else's picture.
 
-- **The standing-offers bar no longer lands on top of the filter band and the search row.** It
-  pinned as high as the tab bar - the line it was written to take over - so scrolling back up
-  through a list put one line of words over the band and the search row, which read as the rows
-  painting through the bars. It now pins under the whole stack, and below those bars in the
-  stacking order.
+  The pass also runs on every boot, not only while the catalogue is being written: a demo that
+  already had its rows kept its blank squares however often it was rebuilt, and a boot that could
+  not reach UESP left the picture path with no image behind it. Rows that already have a picture
+  are left alone, the pictures the rows point at are cached either way, and the boot log says what
+  happened - how many rows were filled, cached, unfetchable, or left blank for want of a live row
+  of that kind.
+
+- **The standing-offers bar no longer lands on top of the filter band and the search row, and no
+  longer pins in the wrong place.** It stays on the tab bar's line - the line it was written to
+  take over - but one step *under* the band and the search row, so scrolling back up through a
+  list takes it behind them instead of over them. An earlier attempt moved its pinning line below
+  the whole stack, which put it in the middle of the page and slid it up out of the way at the end
+  of its section; that is undone.
 
 - **The pinned heading copy no longer paints over the search row.** It sat a step above the search
   row in the stacking order and could be drawn across it where the two met. Every bar that hangs
