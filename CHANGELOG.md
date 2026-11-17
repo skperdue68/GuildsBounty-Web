@@ -31,6 +31,12 @@ landed on `main`.
 
 ### Fixed
 
+- **The demo shows its icons.** Its rows borrowed a picture per kind from the site's, but the
+  bytes lived in the site's icon cache while a demo page is answered from the demo's own - so
+  the rows carried paths and the tiles stayed blank. The pictures the site already holds are
+  now copied into the demo's cache at boot, and a row filled with a borrowed picture is given
+  that picture's cache key too, so the page has an image to build.
+
 - **The standing offers say it once, not twice.** The sentence above the table - "They will
   hand these out whenever they have one, one copy at a time" - repeated what every row
   already says under its name. It is gone; the bar that names the table is the whole

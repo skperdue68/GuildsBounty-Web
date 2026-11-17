@@ -988,6 +988,14 @@ item id: `esoitem.uesp.net/itemLink.php?itemid=...` first, then
 page carries no icon. Whichever answers travels the ordinary cache route, so nothing
 downstream knows the difference.
 
+**The demo has a cache of its own.** `guildsbounty-demo` is a separate database, and
+`/icons/<key>.png` is answered from whichever database the request belongs to - so a demo
+row draws only when the bytes are in the demo's copy of `guildsbounty_item_icons`, not the
+site's. Its catalogue borrows one picture per kind from the site's own rows (`repairDemoIcons`
+in `lib/demo.js`), and those pictures are copied across from the site's cache rather than
+asked of UESP a second time. A demo whose rows carry paths but whose tiles are blank is that
+copy being empty, not a missing path; the boot line names both counts.
+
 A blank icon never repairs itself, so the same pass also runs on a timer:
 `ICON_BACKFILL_INTERVAL_MS` (default 30 minutes, `0` turns it off) sets how often, and
 `ICON_BACKFILL_BATCH` (default 20) how many item ids one pass may look up. A pass looks
