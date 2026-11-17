@@ -3,6 +3,21 @@
 // Everything here is an enhancement. The logout form posts without scripts and the
 // filter form still submits on its own, so a failed script costs convenience only.
 
+// Answering a request is a form post, so the page comes back new and the reader used to land at
+// the top of it. Where they were is kept here across that load (see restoreScrollAfterAnswer),
+// and the browser's own idea of where to put a reload is switched off for that one load - it
+// restores the position of the page that is being replaced, one row above the answered one,
+// which would undo the restore a moment after it happened.
+const ANSWER_SCROLL_KEY = 'guildsbounty:scroll-after-answer';
+
+try {
+  if (window.sessionStorage.getItem(ANSWER_SCROLL_KEY)) {
+    window.history.scrollRestoration = 'manual';
+  }
+} catch (error) {
+  // Storage off: nothing was kept, so there is nothing to put back by hand.
+}
+
 const dropZone = document.getElementById('dropZone');
 const fileInput = document.getElementById('savedvars');
 const fileName = document.getElementById('fileName');
@@ -1855,6 +1870,63 @@ if (listRegion) {
     }
   }
 
+  // Fulfilled and Not fulfilled are form posts, and a form post is a page load: the list came
+  // back at the top, so a reader working down a column of requests had to scroll back after
+  // every one. The answered row is gone from the rebuilt list, so the place to keep is where
+  // that row *was* - everything under it moves up by its own height, which puts the next ask
+  // where the answered one had been.
+  function rememberScrollAfterAnswer(row) {
+    try {
+      window.sessionStorage.setItem(
+        ANSWER_SCROLL_KEY,
+        JSON.stringify({
+          y: window.scrollY,
+          row: row ? Math.round(row.getBoundingClientRect().height) : 0,
+          at: Date.now(),
+        })
+      );
+    } catch (error) {
+      // Private mode or storage off: the list starts at the top, as it used to.
+    }
+  }
+
+  function restoreScrollAfterAnswer() {
+    let saved = null;
+
+    try {
+      const raw = window.sessionStorage.getItem(ANSWER_SCROLL_KEY);
+
+      if (raw) {
+        window.sessionStorage.removeItem(ANSWER_SCROLL_KEY);
+        saved = JSON.parse(raw);
+      }
+    } catch (error) {
+      saved = null;
+    }
+
+    // Only for the reload that followed the answer itself: a position kept from an earlier visit
+    // would drag the page down for nothing. A page now shorter than the offset clamps on its own.
+    const fresh = saved && Date.now() - Number(saved.at || 0) < 30000;
+
+    if (!fresh || !(Number(saved.y) > 0)) {
+      return;
+    }
+
+    window.scrollTo(0, Math.max(0, Number(saved.y) + Number(saved.row || 0)));
+  }
+
+  document.addEventListener('submit', (event) => {
+    const form = event.target.closest ? event.target.closest('form.fulfill-row') : null;
+
+    // The modal answers with a fetch and keeps its own place; this is the list's own form,
+    // which navigates.
+    if (!form || form.getAttribute('action') !== '/owner/requests') {
+      return;
+    }
+
+    rememberScrollAfterAnswer(form.closest('tr'));
+  });
+
   // The bar is the only part of the header that depends on the basket, so it is the only
   // part that has to be rebuilt when the basket changes. The last item leaving takes it
   // away outright: a clock and a warning about unsent items mean nothing once nothing is
@@ -2903,6 +2975,8 @@ if (listRegion) {
       if (anchor) {
         restoreAnchor(anchor);
       }
+
+      restoreScrollAfterAnswer();
     });
   }
 }

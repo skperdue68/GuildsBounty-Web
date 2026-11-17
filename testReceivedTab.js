@@ -791,6 +791,52 @@ t('and the same on My Requests, which has two tables of its own', () => {
   assert.equal(box.wordOnTheTab(), 'hunting');
 });
 
+// Answering a request from the list is a form post, so the page comes back new. The reader has
+// just answered the row they were looking at, and the asks under it move up by one row: keeping
+// the old offset alone would leave them a row further down than they were.
+t('answering a request keeps the reader where they were', () => {
+  const app = read('public/app.js');
+  const start = app.indexOf('  function rememberScrollAfterAnswer(row) {');
+  const end = app.indexOf("  document.addEventListener('submit', (event) => {", start);
+
+  assert.ok(start > 0 && end > start, 'the answer scroll code is still in public/app.js');
+
+  const store = new Map();
+  const window = {
+    scrollY: 0,
+    scrollTo(x, y) {
+      this.scrollY = y === undefined ? x : y;
+    },
+    sessionStorage: {
+      getItem: (key) => (store.has(key) ? store.get(key) : null),
+      setItem: (key, value) => store.set(key, value),
+      removeItem: (key) => store.delete(key),
+    },
+  };
+
+  const built = new Function(
+    'window',
+    'ANSWER_SCROLL_KEY',
+    `${app.slice(start, end)}; return { rememberScrollAfterAnswer, restoreScrollAfterAnswer };`
+  )(window, 'guildsbounty:scroll-after-answer');
+
+  window.scrollY = 240;
+  built.rememberScrollAfterAnswer({ getBoundingClientRect: () => ({ height: 56 }) });
+  window.scrollY = 0;
+  built.restoreScrollAfterAnswer();
+
+  assert.equal(window.scrollY, 296, 'the row under the answered one takes its place');
+
+  window.scrollY = 0;
+  built.restoreScrollAfterAnswer();
+  assert.equal(window.scrollY, 0, 'the position is used for the answer, not for the next visit');
+
+  store.set('guildsbounty:scroll-after-answer', JSON.stringify({ y: 400, row: 40, at: Date.now() - 120000 }));
+  window.scrollY = 0;
+  built.restoreScrollAfterAnswer();
+  assert.equal(window.scrollY, 0, 'a position from an earlier visit is not applied');
+});
+
 console.log(`\n${total - failures}/${total} checks passed`);
 
 if (failures > 0) {
