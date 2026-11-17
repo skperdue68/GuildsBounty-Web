@@ -22,6 +22,24 @@ landed on `main`.
 
 ### Fixed
 
+- **The console's failed websocket is gone.** The page used to open a long-poll session
+  first and then ask Socket.IO to upgrade it, which a process that had restarted since - or
+  a second one behind the proxy - refused with 400 "Session ID unknown", so every restart
+  left a failed connection in the console before the page quietly reconnected. The page now
+  asks for a websocket directly, with no handshake to upgrade; the server still accepts
+  polling for a browser that cannot open one.
+- **Signing in as the demo person works again.** The sign-in step that tells the demo where
+  the site's own rows live was reading a variable that only exists in the startup function,
+  so it threw `config is not defined` and the browser was shown "The demo could not be
+  opened" instead of the demo. It reads the configured database name the way the rest of the
+  request-time code does.
+- **"Standing offers" sits on the table it names.** With nothing shared above it, the panel
+  drew the search box inside the offers table - under a heading and a sentence written out
+  above it - so the heading floated between the note and the search bar instead of naming
+  the table below it. The sentence and the heading are now handed to the table and drawn
+  under its search row, directly on its column headings, which is where they sit when a list
+  above the offers puts the search box there instead.
+
 - **The demo's pictures are read from the site's own rows, not only from the demo's copy of
   them.** The copy is rebuilt from the site on every start, so it is usually current - but a
   demo database that outlived a restart, or one copied before anybody had shared an item,

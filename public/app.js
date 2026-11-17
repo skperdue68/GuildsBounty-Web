@@ -2911,7 +2911,15 @@ if (listRegion) {
   // ------------------------------------------------------ end pending requests badge
 
   // ------------------------------------------------------------------- socket
-  const socket = typeof window.io === 'function' ? window.io({ withCredentials: true }) : null;
+  // Straight to a websocket, with no polling handshake to upgrade. Socket.IO otherwise opens a
+  // long-poll session first and then asks to upgrade it, and a process that has restarted since
+  // - or a second one behind the proxy - answers that upgrade with 400 "Session ID unknown",
+  // which lands in the console as a failed connection even though the page then reconnects. The
+  // server still offers polling for a browser that cannot open a websocket at all.
+  const socket =
+    typeof window.io === 'function'
+      ? window.io({ withCredentials: true, transports: ['websocket'] })
+      : null;
 
   if (socket) {
     socket.on('connect', () => {
